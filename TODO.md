@@ -20,7 +20,7 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 - [x] Armory turntable + stats/gimmick + locked Anomalies (live 3D, not a 256² RT)
 - [x] Roll machine is a real Plinko (Jolt pegs, rarity chosen before drop, color leak, settle then crack). Anomaly: 2s turntable cinematic
 - [x] Particle cap 1200 + launch trails (team-colored) on launched units
-- [x] Hitscan tracer line + muzzle flash; freeze/heal/pumpkin splat emitters still thin
+- [x] Hitscan tracer line + muzzle flash; freeze/heal/pumpkin splats use distinct atlas tiles
 - [x] Title demo: mixed Clubber / Lobber / Mammoth vs Squire / Archer / Deckhand
 - [x] ~12 hats; palettes include pumpkin/bone/royal/rust/moss/ink
 - [x] Armory: stats, gimmick, locked Anomalies, equipped cosmetics visible on the turntable

@@ -227,7 +227,7 @@ export function tickAura(sim: SimCtx, u: UnitInternal) {
         if (Math.hypot(o.x - u.x, o.z - u.z) > a.radius) continue;
         const before = o.hp;
         o.hp = Math.min(o.maxHp, o.hp + a.amount * 0.5);
-        if (o.hp > before && sparkles < 2) {
+        if (o.hp > before && sparkles < 6) {
           sparkles++;
           sim.events.push({ type: "splat", kind: "heal", x: o.x, y: o.y + 0.7, z: o.z });
         }
