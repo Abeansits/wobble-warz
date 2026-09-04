@@ -17,6 +17,7 @@ import { applyDamage, killUnit } from "./combat";
 import { ARENA_HALF_X, ARENA_HALF_Z, CORPSE_FADE, CORPSE_LIFE, FIXED_DT } from "./constants";
 import { EventRing, type SimEvent } from "./events";
 import { LAYER_PHASE, JoltWorld, type BodyHandle, type TransformSnap } from "./physics/joltWorld";
+export type { TransformSnap };
 import { mulberry32, type Rng } from "./rng";
 import type { Flying, PlaceOpts, Plank, SimCtx, Tombstone, TetherLink, UnitInternal } from "./unitTypes";
 import { poseGait } from "./poses";
@@ -119,6 +120,9 @@ export class World implements SimCtx {
   planks: Plank[] = [];
   debris: number[] = [];
   layout: Placement[] = [];
+  prevSnap: WorldSnapshot | null = null;
+  currSnap: WorldSnapshot | null = null;
+  renderAlpha = 1;
   private reinforceAt: [number | null, number | null] = [null, null];
   private windAt: [number | null, number | null] = [null, null];
   private potatoAt = 0;
@@ -270,6 +274,9 @@ export class World implements SimCtx {
     this.units = [];
     this.nextId = 1;
     this.time = 0;
+    this.prevSnap = null;
+    this.currSnap = null;
+    this.renderAlpha = 1;
     this.phase = "setup";
     this.winner = null;
     this.countdown = 0;
@@ -497,6 +504,12 @@ export class World implements SimCtx {
       this.fixedStep();
       this.acc -= FIXED_DT;
       steps++;
+    }
+    this.renderAlpha = Math.max(0, Math.min(1, this.acc / FIXED_DT));
+    if (steps > 0) {
+      this.prevSnap = this.currSnap;
+      this.currSnap = this.snapshot();
+      if (!this.prevSnap) this.prevSnap = this.currSnap;
     }
   }
 

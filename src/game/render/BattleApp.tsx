@@ -17,6 +17,8 @@ import { deployYaw } from "@/game/sim/facing";
 import { Hud } from "@/ui/Hud";
 import { TEAM } from "./palette";
 import { RecipeMesh } from "./RecipeMesh";
+import { posedSnapshot } from "./interp";
+import { renderFrame } from "./renderFrame";
 
 function SetupInput({ world }: { world: World }) {
   const selected = useGame((s) => s.selected);
@@ -113,8 +115,11 @@ function SimLoop({ world }: { world: World }) {
         }
         const ended = before !== "over" && world.phase === "over";
         const ticking = world.phase !== "setup" && world.phase !== "over";
-        if (ended || (ticking && frame.current % 2 === 0)) {
-          setSnapshot(world.snapshot());
+        if (ticking) renderFrame.snap = posedSnapshot(world);
+        if (ended || (ticking && frame.current % 6 === 0)) {
+          setSnapshot(world.currSnap ?? world.snapshot());
+        }
+        if (ended || ticking) {
           const ev = world.drainEvents();
           for (const e of ev) {
             if (e.type === "death") {

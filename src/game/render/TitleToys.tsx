@@ -4,6 +4,7 @@ import { startMeadow, stopMeadow } from "@/game/audio";
 import { deployYaw } from "@/game/sim/facing";
 import { World, type WorldSnapshot } from "@/game/sim/World";
 import { ArmyView } from "./ArmyView";
+import { posedSnapshot } from "./interp";
 import { Clouds, SkyDome } from "./SkyBits";
 import { MeadowProps, Terrain } from "./Terrain";
 
@@ -34,7 +35,7 @@ function DemoLoop({ world, onSnap }: { world: World; onSnap: (s: WorldSnapshot) 
     last.current = now;
     if (world.phase !== "over") world.step(dt, 1, false);
     else plant(world);
-    onSnap(world.snapshot());
+    onSnap(world.phase === "setup" || !world.currSnap ? world.snapshot() : posedSnapshot(world));
   });
   return null;
 }

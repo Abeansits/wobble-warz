@@ -40,7 +40,7 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 
 ## Wave D — stay inside the budgets
 
-- [ ] Render interpolation (accumulator alpha)
+- [x] Render interpolation (accumulator alpha)
 - [ ] Ragdoll LOD (4-body above 60 alive) + adaptive degrade ⚡
 - [ ] Corpse freeze already exists; hard cap 80
 - [ ] Zod `UnitDef`; `UnitDef.audio` keys; ban `Math.random` in `sim/`

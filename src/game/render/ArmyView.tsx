@@ -1,3 +1,4 @@
+import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { session } from "@/game/session";
@@ -7,7 +8,9 @@ import { getUnit } from "@/game/data/units";
 import type { WorldSnapshot } from "@/game/sim/World";
 import { useProfiles } from "@/game/meta/profiles";
 import { useGame } from "@/store/gameStore";
+import { posedSnapshot } from "./interp";
 import { COSMETIC_PALETTES, METAL, TEAM, WOOD } from "./palette";
+import { renderFrame } from "./renderFrame";
 import { useSettings } from "@/routes/settings";
 import { getCloth, getFace, getMetalTex, getRamp, getWood, type FaceMood } from "./textures";
 
@@ -128,6 +131,23 @@ type Batch = {
   color: string[];
 };
 
+function applyBatch(mesh: THREE.InstancedMesh, batch: { pos: number[]; quat: number[]; scale: number[]; color: string[] }) {
+  const n = batch.color.length;
+  const cap = mesh.instanceMatrix.count;
+  const count = Math.min(n, cap);
+  for (let i = 0; i < count; i++) {
+    _off.set(batch.pos[i * 3], batch.pos[i * 3 + 1], batch.pos[i * 3 + 2]);
+    _q.set(batch.quat[i * 4], batch.quat[i * 4 + 1], batch.quat[i * 4 + 2], batch.quat[i * 4 + 3]);
+    _s.setScalar(batch.scale[i]);
+    _m.compose(_off, _q, _s);
+    mesh.setMatrixAt(i, _m);
+    mesh.setColorAt(i, _c.set(batch.color[i]));
+  }
+  mesh.count = count;
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+}
+
 function BatchMesh({ batch }: { batch: Batch }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const n = batch.color.length;
@@ -135,20 +155,12 @@ function BatchMesh({ batch }: { batch: Batch }) {
   if (n > capRef.current) capRef.current = Math.max(n, capRef.current * 2);
   const cap = capRef.current;
   useLayoutEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    for (let i = 0; i < n; i++) {
-      _off.set(batch.pos[i * 3], batch.pos[i * 3 + 1], batch.pos[i * 3 + 2]);
-      _q.set(batch.quat[i * 4], batch.quat[i * 4 + 1], batch.quat[i * 4 + 2], batch.quat[i * 4 + 3]);
-      _s.setScalar(batch.scale[i]);
-      _m.compose(_off, _q, _s);
-      mesh.setMatrixAt(i, _m);
-      mesh.setColorAt(i, _c.set(batch.color[i]));
-    }
-    mesh.count = n;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    if (ref.current) applyBatch(ref.current, batch);
   }, [batch, n]);
+  useFrame(() => {
+    const live = renderFrame.batches.get(batch.key);
+    if (live && ref.current) applyBatch(ref.current, live);
+  });
   return (
     <instancedMesh
       key={cap}
@@ -193,12 +205,23 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
   const hideEnemy = useSettings((s) => s.blind);
   const blind = phase === "setup" && seat === "setupP2" && hideEnemy;
 
-  const { batches, picks, faces } = useMemo(() => {
+  function layoutFromUnits(
+    list: typeof units,
+    opts: {
+      blind: boolean;
+      placingSide: 0 | 1;
+      hat0?: string | null;
+      hat1?: string | null;
+      pal0?: string | null;
+      pal1?: string | null;
+    },
+  ) {
+    const { blind, placingSide, hat0, hat1, pal0, pal1 } = opts;
     const bag = new Map<string, Batch>();
     const picks: { id: number; x: number; y: number; z: number; side: 0 | 1 }[] = [];
     const faces: { x: number; y: number; z: number; qx: number; qy: number; qz: number; qw: number; mood: FaceMood; s: number }[] = [];
 
-    for (const u of units) {
+    for (const u of list) {
       const hidden = blind && u.side !== placingSide;
       const p0 = u.parts.torso ?? u.parts.pelvis ?? u.root;
       if (p0 && Number.isFinite(p0.x)) picks.push({ id: u.id, x: p0.x, y: p0.y, z: p0.z, side: u.side });
@@ -349,7 +372,32 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
       }
     }
     return { batches: [...bag.values()], picks, faces };
-  }, [units, blind, placingSide, hat0, hat1, pal0, pal1]);
+  }
+
+  const { batches, picks, faces } = useMemo(
+    () => layoutFromUnits(units, { blind, placingSide, hat0, hat1, pal0, pal1 }),
+    [units, blind, placingSide, hat0, hat1, pal0, pal1],
+  );
+
+  useFrame(() => {
+    const world = session.world;
+    if (!world || (snapshot?.phase ?? "setup") === "setup") {
+      renderFrame.snap = snapshot;
+      renderFrame.batches = new Map();
+      return;
+    }
+    const posed = posedSnapshot(world);
+    renderFrame.snap = posed;
+    const laid = layoutFromUnits(posed.units, {
+      blind: false,
+      placingSide,
+      hat0,
+      hat1,
+      pal0,
+      pal1,
+    });
+    renderFrame.batches = new Map(laid.batches.map((b) => [b.key, b]));
+  });
 
   return (
     <group>
