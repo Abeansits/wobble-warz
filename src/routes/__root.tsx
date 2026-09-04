@@ -31,7 +31,7 @@ export const Route = createRootRoute({
     ],
   }),
   component: () => (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="antialiased" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>

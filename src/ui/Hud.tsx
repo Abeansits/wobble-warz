@@ -11,6 +11,7 @@ import { useGame, type Speed } from "@/store/gameStore";
 import { deployYaw } from "@/game/sim/facing";
 import { useSettings } from "@/routes/settings";
 import { BUDGET_MAX, BUDGET_MIN, BUDGET_WARN } from "@/game/setup";
+import { ToyButton } from "@/ui/ToyButton";
 
 const SPEEDS: Speed[] = [0.25, 0.5, 1, 2];
 
@@ -277,23 +278,17 @@ export function Hud({ world }: { world: World }) {
     <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 text-ink md:p-4">
       <header className="pointer-events-auto flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            to="/"
-            className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-3 py-1 font-display text-lg"
-          >
-            Wobble Wars
-          </Link>
+          <ToyButton variant="secondary" size="sm" asChild>
+            <Link to="/">Wobble Wars</Link>
+          </ToyButton>
           {phase === "setup" && !vsAI && (
-            <Link
-              to="/play"
-              className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-1 text-sm font-display"
-            >
-              Change players
-            </Link>
+            <ToyButton variant="ghost" size="sm" asChild>
+              <Link to="/play">Change players</Link>
+            </ToyButton>
           )}
         </div>
         {phase === "setup" && (
-          <div className="toy-shadow flex gap-1 rounded-btn border-[3px] border-ink bg-cream p-1">
+          <div className="toy-shadow flex gap-1 rounded-[16px] border-[3px] border-ink bg-cream p-1">
             {ARENAS.map((a) => (
               <button
                 key={a.id}
@@ -303,7 +298,7 @@ export function Hud({ world }: { world: World }) {
                   world.setArena(a.id);
                   useGame.getState().setSnapshot(world.snapshot());
                 }}
-                className={`rounded-btn px-2 py-1 text-sm font-display ${arena === a.id ? "bg-ochre" : ""}`}
+                className={`min-h-11 rounded-btn px-3 py-2 text-sm font-display transition-colors duration-150 ${arena === a.id ? "bg-ochre-hot" : "hover:bg-parchment"}`}
               >
                 {a.name.split(" ")[0]}
               </button>
@@ -503,77 +498,70 @@ export function Hud({ world }: { world: World }) {
 
       <footer className="pointer-events-auto flex flex-wrap items-end justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <div className="toy-shadow flex gap-1 rounded-btn border-[3px] border-ink bg-cream p-1">
-          <button type="button" className="rounded-btn px-3 py-2 font-display" onClick={() => setPaused(!paused)}>
-            {paused ? "Play" : "Pause"}
-          </button>
-          {SPEEDS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setSpeed(s)}
-              className={`rounded-btn px-3 py-2 font-display ${speed === s ? "bg-ochre" : ""}`}
-            >
-              {s}×
+          <div className="toy-shadow flex gap-1 rounded-[16px] border-[3px] border-ink bg-cream p-1">
+            <button type="button" className="min-h-11 rounded-btn px-3 py-2 font-display hover:bg-parchment" onClick={() => setPaused(!paused)}>
+              {paused ? "Play" : "Pause"}
             </button>
-          ))}
+            {SPEEDS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSpeed(s)}
+                className={`min-h-11 rounded-btn px-3 py-2 font-display tabular-nums transition-colors duration-150 ${speed === s ? "bg-ochre-hot" : "hover:bg-parchment"}`}
+              >
+                {s}×
+              </button>
+            ))}
           </div>
           <p className="text-xs text-cream drop-shadow-[2px_2px_0_#1c1710]">
             Right-drag turn · wheel zoom · WASD move · Q/E spin · R reset
           </p>
-          <div className="toy-shadow flex gap-1 rounded-btn border-[3px] border-ink bg-cream p-1">
-            <button type="button" className="rounded-btn px-2 py-1 font-display" onClick={() => useGame.getState().bumpCam("yaw", -0.35)}>
-              ⟲
-            </button>
-            <button type="button" className="rounded-btn px-2 py-1 font-display" onClick={() => useGame.getState().bumpCam("yaw", 0.35)}>
-              ⟳
-            </button>
-            <button type="button" className="rounded-btn px-2 py-1 font-display" onClick={() => useGame.getState().bumpCam("pitch", -0.18)}>
-              tilt
-            </button>
-            <button type="button" className="rounded-btn px-2 py-1 font-display" onClick={() => useGame.getState().bumpCam("pitch", 0.18)}>
-              top
-            </button>
-            <button type="button" className="rounded-btn px-2 py-1 font-display" onClick={() => useGame.getState().bumpCam("zoom", -4)}>
-              +
-            </button>
-            <button type="button" className="rounded-btn px-2 py-1 font-display" onClick={() => useGame.getState().bumpCam("zoom", 4)}>
-              −
-            </button>
-            <button type="button" className="rounded-btn px-2 py-1 font-display" onClick={() => useGame.getState().bumpCam("reset")}>
-              reset
-            </button>
+          <div className="toy-shadow flex gap-1 rounded-[16px] border-[3px] border-ink bg-cream p-1">
+            {(
+              [
+                ["⟲", () => useGame.getState().bumpCam("yaw", -0.35), "Yaw left"],
+                ["⟳", () => useGame.getState().bumpCam("yaw", 0.35), "Yaw right"],
+                ["tilt", () => useGame.getState().bumpCam("pitch", -0.18), "Tilt"],
+                ["top", () => useGame.getState().bumpCam("pitch", 0.18), "Top down"],
+                ["+", () => useGame.getState().bumpCam("zoom", -4), "Zoom in"],
+                ["−", () => useGame.getState().bumpCam("zoom", 4), "Zoom out"],
+                ["reset", () => useGame.getState().bumpCam("reset"), "Reset camera"],
+              ] as const
+            ).map(([label, fn, title]) => (
+              <button
+                key={title}
+                type="button"
+                title={title}
+                onClick={fn}
+                className="min-h-11 rounded-btn px-2.5 py-1 font-display hover:bg-parchment"
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {seat === "setupP1" && phase === "setup" && (
             <>
-              <button
-                type="button"
-                onClick={clearField}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
-              >
+              <ToyButton variant="ghost" size="sm" onClick={clearField}>
                 Clear
-              </button>
-              <button
-                type="button"
-                onClick={undoSide}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
-              >
+              </ToyButton>
+              <ToyButton variant="ghost" size="sm" onClick={undoSide}>
                 Undo
-              </button>
-              <button
-                type="button"
+              </ToyButton>
+              <ToyButton
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   world.mirrorSide(0);
                   useGame.getState().setSnapshot(world.snapshot());
                 }}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
               >
                 Flip
-              </button>
-              <button
-                type="button"
+              </ToyButton>
+              <ToyButton
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   const units = world.units
                     .filter((u) => u.side === 0)
@@ -582,12 +570,12 @@ export function Hud({ world }: { world: World }) {
                   useProfiles.getState().saveArmy(who, "Hot-seat", units);
                   setMessage("Army saved.");
                 }}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
               >
                 Save
-              </button>
-              <button
-                type="button"
+              </ToyButton>
+              <ToyButton
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   const who = placingSide === 0 ? p1 : p2;
                   const army = who?.armies?.[0];
@@ -606,40 +594,32 @@ export function Hud({ world }: { world: World }) {
                   useGame.getState().setSnapshot(world.snapshot());
                   setMessage(`Loaded ${army.name}.`);
                 }}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
               >
                 Load
-              </button>
-              <button
-                type="button"
-                onClick={readyP1}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-5 py-2 font-display text-xl"
-              >
+              </ToyButton>
+              <ToyButton variant="primary" size="lg" onClick={readyP1}>
                 Ready
-              </button>
+              </ToyButton>
             </>
           )}
           {seat === "setupP2" && phase === "setup" && (
             <>
-              <button
-                type="button"
-                onClick={undoSide}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
-              >
+              <ToyButton variant="ghost" size="sm" onClick={undoSide}>
                 Undo
-              </button>
-              <button
-                type="button"
+              </ToyButton>
+              <ToyButton
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   world.mirrorSide(1);
                   useGame.getState().setSnapshot(world.snapshot());
                 }}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
               >
                 Flip
-              </button>
-              <button
-                type="button"
+              </ToyButton>
+              <ToyButton
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   const units = world.units
                     .filter((u) => u.side === 1)
@@ -648,12 +628,12 @@ export function Hud({ world }: { world: World }) {
                   useProfiles.getState().saveArmy(who, "Hot-seat", units);
                   setMessage("Army saved.");
                 }}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
               >
                 Save
-              </button>
-              <button
-                type="button"
+              </ToyButton>
+              <ToyButton
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   const who = p2;
                   const army = who?.armies?.[0];
@@ -672,17 +652,12 @@ export function Hud({ world }: { world: World }) {
                   useGame.getState().setSnapshot(world.snapshot());
                   setMessage(`Loaded ${army.name}.`);
                 }}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
               >
                 Load
-              </button>
-              <button
-                type="button"
-                onClick={go}
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-5 py-2 font-display text-xl"
-              >
+              </ToyButton>
+              <ToyButton variant="primary" size="lg" onClick={go}>
                 GO
-              </button>
+              </ToyButton>
             </>
           )}
           {phase === "countdown" && (
@@ -742,48 +717,41 @@ export function Hud({ world }: { world: World }) {
           <div className="toy-shadow w-full max-w-sm rounded-card border-[3px] border-ink bg-cream p-5 text-ink">
             <h2 className="font-display text-3xl">Paused</h2>
             <div className="mt-4 flex flex-col gap-2">
-              <button
-                type="button"
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-4 py-2 font-display"
+              <ToyButton
+                variant="primary"
                 onClick={() => {
                   useGame.getState().setMenuOpen(false);
                   useGame.getState().setPaused(false);
                 }}
               >
                 Resume
-              </button>
-              <button
-                type="button"
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display"
-                onClick={restartOrRematch}
-              >
+              </ToyButton>
+              <ToyButton variant="ghost" onClick={restartOrRematch}>
                 {phase === "setup" && world.layout.length === 0 ? "Restart" : "Rematch"}
-              </button>
-              <button
-                type="button"
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display"
-                onClick={surrender}
-              >
+              </ToyButton>
+              <ToyButton variant="ghost" onClick={surrender}>
                 Surrender
-              </button>
-              <Link
-                to="/settings"
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display text-center"
-                onClick={(e) => {
-                  if (phase !== "setup" && !window.confirm("Leave this fight?")) e.preventDefault();
-                }}
-              >
-                Settings
-              </Link>
-              <Link
-                to="/"
-                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display text-center"
-                onClick={(e) => {
-                  if (phase !== "setup" && !window.confirm("Leave this fight?")) e.preventDefault();
-                }}
-              >
-                Quit to title
-              </Link>
+              </ToyButton>
+              <ToyButton variant="ghost" asChild>
+                <Link
+                  to="/settings"
+                  onClick={(e) => {
+                    if (phase !== "setup" && !window.confirm("Leave this fight?")) e.preventDefault();
+                  }}
+                >
+                  Settings
+                </Link>
+              </ToyButton>
+              <ToyButton variant="ghost" asChild>
+                <Link
+                  to="/"
+                  onClick={(e) => {
+                    if (phase !== "setup" && !window.confirm("Leave this fight?")) e.preventDefault();
+                  }}
+                >
+                  Quit to title
+                </Link>
+              </ToyButton>
             </div>
           </div>
         </div>
@@ -804,13 +772,9 @@ function PassCurtain({ onDone }: { onDone: () => void }) {
       <p className="mt-3 max-w-sm text-center text-lg text-cream/80">
         Look away. P1's army will be silhouettes only.
       </p>
-      <button
-        type="button"
-        onClick={onDone}
-        className="toy-shadow mt-6 rounded-btn border-[3px] border-ink bg-ochre-hot px-6 py-3 font-display text-2xl text-ink"
-      >
+      <ToyButton variant="primary" size="lg" className="mt-6" onClick={onDone}>
         I'm P2
-      </button>
+      </ToyButton>
     </div>
   );
 }
@@ -963,38 +927,24 @@ function ResultsCard({
           MVP: {stats.mvpName} ({stats.mvpSide === 0 ? "P1" : "P2"})
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onRematch}
-            className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-4 py-2 font-display"
-          >
+          <ToyButton variant="primary" onPointerDown={(e) => e.stopPropagation()} onClick={onRematch}>
             Rematch
-          </button>
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onNew}
-            className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display"
-          >
+          </ToyButton>
+          <ToyButton variant="ghost" onPointerDown={(e) => e.stopPropagation()} onClick={onNew}>
             New armies
-          </button>
+          </ToyButton>
           {canRoll && (
-            <Link
-              to="/roll"
-              onPointerDown={(e) => e.stopPropagation()}
-              className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display"
-            >
-              Roll
-            </Link>
+            <ToyButton variant="secondary" asChild>
+              <Link to="/roll" onPointerDown={(e) => e.stopPropagation()}>
+                Roll
+              </Link>
+            </ToyButton>
           )}
-          <Link
-            to="/"
-            onPointerDown={(e) => e.stopPropagation()}
-            className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display"
-          >
-            Menu
-          </Link>
+          <ToyButton variant="secondary" asChild>
+            <Link to="/" onPointerDown={(e) => e.stopPropagation()}>
+              Menu
+            </Link>
+          </ToyButton>
         </div>
       </div>
     </div>

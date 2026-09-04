@@ -1,6 +1,7 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { startHotseat } from "@/game/meta/hotseat";
+import { ToyButton } from "@/ui/ToyButton";
 import { useProfiles } from "@/game/meta/profiles";
 
 export const Route = createFileRoute("/play")({
@@ -40,17 +41,13 @@ function PlayProfiles() {
           Credits are the toy-money you earn after a fight.
         </p>
 
-        <div className="mt-6 flex gap-3">
-          <button
-            type="button"
-            onClick={start}
-            className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-6 py-3 font-display text-2xl text-ink"
-          >
+        <div className="mt-6 flex flex-wrap gap-3">
+          <ToyButton variant="primary" size="lg" onClick={start}>
             To the meadow
-          </button>
-          <Link to="/" className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-4 py-3 font-display text-ink">
-            Back
-          </Link>
+          </ToyButton>
+          <ToyButton variant="secondary" size="lg" asChild>
+            <Link to="/">Back</Link>
+          </ToyButton>
         </div>
         {note && <p className="mt-3 text-sm text-cream/85">{note}</p>}
 

@@ -21,6 +21,11 @@
   --radius-btn: 12px;
 
   --shadow-toy: 4px 4px 0 #1c1710;
+  --shadow-toy-hover: 6px 6px 0 #1c1710;
+  --shadow-toy-press: 1px 1px 0 #1c1710;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-quick: 150ms;
 }
 
 @layer base {
@@ -35,11 +40,26 @@
     min-height: 100%;
   }
 
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
     margin: 0;
     background: var(--color-meadow-deep);
     color: var(--color-ink);
     font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 }
 
@@ -48,8 +68,35 @@
 }
 
 @utility toy-press {
-  transition: transform 120ms ease;
+  box-shadow: var(--shadow-toy);
+  transition-property: transform, box-shadow;
+  transition-duration: var(--motion-quick);
+  transition-timing-function: var(--ease-out);
 }
 @utility toy-press-active {
   transform: scale(0.96);
+}
+
+.toy-press:not(:disabled):hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-toy-hover);
+}
+.toy-press:not(:disabled):active {
+  transform: translate(3px, 3px) scale(0.98);
+  box-shadow: var(--shadow-toy-press);
+}
+
+.toy-press.border-0:hover,
+.toy-press.border-0:active {
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toy-press {
+    transition: none;
+  }
+  .toy-press:not(:disabled):hover,
+  .toy-press:not(:disabled):active {
+    transform: none;
+  }
 }
