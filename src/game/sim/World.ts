@@ -406,7 +406,7 @@ export class World implements SimCtx {
     this.phase = "countdown";
     this.countdown = 3;
     this.planted = false;
-    this.plantT = 0.45;
+    this.plantT = 0.7;
     this.plantGravity = false;
     this.startingHp = [0, 0];
     this.applyPowerups(powerups);
@@ -545,6 +545,18 @@ export class World implements SimCtx {
     }
   }
 
+  private idlePose(u: UnitInternal) {
+    return {
+      time: 0,
+      gait: "idle" as const,
+      swingT: 0,
+      swingDur: 0.35,
+      phase: u.id * 0.73,
+      kind: u.def.body.kind,
+      charging: false,
+    };
+  }
+
   private wakePlanted() {
     if (this.planted) return;
     this.planted = true;
@@ -552,19 +564,12 @@ export class World implements SimCtx {
       if (u.gone || u.state === "dead") continue;
       this.physics.wakeUnit(u.ragdoll, 0);
       this.physics.beginPlant(u.ragdoll);
-      this.physics.drivePose(u.ragdoll, {
-        time: 0,
-        gait: "idle",
-        swingT: 0,
-        swingDur: 0.35,
-        phase: u.id * 0.73,
-        kind: u.def.body.kind,
-        charging: false,
-      });
+      this.physics.snapPose(u.ragdoll, this.idlePose(u));
+      this.physics.uprightPelvis(u.ragdoll, u.yaw);
     }
   }
 
-  /** Gravity off, motors on — hold spawn pose so GO doesn't crumple. */
+  /** Gravity off, hips locked — hold spawn pose so GO doesn't crumple. */
   private settleStance(dt: number) {
     this.wakePlanted();
     this.acc += dt;
@@ -572,15 +577,8 @@ export class World implements SimCtx {
     while (this.acc >= FIXED_DT && steps < 4) {
       for (const u of this.units) {
         if (u.gone || u.state === "dead") continue;
-        this.physics.drivePose(u.ragdoll, {
-          time: 0,
-          gait: "idle",
-          swingT: 0,
-          swingDur: 0.35,
-          phase: u.id * 0.73,
-          kind: u.def.body.kind,
-          charging: false,
-        });
+        this.physics.drivePose(u.ragdoll, this.idlePose(u));
+        this.physics.uprightPelvis(u.ragdoll, u.yaw);
         this.physics.moveKinematic(u.ragdoll.rootBody, u.x, u.y, u.z, u.yaw, FIXED_DT);
       }
       this.physics.step(FIXED_DT);
@@ -597,19 +595,13 @@ export class World implements SimCtx {
     const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
     if (this.phase === "setup" || this.phase === "over" || this.phase === "countdown") return;
     this.wakePlanted();
-    if (!this.plantGravity) {
-      this.plantGravity = true;
-      for (const u of this.units) {
-        if (u.gone || u.state === "dead") continue;
-        this.physics.wakeUnit(u.ragdoll, 0.85);
-        this.physics.beginPlant(u.ragdoll);
-      }
-    }
     if (this.plantT > 0) {
       this.plantT -= FIXED_DT;
-      if (this.plantT <= 0) {
+      if (this.plantT <= 0 && !this.plantGravity) {
+        this.plantGravity = true;
         for (const u of this.units) {
           if (u.gone || u.state === "dead") continue;
+          this.physics.wakeUnit(u.ragdoll, 0.35);
           this.physics.endPlant(u.ragdoll);
         }
       }
@@ -729,6 +721,7 @@ export class World implements SimCtx {
         kind: u.def.body.kind,
         charging: u.charging,
       });
+      this.physics.uprightPelvis(u.ragdoll, u.yaw);
       this.physics.moveKinematic(u.ragdoll.rootBody, u.x, u.y, u.z, u.yaw, FIXED_DT);
 
       if (Math.abs(u.x) > ARENA_HALF_X + 4 || Math.abs(u.z) > ARENA_HALF_Z + 4) {

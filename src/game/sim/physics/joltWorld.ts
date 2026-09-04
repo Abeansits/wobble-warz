@@ -3,9 +3,12 @@ import { yawOffset } from "../facing";
 import {
   JOINT_COUNT,
   eulerToQuat,
+  identQuat,
   poseJoints,
+  quatMul,
   type JointEuler,
   type PoseRequest,
+  type Quat,
 } from "../poses";
 import {
   BONE_ALIASES,
@@ -20,6 +23,10 @@ export type JoltModule = Awaited<ReturnType<(typeof import("jolt-physics"))["def
 export const LAYER_STATIC = 0;
 export const LAYER_MOVING = 1;
 export const LAYER_PHASE = 2;
+/** Kinematic puppet stick. Must not collide with ragdoll parts on LAYER_MOVING. */
+export const LAYER_ROOT = 3;
+const OBJECT_LAYERS = 4;
+const BROADPHASE_LAYERS = 2;
 
 export type BodyHandle = number;
 
@@ -47,18 +54,22 @@ export type BuiltRagdoll = {
   twistTorque: number;
   alive: boolean;
   kind: UnitDef["body"]["kind"];
+  /** Spawn joint rotations. Animation is applied on top so yawed beasts don't fold. */
+  bindRot: Quat[];
 };
 
 export type { PoseRequest };
 
-/** Weak motors: poses are suggestions so the ragdoll still wobbles. */
-const POSE_MOTOR_FREQ = 3.4;
-const POSE_MOTOR_DAMP = 1.2;
-const POSE_SWING_TORQUE = 13;
-const POSE_TWIST_TORQUE = 8;
-const PLANT_SWING_TORQUE = 26;
+/** Soft enough to wobble, stiff enough that gravity can't rest on the joint stops. */
+const POSE_MOTOR_FREQ = 14;
+const POSE_MOTOR_DAMP = 2;
+const POSE_SWING_TORQUE = 55;
+const POSE_TWIST_TORQUE = 30;
+const PLANT_SWING_TORQUE = 80;
 const LAUNCH_SPRING_FREQ = 1.15;
 const LAUNCH_MOTOR_TORQUE = 0.35;
+const STAND_GRAVITY = 0.35;
+const LAUNCH_GRAVITY = 1;
 
 /**
  * Thin Jolt adapter. Temporary `new Jolt.*` objects are destroyed after use;
@@ -93,25 +104,27 @@ export class JoltWorld {
     const settings = new Jolt.JoltSettings();
     settings.mMaxWorkerThreads = 0;
 
-    const objectFilter = new Jolt.ObjectLayerPairFilterTable(3);
+    const objectFilter = new Jolt.ObjectLayerPairFilterTable(OBJECT_LAYERS);
     objectFilter.EnableCollision(LAYER_STATIC, LAYER_MOVING);
     objectFilter.EnableCollision(LAYER_MOVING, LAYER_MOVING);
     objectFilter.EnableCollision(LAYER_STATIC, LAYER_PHASE);
+    objectFilter.EnableCollision(LAYER_STATIC, LAYER_ROOT);
 
     const bpStatic = new Jolt.BroadPhaseLayer(0);
     const bpMoving = new Jolt.BroadPhaseLayer(1);
-    const bpInterface = new Jolt.BroadPhaseLayerInterfaceTable(3, 2);
+    const bpInterface = new Jolt.BroadPhaseLayerInterfaceTable(OBJECT_LAYERS, BROADPHASE_LAYERS);
     bpInterface.MapObjectToBroadPhaseLayer(LAYER_STATIC, bpStatic);
     bpInterface.MapObjectToBroadPhaseLayer(LAYER_MOVING, bpMoving);
     bpInterface.MapObjectToBroadPhaseLayer(LAYER_PHASE, bpMoving);
+    bpInterface.MapObjectToBroadPhaseLayer(LAYER_ROOT, bpMoving);
 
     settings.mObjectLayerPairFilter = objectFilter;
     settings.mBroadPhaseLayerInterface = bpInterface;
     settings.mObjectVsBroadPhaseLayerFilter = new Jolt.ObjectVsBroadPhaseLayerFilterTable(
       bpInterface,
-      2,
+      BROADPHASE_LAYERS,
       objectFilter,
-      3,
+      OBJECT_LAYERS,
     );
 
     this.jolt = new Jolt.JoltInterface(settings);
@@ -241,7 +254,7 @@ export class JoltWorld {
     return handle;
   }
 
-  createKinematicCapsule(x: number, y: number, z: number, halfHeight: number, radius: number, layer = LAYER_MOVING) {
+  createKinematicCapsule(x: number, y: number, z: number, halfHeight: number, radius: number, layer = LAYER_ROOT) {
     const Jolt = this.Jolt;
     const shape = new Jolt.CapsuleShape(halfHeight, radius);
     const settings = new Jolt.BodyCreationSettings(
@@ -436,6 +449,11 @@ export class JoltWorld {
     pose.SetSkeleton(skeleton);
     ragdoll.GetPose(pose);
     pose.CalculateJointMatrices();
+    const bindRot: Quat[] = [];
+    for (let i = 0; i < pose.GetJointCount(); i++) {
+      const r = pose.GetJoint(i).mRotation;
+      bindRot.push({ qx: r.GetX(), qy: r.GetY(), qz: r.GetZ(), qw: r.GetW() });
+    }
 
     const orderedIds: BodyHandle[] = [];
     const bodyIds: Record<string, BodyHandle> = {};
@@ -449,18 +467,18 @@ export class JoltWorld {
     if (bodyIds.pelvis != null && bodyIds.torso == null) bodyIds.torso = bodyIds.pelvis;
 
     const lift = layout.rootLift * s;
-    const rootBody = this.createKinematicCapsule(x, y + lift, z, layout.rootHalf * s, layout.rootRadius * s, layer);
+    const rootBody = this.createKinematicCapsule(x, y + lift, z, layout.rootHalf * s, layout.rootRadius * s, LAYER_ROOT);
     this.setRotation(rootBody, yaw);
 
-    const springFreq = Math.max(8, def.body.springStiffness * 0.7);
+    const springFreq = Math.max(16, def.body.springStiffness * 0.7 * Math.sqrt(mass / 8));
     const springSettings = new Jolt.DistanceConstraintSettings();
     springSettings.mSpace = Jolt.EConstraintSpace_WorldSpace;
     springSettings.mPoint1 = this.rv(x, y + lift, z);
     springSettings.mPoint2 = this.rv(x, y + lift, z);
-    springSettings.mMinDistance = 0.02;
-    springSettings.mMaxDistance = layout.springSlack * s;
+    springSettings.mMinDistance = 0;
+    springSettings.mMaxDistance = Math.min(0.08, layout.springSlack * s);
     springSettings.mLimitsSpringSettings.mFrequency = springFreq;
-    springSettings.mLimitsSpringSettings.mDamping = 0.55;
+    springSettings.mLimitsSpringSettings.mDamping = 0.75;
 
     const rootId = this.wrapId(rootBody);
     const pelvisId = this.wrapId(bodyIds.pelvis);
@@ -490,6 +508,7 @@ export class JoltWorld {
       twistTorque,
       alive: true,
       kind: layout.kind,
+      bindRot,
     };
     this.ownedRagdolls.push(built);
     this.sleepUnit(built);
@@ -532,6 +551,33 @@ export class JoltWorld {
       this.Jolt.destroy(id);
     } catch {
       /* body already gone */
+    }
+  }
+
+  /** Pelvis has no parent joint — lock yaw so gravity can't bow the whole toy. */
+  uprightPelvis(built: BuiltRagdoll, yaw: number) {
+    if (!built.alive) return;
+    const pelvis = built.bodyIds.pelvis;
+    if (pelvis == null) return;
+    this.holdUpright(pelvis, yaw);
+  }
+
+  /** One-shot teleport to the pose. Root offset must match the stick or SetPose folds them. */
+  snapPose(built: BuiltRagdoll, req?: PoseRequest) {
+    if (!built.alive) return;
+    this.drivePose(built, req);
+    const t: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
+    this.getTransform(built.rootBody, t);
+    try {
+      built.pose.SetRootOffset(this.rv(t.x, t.y, t.z));
+      built.pose.CalculateJointMatrices();
+      built.ragdoll.SetPose(built.pose);
+    } catch {
+      /* ragdoll already gone */
+    }
+    for (const id of built.orderedIds) {
+      this.setLinearVelocity(id, 0, 0, 0);
+      this.setAngularVelocity(id, 0, 0, 0);
     }
   }
 
@@ -696,7 +742,7 @@ export class JoltWorld {
     }
   }
 
-  wakeUnit(built: BuiltRagdoll, gravity = 0.85) {
+  wakeUnit(built: BuiltRagdoll, gravity = STAND_GRAVITY) {
     if (!built.alive) return;
     for (const id of built.orderedIds) {
       this.setGravityFactor(id, gravity);
@@ -824,7 +870,9 @@ export class JoltWorld {
   writePose(built: BuiltRagdoll, joints: JointEuler[]) {
     const n = Math.min(built.pose.GetJointCount(), joints.length);
     for (let i = 0; i < n; i++) {
-      const q = eulerToQuat(joints[i].x, joints[i].y, joints[i].z);
+      const anim = eulerToQuat(joints[i].x, joints[i].y, joints[i].z);
+      const bind = built.bindRot[i] ?? identQuat();
+      const q = quatMul(bind, anim);
       built.pose.GetJoint(i).mRotation.Set(q.qx, q.qy, q.qz, q.qw);
     }
     built.pose.CalculateJointMatrices();
@@ -835,6 +883,7 @@ export class JoltWorld {
     this.setSpringEnabled(built, false);
     this.setSpringFreq(built, LAUNCH_SPRING_FREQ);
     this.setMotorTorque(built, LAUNCH_MOTOR_TORQUE, true);
+    for (const id of built.orderedIds) this.setGravityFactor(id, LAUNCH_GRAVITY);
   }
 
   endLaunch(built: BuiltRagdoll) {
@@ -842,6 +891,7 @@ export class JoltWorld {
     this.setSpringFreq(built, built.springFreq);
     this.setSpringEnabled(built, true);
     this.setMotorTorque(built, built.swingTorque, false);
+    for (const id of built.orderedIds) this.setGravityFactor(id, STAND_GRAVITY);
   }
 
   /** Cheer aura: multiply the bind spring. Skip if the ragdoll is mid-launch. */

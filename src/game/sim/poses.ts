@@ -59,6 +59,24 @@ export function eulerToQuat(x: number, y: number, z: number) {
   };
 }
 
+export type Quat = { qx: number; qy: number; qz: number; qw: number };
+
+const IDENT: Quat = { qx: 0, qy: 0, qz: 0, qw: 1 };
+
+/** Hamilton product `a * b` — apply b in a's local frame. */
+export function quatMul(a: Quat, b: Quat): Quat {
+  return {
+    qx: a.qw * b.qx + a.qx * b.qw + a.qy * b.qz - a.qz * b.qy,
+    qy: a.qw * b.qy - a.qx * b.qz + a.qy * b.qw + a.qz * b.qx,
+    qz: a.qw * b.qz + a.qx * b.qy - a.qy * b.qx + a.qz * b.qw,
+    qw: a.qw * b.qw - a.qx * b.qx - a.qy * b.qy - a.qz * b.qz,
+  };
+}
+
+export function identQuat(): Quat {
+  return { ...IDENT };
+}
+
 function zero(j: JointEuler) {
   j.x = 0;
   j.y = 0;
