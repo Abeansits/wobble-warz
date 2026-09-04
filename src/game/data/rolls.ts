@@ -4,7 +4,21 @@ export const POWERUPS = [
   { id: "pockets", name: "Deep Pockets", blurb: "+15% budget this fight.", rarity: "common" },
   { id: "iron", name: "Iron Skin", blurb: "Your toys get +20% HP.", rarity: "common" },
   { id: "boots", name: "Big Boots", blurb: "Harder to knock down.", rarity: "common" },
+  { id: "reinforce", name: "Reinforcements", blurb: "Five skeletons at 0:20.", rarity: "common" },
+  { id: "wind", name: "Second Wind", blurb: "Heal 30% at 0:30.", rarity: "rare" },
   { id: "giant", name: "Giant", blurb: "One random toy is huge.", rarity: "rare" },
+  { id: "potato", name: "Hot Potato", blurb: "Their priciest toy is ticking.", rarity: "rare" },
+] as const;
+
+export const ANOMALIES = [
+  { id: "anomaly.jelly", name: "Jelly Titan", blurb: "Bouncy giant. Hits launch everyone." },
+  { id: "anomaly.boulder", name: "Boulder Boy", blurb: "It's just a boulder." },
+  { id: "anomaly.cheer", name: "The Cheerleader", blurb: "Allies nearby hit harder." },
+  { id: "anomaly.ice", name: "Ice Wizard", blurb: "Shots that freeze a crowd." },
+  { id: "anomaly.tax", name: "Tax Collector", blurb: "Steals max HP on hit." },
+  { id: "anomaly.chicken", name: "Chicken Storm", blurb: "Lays angry hens." },
+  { id: "anomaly.mirror", name: "Mirror Knight", blurb: "Hits bounce back." },
+  { id: "anomaly.bard", name: "Black Hole Bard", blurb: "Pulls the scrum inward." },
 ] as const;
 
 export const COSMETICS = [
@@ -12,12 +26,6 @@ export const COSMETICS = [
   { id: "hat.crown", name: "Tiny crown" },
   { id: "pal.midnight", name: "Midnight steel" },
   { id: "pal.ghost", name: "Ghost fleet" },
-] as const;
-
-export const ANOMALIES = [
-  { id: "anomaly.jelly", name: "Jelly Titan", blurb: "Bouncy giant. Hits launch everyone." },
-  { id: "anomaly.boulder", name: "Boulder Boy", blurb: "It's just a boulder." },
-  { id: "anomaly.cheer", name: "The Cheerleader", blurb: "Allies wobble less." },
 ] as const;
 
 export type Prize =

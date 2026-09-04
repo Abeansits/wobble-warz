@@ -1,6 +1,7 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { startMeadow, stopMeadow } from "@/game/audio";
 
 function Doll({
   x,
@@ -49,6 +50,10 @@ function Rig() {
 }
 
 export function TitleToys() {
+  useEffect(() => {
+    startMeadow(0.25);
+    return () => stopMeadow();
+  }, []);
   return (
     <div className="pointer-events-none absolute inset-0">
       <Canvas camera={{ position: [6, 5, 8], fov: 42 }} dpr={[1, 1.25]} gl={{ antialias: true, alpha: true }}>

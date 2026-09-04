@@ -12,7 +12,7 @@ export type FactionId = (typeof FACTIONS)[number];
 export type TargetRule = "nearest" | "prefer:large" | "prefer:ranged" | "prefer:weakest";
 
 export type PartShape = "box" | "capsule" | "sphere";
-export type PartSlot = "pelvis" | "torso" | "head" | "armL" | "armR" | "legs" | "weapon" | "scarf";
+export type PartSlot = "pelvis" | "torso" | "head" | "armL" | "armR" | "legs" | "weapon" | "scarf" | "hat" | "belt" | "shield" | "extra";
 export type ColorToken = "primary" | "secondary" | "accent" | "skin" | "team" | "wood" | "metal";
 
 export type MeshPart = {
@@ -21,6 +21,7 @@ export type MeshPart = {
   size: [number, number, number];
   offset: [number, number, number];
   color: ColorToken;
+  parent?: PartSlot;
 };
 
 export type MeshRecipe = {
@@ -97,7 +98,15 @@ export type StatusWeapon = {
   slowT?: number;
 };
 
-export type WeaponDef = MeleeWeapon | ProjectileWeapon | ChargeWeapon | AuraWeapon | HitscanWeapon | TetherWeapon | StatusWeapon;
+export type SummonWeapon = {
+  kind: "summon";
+  damage: number;
+  knockback: number;
+  range: number;
+  cooldown: number;
+};
+
+export type WeaponDef = MeleeWeapon | ProjectileWeapon | ChargeWeapon | AuraWeapon | HitscanWeapon | TetherWeapon | StatusWeapon | SummonWeapon;
 
 export type AbilityDef = {
   kind: "heal-aura" | "damage-aura" | "taunt";

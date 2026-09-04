@@ -134,6 +134,39 @@ function PlayProfiles() {
           <button type="submit" className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display">
             Add
           </button>
+          <button
+            type="button"
+            className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(useProfiles.getState().profiles, null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "wobble-wars-profiles.json";
+              a.click();
+            }}
+          >
+            Export
+          </button>
+          <label className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display">
+            Import
+            <input
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const list = JSON.parse(await file.text());
+                  if (!Array.isArray(list)) return;
+                  useProfiles.setState({ profiles: list });
+                  setNote("Profiles imported.");
+                } catch {
+                  setNote("Could not read that file.");
+                }
+              }}
+            />
+          </label>
         </form>
 
         {note && <p className="mt-3 text-sm text-cream/85">{note}</p>}

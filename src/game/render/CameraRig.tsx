@@ -90,7 +90,34 @@ export function CameraRig() {
     el.addEventListener("wheel", onWheel, { passive: true });
     el.addEventListener("contextmenu", onCtx);
     window.addEventListener("contextmenu", onCtx);
-    const down = (e: KeyboardEvent) => keys.current.add(e.code);
+    const down = (e: KeyboardEvent) => {
+      keys.current.add(e.code);
+      if (e.code === "KeyF") {
+        const s = useGame.getState();
+        const id = s.followId;
+        if (id != null) s.setFollowId(null);
+        else {
+          const u = s.snapshot?.units.find((n) => n.state !== "dead");
+          if (u) s.setFollowId(u.id);
+        }
+      }
+      if (e.code === "KeyC") {
+        const presets = [
+          { yaw: 0.2, pitch: 0.72, dist: 32, x: 0, z: 0 },
+          { yaw: Math.PI / 2, pitch: 0.55, dist: 28, x: -10, z: 0 },
+          { yaw: -Math.PI / 2, pitch: 0.55, dist: 28, x: 10, z: 0 },
+          { yaw: 0, pitch: 1.2, dist: 36, x: 0, z: 0 },
+        ];
+        const i = ((window as unknown as { __camPreset?: number }).__camPreset ?? 0) + 1;
+        (window as unknown as { __camPreset?: number }).__camPreset = i;
+        const p = presets[i % presets.length];
+        yaw.current = p.yaw;
+        pitch.current = p.pitch;
+        dist.current = p.dist;
+        target.current.set(p.x, 1.2, p.z);
+        useGame.getState().setFollowId(null);
+      }
+    };
     const up = (e: KeyboardEvent) => keys.current.delete(e.code);
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
@@ -129,7 +156,10 @@ export function CameraRig() {
     if (followId != null && snapshot) {
       const u = snapshot.units.find((n) => n.id === followId);
       const p = u?.parts.torso ?? u?.root;
-      if (p) target.current.lerp(new THREE.Vector3(p.x, p.y, p.z), 1 - Math.pow(0.001, dt));
+      if (p && Number.isFinite(p.x)) {
+        target.current.lerp(new THREE.Vector3(p.x, p.y + 0.4, p.z), 1 - Math.pow(0.002, dt));
+        dist.current = THREE.MathUtils.lerp(dist.current, 16, 0.04);
+      }
     }
 
     const cp = Math.cos(pitch.current);

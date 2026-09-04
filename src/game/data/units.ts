@@ -11,8 +11,11 @@ function recipe(
     { slot: "armL", shape: "capsule", size: [0.07, 0.28, 0.07], offset: [-0.28, 0.22, 0], color: "skin" },
     { slot: "armR", shape: "capsule", size: [0.07, 0.28, 0.07], offset: [0.28, 0.22, 0], color: "skin" },
     { slot: "legs", shape: "box", size: [0.28, 0.34, 0.2], offset: [0, -0.28, 0], color: "secondary" },
-    { slot: "weapon", shape: "box", size: [0.1, 0.42, 0.1], offset: [0.42, 0.08, 0.08], color: "wood" },
-    { slot: "scarf", shape: "box", size: [0.2, 0.08, 0.06], offset: [0, 0.4, -0.16], color: "team" },
+    { slot: "weapon", shape: "box", size: [0.1, 0.42, 0.1], offset: [0.12, 0.02, 0.1], color: "wood" },
+    { slot: "scarf", shape: "box", size: [0.22, 0.1, 0.08], offset: [0, 0.16, -0.18], color: "team" },
+    { slot: "belt", shape: "box", size: [0.4, 0.08, 0.28], offset: [0, -0.12, 0], color: "secondary" },
+    { slot: "hat", shape: "box", size: [0.18, 0.08, 0.18], offset: [0, 0.2, 0], color: "secondary" },
+    { slot: "extra", shape: "sphere", size: [0.08, 0.08, 0.08], offset: [0.3, -0.12, 0.04], color: "skin" },
   ];
   const parts = base.map((p) => ({ ...p, ...(tweaks?.[p.slot] ?? {}) }));
   return { parts: [...parts, ...extras] };
@@ -42,7 +45,10 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "humanoid", scale: 1, massMult: 1, hp: 100, speed: 3.4, springStiffness: 18, launchThreshold: 42 },
     weapon: { kind: "melee", damage: 22, knockback: 18, range: 1.7, cooldown: 1.05, swingSeconds: 0.38 },
     ai: { targeting: "nearest" },
-    recipe: recipe(),
+    recipe: recipe([
+      { slot: "extra", shape: "sphere", size: [0.14, 0.14, 0.14], offset: [0.14, 0.28, 0.08], color: "wood", parent: "armR" },
+      { slot: "hat", shape: "sphere", size: [0.1, 0.1, 0.1], offset: [0.12, 0.12, 0], color: "secondary", parent: "head" },
+    ]),
     palette: stone,
   },
   "stoneage.rocklobber": {
@@ -54,7 +60,13 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "humanoid", scale: 1.05, massMult: 1.1, hp: 80, speed: 2.6, springStiffness: 16, launchThreshold: 40 },
     weapon: { kind: "projectile", damage: 35, knockback: 16, range: 14, cooldown: 1.8, speed: 11, arc: 4.2, linger: 4 },
     ai: { targeting: "nearest", keepAway: 6 },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0.38, 0.1, 0.08], color: "secondary" } }),
+    recipe: recipe(
+      [
+        { slot: "extra", shape: "sphere", size: [0.12, 0.12, 0.12], offset: [0.16, 0.2, 0.06], color: "secondary", parent: "armR" },
+        { slot: "hat", shape: "box", size: [0.2, 0.06, 0.2], offset: [0, 0.22, 0], color: "secondary", parent: "head" },
+      ],
+      { weapon: { slot: "weapon", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0.12, 0.02, 0.08], color: "secondary" } },
+    ),
     palette: stone,
   },
   "stoneage.spearchucker": {
@@ -66,7 +78,10 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "humanoid", scale: 1, massMult: 0.95, hp: 90, speed: 3.1, springStiffness: 17, launchThreshold: 38 },
     weapon: { kind: "projectile", damage: 40, knockback: 8, range: 16, cooldown: 1.4, speed: 18, arc: 1.2 },
     ai: { targeting: "prefer:weakest", keepAway: 7 },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "box", size: [0.05, 0.62, 0.05], offset: [0.4, 0.18, 0.04], color: "wood" } }),
+    recipe: recipe(
+      [{ slot: "extra", shape: "box", size: [0.08, 0.08, 0.08], offset: [0.1, 0.38, 0.04], color: "accent", parent: "armR" }],
+      { weapon: { slot: "weapon", shape: "box", size: [0.05, 0.62, 0.05], offset: [0.1, 0.18, 0.04], color: "wood" } },
+    ),
     palette: stone,
   },
   "stoneage.bonebrute": {
@@ -78,10 +93,16 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "humanoid", scale: 1.45, massMult: 1.8, hp: 300, speed: 2.2, springStiffness: 20, launchThreshold: 70 },
     weapon: { kind: "melee-reach", damage: 60, knockback: 22, range: 2.8, cooldown: 1.6, swingSeconds: 0.55 },
     ai: { targeting: "nearest" },
-    recipe: recipe([], {
-      torso: { slot: "torso", shape: "box", size: [0.5, 0.44, 0.34], offset: [0, 0.3, 0], color: "primary" },
-      weapon: { slot: "weapon", shape: "box", size: [0.12, 0.7, 0.12], offset: [0.5, 0.05, 0.1], color: "skin" },
-    }),
+    recipe: recipe(
+      [
+        { slot: "hat", shape: "box", size: [0.28, 0.12, 0.28], offset: [0, 0.28, 0], color: "skin", parent: "head" },
+        { slot: "extra", shape: "sphere", size: [0.12, 0.12, 0.12], offset: [0.18, 0.4, 0.08], color: "skin", parent: "armR" },
+      ],
+      {
+        torso: { slot: "torso", shape: "box", size: [0.5, 0.44, 0.34], offset: [0, 0.3, 0], color: "primary" },
+        weapon: { slot: "weapon", shape: "box", size: [0.12, 0.7, 0.12], offset: [0.16, 0.08, 0.1], color: "skin" },
+      },
+    ),
     palette: { ...stone, primary: "#b07a38", secondary: "#d9c9a4" },
   },
   "stoneage.shaman": {
@@ -94,7 +115,13 @@ export const UNITS: Record<string, UnitDef> = {
     weapon: { kind: "aura", damage: 8, knockback: 4, range: 10, cooldown: 1.6, healPerSec: 8 },
     abilities: [{ kind: "heal-aura", radius: 4, amount: 8 }],
     ai: { targeting: "nearest", keepAway: 8 },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "box", size: [0.08, 0.5, 0.08], offset: [0.36, 0.16, 0.02], color: "accent" } }),
+    recipe: recipe(
+      [
+        { slot: "hat", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0, 0.26, 0], color: "accent", parent: "head" },
+        { slot: "extra", shape: "sphere", size: [0.08, 0.08, 0.08], offset: [0, 0.4, 0], color: "accent", parent: "head" },
+      ],
+      { weapon: { slot: "weapon", shape: "box", size: [0.08, 0.5, 0.08], offset: [0.1, 0.16, 0.02], color: "accent" } },
+    ),
     palette: { ...stone, primary: "#6d8a3a", accent: "#7ec8c0" },
   },
   "stoneage.mammoth": {
@@ -106,12 +133,19 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "quadruped", scale: 2.2, massMult: 4.2, hp: 1600, speed: 2.4, springStiffness: 28, launchThreshold: 140 },
     weapon: { kind: "charge", damage: 90, knockback: 55, range: 2.4, cooldown: 0.6 },
     ai: { targeting: "nearest" },
-    recipe: recipe([], {
-      pelvis: { slot: "pelvis", shape: "box", size: [0.55, 0.28, 0.7], offset: [0, 0, 0], color: "secondary" },
-      torso: { slot: "torso", shape: "box", size: [0.7, 0.5, 0.9], offset: [0, 0.2, 0], color: "primary" },
-      head: { slot: "head", shape: "sphere", size: [0.32, 0.32, 0.32], offset: [0, 0.42, 0.35], color: "skin" },
-      weapon: { slot: "weapon", shape: "box", size: [0.08, 0.5, 0.08], offset: [0.28, 0.1, 0.4], color: "skin" },
-    }),
+    recipe: recipe(
+      [
+        { slot: "extra", shape: "capsule", size: [0.08, 0.55, 0.08], offset: [0.22, 0.05, 0.38], color: "skin", parent: "head" },
+        { slot: "shield", shape: "capsule", size: [0.08, 0.55, 0.08], offset: [-0.22, 0.05, 0.38], color: "skin", parent: "head" },
+        { slot: "hat", shape: "box", size: [0.2, 0.12, 0.28], offset: [0, 0.18, 0.28], color: "skin", parent: "head" },
+      ],
+      {
+        pelvis: { slot: "pelvis", shape: "box", size: [0.55, 0.28, 0.7], offset: [0, 0, 0], color: "secondary" },
+        torso: { slot: "torso", shape: "box", size: [0.7, 0.5, 0.9], offset: [0, 0.2, 0], color: "primary" },
+        head: { slot: "head", shape: "sphere", size: [0.32, 0.32, 0.32], offset: [0, 0.42, 0.35], color: "skin" },
+        weapon: { slot: "weapon", shape: "box", size: [0.08, 0.5, 0.08], offset: [0.18, 0.05, 0.2], color: "skin" },
+      },
+    ),
     palette: { ...stone, primary: "#8a6a48", secondary: "#5a3e28" },
   },
   "medieval.squire": {
@@ -123,10 +157,14 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "humanoid", scale: 1, massMult: 1.05, hp: 120, speed: 3.2, springStiffness: 22, launchThreshold: 48 },
     weapon: { kind: "melee", damage: 20, knockback: 10, range: 1.65, cooldown: 0.95, swingSeconds: 0.32 },
     ai: { targeting: "nearest" },
-    recipe: recipe([], {
-      torso: { slot: "torso", shape: "box", size: [0.36, 0.38, 0.24], offset: [0, 0.28, 0], color: "primary" },
-      weapon: { slot: "weapon", shape: "box", size: [0.05, 0.46, 0.08], offset: [0.4, 0.12, 0.06], color: "metal" },
-    }),
+    recipe: recipe(
+      [{ slot: "shield", shape: "box", size: [0.22, 0.32, 0.06], offset: [0.16, 0.02, 0.1], color: "metal", parent: "armL" }],
+      {
+        torso: { slot: "torso", shape: "box", size: [0.36, 0.38, 0.24], offset: [0, 0.28, 0], color: "primary" },
+        weapon: { slot: "weapon", shape: "box", size: [0.05, 0.46, 0.08], offset: [0.12, 0.08, 0.06], color: "metal" },
+        hat: { slot: "hat", shape: "box", size: [0.2, 0.1, 0.22], offset: [0, 0.2, 0], color: "metal", parent: "head" },
+      },
+    ),
     palette: medieval,
   },
   "medieval.archer": {
@@ -138,7 +176,13 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "humanoid", scale: 0.95, massMult: 0.9, hp: 80, speed: 3.0, springStiffness: 16, launchThreshold: 36 },
     weapon: { kind: "projectile", damage: 25, knockback: 6, range: 18, cooldown: 1.2, speed: 22, arc: 1.6 },
     ai: { targeting: "prefer:ranged", keepAway: 8 },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "box", size: [0.04, 0.48, 0.08], offset: [0.36, 0.14, -0.04], color: "wood" } }),
+    recipe: recipe(
+      [
+        { slot: "extra", shape: "box", size: [0.22, 0.06, 0.06], offset: [0.02, 0.12, -0.12], color: "wood", parent: "armL" },
+        { slot: "hat", shape: "box", size: [0.22, 0.08, 0.22], offset: [0, 0.22, 0], color: "secondary", parent: "head" },
+      ],
+      { weapon: { slot: "weapon", shape: "box", size: [0.04, 0.48, 0.08], offset: [0.1, 0.1, -0.04], color: "wood" } },
+    ),
     palette: { ...medieval, primary: "#2f4a38" },
   },
   "medieval.pikeman": {
@@ -150,7 +194,10 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "humanoid", scale: 1.08, massMult: 1.1, hp: 130, speed: 2.7, springStiffness: 20, launchThreshold: 50 },
     weapon: { kind: "melee-reach", damage: 30, knockback: 12, range: 3.2, cooldown: 1.2, swingSeconds: 0.42, vsChargeMult: 3 },
     ai: { targeting: "prefer:large" },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "box", size: [0.04, 0.9, 0.04], offset: [0.48, 0.22, 0.1], color: "metal" } }),
+    recipe: recipe(
+      [{ slot: "shield", shape: "box", size: [0.16, 0.36, 0.05], offset: [0.14, 0.04, 0.08], color: "metal", parent: "armL" }],
+      { weapon: { slot: "weapon", shape: "box", size: [0.04, 0.9, 0.04], offset: [0.12, 0.28, 0.08], color: "metal" } },
+    ),
     palette: medieval,
   },
   "medieval.knight": {
@@ -171,11 +218,17 @@ export const UNITS: Record<string, UnitDef> = {
     },
     weapon: { kind: "melee", damage: 35, knockback: 16, range: 1.9, cooldown: 1.1, swingSeconds: 0.4 },
     ai: { targeting: "nearest" },
-    recipe: recipe([], {
-      torso: { slot: "torso", shape: "box", size: [0.44, 0.42, 0.3], offset: [0, 0.28, 0], color: "metal" },
-      head: { slot: "head", shape: "box", size: [0.22, 0.24, 0.22], offset: [0, 0.58, 0], color: "metal" },
-      weapon: { slot: "weapon", shape: "box", size: [0.06, 0.55, 0.1], offset: [0.44, 0.1, 0.06], color: "metal" },
-    }),
+    recipe: recipe(
+      [
+        { slot: "shield", shape: "box", size: [0.28, 0.4, 0.08], offset: [0.2, 0.04, 0.1], color: "accent", parent: "armL" },
+        { slot: "hat", shape: "box", size: [0.24, 0.16, 0.26], offset: [0, 0.22, 0.02], color: "metal", parent: "head" },
+      ],
+      {
+        torso: { slot: "torso", shape: "box", size: [0.44, 0.42, 0.3], offset: [0, 0.28, 0], color: "metal" },
+        head: { slot: "head", shape: "box", size: [0.22, 0.24, 0.22], offset: [0, 0.58, 0], color: "metal" },
+        weapon: { slot: "weapon", shape: "box", size: [0.06, 0.55, 0.1], offset: [0.14, 0.08, 0.06], color: "metal" },
+      },
+    ),
     palette: { ...medieval, primary: "#4a5564" },
   },
   "medieval.catapult": {
@@ -187,11 +240,17 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "static", scale: 1.6, massMult: 3, hp: 350, speed: 0, springStiffness: 40, launchThreshold: 90 },
     weapon: { kind: "explosive", damage: 80, knockback: 28, range: 22, cooldown: 4, speed: 13, arc: 6, radius: 3, minRange: 8 },
     ai: { targeting: "prefer:large" },
-    recipe: recipe([], {
-      pelvis: { slot: "pelvis", shape: "box", size: [0.7, 0.22, 0.55], offset: [0, 0, 0], color: "wood" },
-      torso: { slot: "torso", shape: "box", size: [0.4, 0.28, 0.4], offset: [0, 0.22, -0.1], color: "wood" },
-      weapon: { slot: "weapon", shape: "sphere", size: [0.22, 0.22, 0.22], offset: [0, 0.28, 0.2], color: "secondary" },
-    }),
+    recipe: recipe(
+      [
+        { slot: "extra", shape: "box", size: [0.16, 0.1, 0.5], offset: [0, 0.18, 0.28], color: "wood", parent: "torso" },
+        { slot: "hat", shape: "box", size: [0.18, 0.18, 0.18], offset: [0, 0.22, -0.2], color: "wood", parent: "torso" },
+      ],
+      {
+        pelvis: { slot: "pelvis", shape: "box", size: [0.7, 0.22, 0.55], offset: [0, 0, 0], color: "wood" },
+        torso: { slot: "torso", shape: "box", size: [0.4, 0.28, 0.4], offset: [0, 0.22, -0.1], color: "wood" },
+        weapon: { slot: "weapon", shape: "sphere", size: [0.22, 0.22, 0.22], offset: [0, 0.2, 0.22], color: "secondary" },
+      },
+    ),
     palette: { ...medieval, primary: "#6b4a28" },
   },
   "medieval.king": {
@@ -207,10 +266,14 @@ export const UNITS: Record<string, UnitDef> = {
       { kind: "taunt", radius: 10, amount: 1 },
     ],
     ai: { targeting: "nearest" },
-    recipe: recipe([], {
+    recipe: recipe([
+      { slot: "extra", shape: "box", size: [0.06, 0.12, 0.06], offset: [-0.08, 0.36, 0], color: "accent", parent: "head" },
+      { slot: "shield", shape: "box", size: [0.06, 0.12, 0.06], offset: [0.08, 0.36, 0], color: "accent", parent: "head" },
+    ], {
       head: { slot: "head", shape: "sphere", size: [0.24, 0.24, 0.24], offset: [0, 0.58, 0], color: "skin" },
-      weapon: { slot: "weapon", shape: "box", size: [0.08, 0.5, 0.08], offset: [0.42, 0.12, 0.04], color: "accent" },
-      scarf: { slot: "scarf", shape: "box", size: [0.28, 0.14, 0.08], offset: [0, 0.46, -0.16], color: "accent" },
+      weapon: { slot: "weapon", shape: "box", size: [0.08, 0.5, 0.08], offset: [0.12, 0.08, 0.04], color: "accent" },
+      scarf: { slot: "scarf", shape: "box", size: [0.28, 0.14, 0.08], offset: [0, 0.18, -0.18], color: "accent" },
+      hat: { slot: "hat", shape: "box", size: [0.2, 0.1, 0.2], offset: [0, 0.24, 0], color: "accent" },
     }),
     palette: { ...medieval, accent: "#d4a017", primary: "#3a4f8a" },
   },
@@ -247,7 +310,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1, massMult: 0.95, hp: 110, speed: 3.8, springStiffness: 16, launchThreshold: 38 },
     weapon: { kind: "melee", damage: 20, knockback: 12, range: 1.6, cooldown: 0.9, swingSeconds: 0.32 },
     ai: { targeting: "nearest" },
-    recipe: recipe(),
+    recipe: recipe([
+      { slot: "hat", shape: "box", size: [0.24, 0.06, 0.24], offset: [0, 0.22, 0], color: "accent", parent: "head" },
+      { slot: "weapon", shape: "box", size: [0.06, 0.36, 0.1], offset: [0.12, 0.04, 0.08], color: "metal", parent: "armR" },
+    ]),
     palette: pirate,
   },
   "pirate.bomber": {
@@ -259,7 +325,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1, massMult: 0.9, hp: 90, speed: 3.2, springStiffness: 14, launchThreshold: 34 },
     weapon: { kind: "explosive", damage: 60, knockback: 22, range: 10, cooldown: 3, speed: 8, arc: 3.2, radius: 2.5 },
     ai: { targeting: "prefer:large", keepAway: 5 },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "sphere", size: [0.14, 0.14, 0.14], offset: [0.36, 0.08, 0.06], color: "accent" } }),
+    recipe: recipe(
+      [{ slot: "hat", shape: "box", size: [0.16, 0.16, 0.16], offset: [0, 0.22, 0], color: "accent", parent: "head" }],
+      { weapon: { slot: "weapon", shape: "sphere", size: [0.14, 0.14, 0.14], offset: [0.12, 0.04, 0.06], color: "accent" } },
+    ),
     palette: pirate,
   },
   "pirate.musketeer": {
@@ -271,7 +340,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1, massMult: 0.9, hp: 90, speed: 2.8, springStiffness: 15, launchThreshold: 34 },
     weapon: { kind: "hitscan", damage: 90, knockback: 20, range: 25, cooldown: 4 },
     ai: { targeting: "prefer:large", keepAway: 10 },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "box", size: [0.06, 0.55, 0.06], offset: [0.4, 0.16, 0.04], color: "wood" } }),
+    recipe: recipe(
+      [{ slot: "hat", shape: "box", size: [0.22, 0.08, 0.22], offset: [0, 0.22, 0.02], color: "secondary", parent: "head" }],
+      { weapon: { slot: "weapon", shape: "box", size: [0.06, 0.55, 0.06], offset: [0.12, 0.12, 0.04], color: "wood" } },
+    ),
     palette: pirate,
   },
   "pirate.harpooner": {
@@ -283,7 +355,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1.1, massMult: 1.2, hp: 130, speed: 3.0, springStiffness: 18, launchThreshold: 44 },
     weapon: { kind: "tether", damage: 18, knockback: 8, range: 12, cooldown: 2.4 },
     ai: { targeting: "prefer:large" },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "box", size: [0.08, 0.7, 0.08], offset: [0.42, 0.2, 0.02], color: "metal" } }),
+    recipe: recipe(
+      [{ slot: "extra", shape: "box", size: [0.12, 0.08, 0.08], offset: [0.1, 0.4, 0.02], color: "metal", parent: "armR" }],
+      { weapon: { slot: "weapon", shape: "box", size: [0.08, 0.7, 0.08], offset: [0.12, 0.16, 0.02], color: "metal" } },
+    ),
     palette: pirate,
   },
   "pirate.cannon": {
@@ -295,10 +370,16 @@ Object.assign(UNITS, {
     body: { kind: "static", scale: 1.3, massMult: 3, hp: 300, speed: 0, springStiffness: 30, launchThreshold: 90 },
     weapon: { kind: "explosive", damage: 120, knockback: 28, range: 22, cooldown: 5, speed: 16, arc: 0.6, radius: 3, minRange: 6 },
     ai: { targeting: "prefer:large", keepAway: 0 },
-    recipe: recipe([], {
-      torso: { slot: "torso", shape: "box", size: [0.5, 0.36, 0.7], offset: [0, 0.1, 0], color: "secondary" },
-      weapon: { slot: "weapon", shape: "capsule", size: [0.16, 0.7, 0.16], offset: [0.1, 0.16, 0.4], color: "metal" },
-    }),
+    recipe: recipe(
+      [
+        { slot: "extra", shape: "sphere", size: [0.14, 0.14, 0.14], offset: [0, 0.22, 0.42], color: "metal", parent: "torso" },
+        { slot: "hat", shape: "box", size: [0.18, 0.18, 0.18], offset: [0, 0.28, -0.18], color: "wood", parent: "torso" },
+      ],
+      {
+        torso: { slot: "torso", shape: "box", size: [0.5, 0.36, 0.7], offset: [0, 0.1, 0], color: "secondary" },
+        weapon: { slot: "weapon", shape: "capsule", size: [0.16, 0.7, 0.16], offset: [0, 0.12, 0.36], color: "metal" },
+      },
+    ),
     palette: pirate,
   },
   "pirate.captain": {
@@ -311,7 +392,13 @@ Object.assign(UNITS, {
     weapon: { kind: "hitscan", damage: 45, knockback: 10, range: 14, cooldown: 1.4 },
     abilities: [{ kind: "damage-aura", radius: 6, amount: 0.1 }],
     ai: { targeting: "nearest" },
-    recipe: recipe([], { scarf: { slot: "scarf", shape: "box", size: [0.26, 0.12, 0.08], offset: [0, 0.44, -0.16], color: "accent" } }),
+    recipe: recipe(
+      [
+        { slot: "hat", shape: "box", size: [0.26, 0.08, 0.26], offset: [0, 0.24, 0], color: "accent", parent: "head" },
+        { slot: "weapon", shape: "box", size: [0.06, 0.18, 0.1], offset: [0.14, 0.02, 0.08], color: "metal", parent: "armR" },
+      ],
+      { scarf: { slot: "scarf", shape: "box", size: [0.26, 0.12, 0.08], offset: [0, 0.16, -0.18], color: "accent" } },
+    ),
     palette: pirate,
   },
   "frontier.brawler": {
@@ -323,7 +410,13 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1.05, massMult: 1.1, hp: 130, speed: 3.6, springStiffness: 16, launchThreshold: 40 },
     weapon: { kind: "melee", damage: 15, knockback: 28, range: 1.5, cooldown: 0.7, swingSeconds: 0.28 },
     ai: { targeting: "prefer:weakest" },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "sphere", size: [0.1, 0.1, 0.1], offset: [0.34, 0.02, 0.08], color: "skin" } }),
+    recipe: recipe(
+      [
+        { slot: "hat", shape: "box", size: [0.18, 0.08, 0.18], offset: [0, 0.22, 0], color: "secondary", parent: "head" },
+        { slot: "extra", shape: "sphere", size: [0.09, 0.09, 0.09], offset: [-0.28, -0.1, 0.06], color: "skin", parent: "armL" },
+      ],
+      { weapon: { slot: "weapon", shape: "sphere", size: [0.1, 0.1, 0.1], offset: [0.12, -0.08, 0.08], color: "skin" } },
+    ),
     palette: frontier,
   },
   "frontier.dynamite": {
@@ -335,7 +428,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1, massMult: 0.9, hp: 90, speed: 3.3, springStiffness: 14, launchThreshold: 32 },
     weapon: { kind: "explosive", damage: 70, knockback: 24, range: 9, cooldown: 2.5, speed: 7, arc: 2.6, radius: 3 },
     ai: { targeting: "nearest", keepAway: 4 },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "box", size: [0.08, 0.28, 0.08], offset: [0.34, 0.08, 0.06], color: "accent" } }),
+    recipe: recipe(
+      [{ slot: "hat", shape: "box", size: [0.16, 0.16, 0.16], offset: [0, 0.22, 0], color: "accent", parent: "head" }],
+      { weapon: { slot: "weapon", shape: "box", size: [0.08, 0.28, 0.08], offset: [0.1, 0.06, 0.06], color: "accent" } },
+    ),
     palette: frontier,
   },
   "frontier.lasso": {
@@ -347,7 +443,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1, massMult: 1, hp: 100, speed: 3.4, springStiffness: 16, launchThreshold: 38 },
     weapon: { kind: "tether", damage: 12, knockback: 6, range: 16, cooldown: 2.2 },
     ai: { targeting: "prefer:ranged" },
-    recipe: recipe(),
+    recipe: recipe([
+      { slot: "hat", shape: "box", size: [0.22, 0.08, 0.22], offset: [0, 0.22, 0], color: "secondary", parent: "head" },
+      { slot: "weapon", shape: "capsule", size: [0.04, 0.5, 0.04], offset: [0.16, 0.16, 0.04], color: "accent", parent: "armR" },
+    ]),
     palette: frontier,
   },
   "frontier.gunslinger": {
@@ -359,7 +458,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1, massMult: 0.85, hp: 90, speed: 3.5, springStiffness: 14, launchThreshold: 30 },
     weapon: { kind: "hitscan", damage: 30, knockback: 8, range: 16, cooldown: 0.6 },
     ai: { targeting: "prefer:weakest", keepAway: 8 },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "box", size: [0.05, 0.22, 0.08], offset: [0.34, 0.06, 0.08], color: "metal" } }),
+    recipe: recipe(
+      [{ slot: "hat", shape: "box", size: [0.2, 0.06, 0.22], offset: [0, 0.22, 0], color: "secondary", parent: "head" }],
+      { weapon: { slot: "weapon", shape: "box", size: [0.05, 0.22, 0.08], offset: [0.12, 0.02, 0.08], color: "metal" } },
+    ),
     palette: frontier,
   },
   "frontier.rifleman": {
@@ -371,7 +473,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1, massMult: 0.9, hp: 90, speed: 2.7, springStiffness: 15, launchThreshold: 32 },
     weapon: { kind: "hitscan", damage: 110, knockback: 16, range: 35, cooldown: 5 },
     ai: { targeting: "prefer:large", keepAway: 14 },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "box", size: [0.05, 0.72, 0.05], offset: [0.4, 0.2, 0.02], color: "wood" } }),
+    recipe: recipe(
+      [{ slot: "hat", shape: "box", size: [0.2, 0.1, 0.22], offset: [0, 0.22, 0], color: "secondary", parent: "head" }],
+      { weapon: { slot: "weapon", shape: "box", size: [0.05, 0.72, 0.05], offset: [0.12, 0.16, 0.02], color: "wood" } },
+    ),
     palette: frontier,
   },
   "frontier.stagecoach": {
@@ -383,10 +488,17 @@ Object.assign(UNITS, {
     body: { kind: "vehicle", scale: 1.8, massMult: 3.4, hp: 900, speed: 3.1, springStiffness: 26, launchThreshold: 110 },
     weapon: { kind: "charge", damage: 60, knockback: 40, range: 2.2, cooldown: 0.7 },
     ai: { targeting: "nearest" },
-    recipe: recipe([], {
-      torso: { slot: "torso", shape: "box", size: [0.7, 0.4, 1.0], offset: [0, 0.16, 0], color: "primary" },
-      legs: { slot: "legs", shape: "sphere", size: [0.2, 0.2, 0.2], offset: [0.28, -0.22, 0.28], color: "secondary" },
-    }),
+    recipe: recipe(
+      [
+        { slot: "extra", shape: "sphere", size: [0.18, 0.18, 0.18], offset: [0.32, -0.22, -0.32], color: "secondary", parent: "torso" },
+        { slot: "shield", shape: "sphere", size: [0.18, 0.18, 0.18], offset: [-0.32, -0.22, 0.32], color: "secondary", parent: "torso" },
+        { slot: "hat", shape: "box", size: [0.5, 0.16, 0.36], offset: [0, 0.28, 0], color: "wood", parent: "torso" },
+      ],
+      {
+        torso: { slot: "torso", shape: "box", size: [0.7, 0.4, 1.0], offset: [0, 0.16, 0], color: "primary" },
+        legs: { slot: "legs", shape: "sphere", size: [0.2, 0.2, 0.2], offset: [0.28, -0.22, 0.28], color: "secondary" },
+      },
+    ),
     palette: frontier,
   },
   "haunted.skeleton": {
@@ -398,7 +510,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 0.9, massMult: 0.6, hp: 50, speed: 3.7, springStiffness: 12, launchThreshold: 24 },
     weapon: { kind: "melee", damage: 15, knockback: 8, range: 1.4, cooldown: 0.85, swingSeconds: 0.3 },
     ai: { targeting: "nearest" },
-    recipe: recipe(),
+    recipe: recipe([
+      { slot: "hat", shape: "box", size: [0.16, 0.06, 0.2], offset: [0, 0.2, 0], color: "accent", parent: "head" },
+      { slot: "weapon", shape: "box", size: [0.05, 0.32, 0.05], offset: [0.12, 0.04, 0.06], color: "skin", parent: "armR" },
+    ]),
     palette: haunted,
   },
   "haunted.scarecrow": {
@@ -411,7 +526,13 @@ Object.assign(UNITS, {
     weapon: { kind: "aura", damage: 4, knockback: 2, range: 5, cooldown: 6, tauntRange: 8 },
     abilities: [{ kind: "taunt", radius: 8, amount: 1 }],
     ai: { targeting: "nearest" },
-    recipe: recipe([], { head: { slot: "head", shape: "box", size: [0.24, 0.24, 0.24], offset: [0, 0.56, 0], color: "accent" } }),
+    recipe: recipe(
+      [
+        { slot: "hat", shape: "box", size: [0.28, 0.08, 0.28], offset: [0, 0.22, 0], color: "secondary", parent: "head" },
+        { slot: "extra", shape: "box", size: [0.36, 0.08, 0.08], offset: [0, 0.08, 0], color: "wood", parent: "armL" },
+      ],
+      { head: { slot: "head", shape: "box", size: [0.24, 0.24, 0.24], offset: [0, 0.56, 0], color: "accent" } },
+    ),
     palette: haunted,
   },
   "haunted.pumpkin": {
@@ -423,7 +544,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1, massMult: 0.95, hp: 80, speed: 2.9, springStiffness: 15, launchThreshold: 34 },
     weapon: { kind: "status", damage: 30, knockback: 8, range: 12, cooldown: 1.6, speed: 10, arc: 3, slow: 0.6, slowT: 2 },
     ai: { targeting: "nearest", keepAway: 6 },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0.36, 0.08, 0.08], color: "accent" } }),
+    recipe: recipe(
+      [{ slot: "hat", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0, 0.22, 0], color: "accent", parent: "head" }],
+      { weapon: { slot: "weapon", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0.12, 0.04, 0.08], color: "accent" } },
+    ),
     palette: haunted,
   },
   "haunted.ghost": {
@@ -435,7 +559,10 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1, massMult: 0.5, hp: 120, speed: 3.2, springStiffness: 10, launchThreshold: 28 },
     weapon: { kind: "melee", damage: 10, knockback: 6, range: 1.5, cooldown: 0.8, swingSeconds: 0.3 },
     ai: { targeting: "prefer:ranged" },
-    recipe: recipe(),
+    recipe: recipe([
+      { slot: "extra", shape: "sphere", size: [0.28, 0.28, 0.28], offset: [0, 0.12, -0.06], color: "primary", parent: "torso" },
+      { slot: "hat", shape: "sphere", size: [0.12, 0.12, 0.12], offset: [0, 0.2, 0], color: "skin", parent: "head" },
+    ]),
     palette: { ...haunted, primary: "#9ad0c8", skin: "#e8fff4" },
   },
   "haunted.vampire": {
@@ -448,7 +575,10 @@ Object.assign(UNITS, {
     weapon: { kind: "melee", damage: 30, knockback: 10, range: 1.6, cooldown: 1.0, swingSeconds: 0.36 },
     abilities: [{ kind: "heal-aura", radius: 0.2, amount: 0 }],
     ai: { targeting: "prefer:weakest" },
-    recipe: recipe(),
+    recipe: recipe([
+      { slot: "hat", shape: "box", size: [0.2, 0.1, 0.22], offset: [0, 0.22, 0], color: "secondary", parent: "head" },
+      { slot: "extra", shape: "box", size: [0.18, 0.28, 0.08], offset: [0, 0.1, -0.2], color: "primary", parent: "torso" },
+    ]),
     palette: { ...haunted, primary: "#4a1a28", accent: "#b33a2b" },
   },
   "haunted.reaper": {
@@ -460,7 +590,13 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 1.5, massMult: 1.6, hp: 400, speed: 1.7, springStiffness: 18, launchThreshold: 50 },
     weapon: { kind: "melee-reach", damage: 999, knockback: 8, range: 2.6, cooldown: 2.5, swingSeconds: 0.7 },
     ai: { targeting: "nearest" },
-    recipe: recipe([], { weapon: { slot: "weapon", shape: "box", size: [0.08, 0.9, 0.16], offset: [0.5, 0.1, 0.04], color: "metal" } }),
+    recipe: recipe(
+      [
+        { slot: "hat", shape: "box", size: [0.22, 0.28, 0.22], offset: [0, 0.28, 0], color: "secondary", parent: "head" },
+        { slot: "extra", shape: "box", size: [0.22, 0.08, 0.36], offset: [0.16, 0.42, 0.04], color: "metal", parent: "armR" },
+      ],
+      { weapon: { slot: "weapon", shape: "box", size: [0.08, 0.9, 0.16], offset: [0.16, 0.12, 0.04], color: "metal" } },
+    ),
     palette: haunted,
   },
   "anomaly.jelly": {
@@ -505,6 +641,81 @@ Object.assign(UNITS, {
     ai: { targeting: "nearest", keepAway: 6 },
     recipe: recipe(),
     palette: { primary: "#f0a0c0", secondary: "#fff4e0", accent: "#d4a017", skin: "#e6c2a0" },
+  },
+  "anomaly.ice": {
+    id: "anomaly.ice",
+    faction: "anomaly",
+    name: "Ice Wizard",
+    blurb: "Shots that freeze a crowd.",
+    cost: 700,
+    body: { kind: "humanoid", scale: 1.05, massMult: 0.9, hp: 140, speed: 2.6, springStiffness: 14, launchThreshold: 32 },
+    weapon: { kind: "status", damage: 18, knockback: 4, range: 14, cooldown: 2.2, speed: 9, arc: 2.2, slow: 0.15, slowT: 3 },
+    ai: { targeting: "prefer:large", keepAway: 8 },
+    recipe: recipe([
+      { slot: "hat", shape: "sphere", size: [0.14, 0.14, 0.14], offset: [0, 0.24, 0], color: "accent", parent: "head" },
+      { slot: "weapon", shape: "box", size: [0.06, 0.5, 0.06], offset: [0.12, 0.12, 0.04], color: "accent", parent: "armR" },
+    ]),
+    palette: { primary: "#3a6a8a", secondary: "#d8eef8", accent: "#7ec8e0", skin: "#e6c2a0" },
+  },
+  "anomaly.tax": {
+    id: "anomaly.tax",
+    faction: "anomaly",
+    name: "Tax Collector",
+    blurb: "Steals max HP on hit.",
+    cost: 1000,
+    body: { kind: "humanoid", scale: 1.15, massMult: 1.2, hp: 280, speed: 2.8, springStiffness: 18, launchThreshold: 48 },
+    weapon: { kind: "melee", damage: 24, knockback: 10, range: 1.7, cooldown: 1.0, swingSeconds: 0.36 },
+    ai: { targeting: "prefer:large" },
+    recipe: recipe([
+      { slot: "hat", shape: "box", size: [0.22, 0.1, 0.22], offset: [0, 0.24, 0], color: "accent", parent: "head" },
+      { slot: "extra", shape: "box", size: [0.16, 0.2, 0.08], offset: [0.14, 0.02, 0.08], color: "accent", parent: "armL" },
+    ]),
+    palette: { primary: "#3a2a18", secondary: "#d4a017", accent: "#c9cdd3", skin: "#e6c2a0" },
+  },
+  "anomaly.chicken": {
+    id: "anomaly.chicken",
+    faction: "anomaly",
+    name: "Chicken Storm",
+    blurb: "Lays angry hens.",
+    cost: 400,
+    body: { kind: "humanoid", scale: 0.7, massMult: 0.4, hp: 70, speed: 3.8, springStiffness: 10, launchThreshold: 18 },
+    weapon: { kind: "summon", damage: 8, knockback: 6, range: 4, cooldown: 3.2 },
+    ai: { targeting: "nearest", keepAway: 3 },
+    recipe: recipe([
+      { slot: "hat", shape: "sphere", size: [0.1, 0.1, 0.1], offset: [0, 0.2, 0.08], color: "accent", parent: "head" },
+    ]),
+    palette: { primary: "#f0d090", secondary: "#b33a2b", accent: "#f0d090", skin: "#fff4e0" },
+  },
+  "anomaly.mirror": {
+    id: "anomaly.mirror",
+    faction: "anomaly",
+    name: "Mirror Knight",
+    blurb: "Hits bounce back.",
+    cost: 800,
+    body: { kind: "humanoid", scale: 1.15, massMult: 1.4, hp: 360, speed: 2.6, springStiffness: 24, launchThreshold: 70 },
+    weapon: { kind: "melee", damage: 22, knockback: 12, range: 1.8, cooldown: 1.05, swingSeconds: 0.36 },
+    ai: { targeting: "nearest" },
+    recipe: recipe([
+      { slot: "shield", shape: "box", size: [0.28, 0.4, 0.06], offset: [0.18, 0.04, 0.1], color: "metal", parent: "armL" },
+      { slot: "hat", shape: "box", size: [0.22, 0.14, 0.22], offset: [0, 0.22, 0], color: "metal", parent: "head" },
+    ]),
+    palette: { primary: "#c9d4de", secondary: "#4a5564", accent: "#8ec6e8", skin: "#e6c2a0" },
+  },
+  "anomaly.bard": {
+    id: "anomaly.bard",
+    faction: "anomaly",
+    name: "Black Hole Bard",
+    blurb: "Pulls the scrum inward.",
+    cost: 650,
+    body: { kind: "humanoid", scale: 1, massMult: 0.9, hp: 120, speed: 2.4, springStiffness: 12, launchThreshold: 30 },
+    weapon: { kind: "aura", damage: 6, knockback: 2, range: 8, cooldown: 1.5 },
+    abilities: [{ kind: "damage-aura", radius: 8, amount: 0.05 }],
+    ai: { targeting: "nearest", keepAway: 5 },
+    recipe: recipe([
+      { slot: "hat", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0, 0.24, 0], color: "secondary", parent: "head" },
+      { slot: "weapon", shape: "box", size: [0.08, 0.4, 0.08], offset: [0.12, 0.08, 0.04], color: "wood", parent: "armR" },
+    ]),
+    palette: { primary: "#1c1710", secondary: "#5a3a6a", accent: "#d4a017", skin: "#e6c2a0" },
   },
 } satisfies Record<string, UnitDef>);
 

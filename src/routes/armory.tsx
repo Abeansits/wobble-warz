@@ -1,6 +1,9 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { COSMETICS } from "@/game/data/rolls";
 import { FACTION_META } from "@/game/data/types";
 import { M2_FACTIONS, rosterFor } from "@/game/data/units";
+import { useProfiles } from "@/game/meta/profiles";
 
 export const Route = createFileRoute("/armory")({
   ssr: false,
@@ -8,11 +11,44 @@ export const Route = createFileRoute("/armory")({
 });
 
 function ArmoryPage() {
+  const profiles = useProfiles();
+  useEffect(() => {
+    profiles.ensureDefaults();
+  }, [profiles]);
+  const me = profiles.profiles.find((p) => p.id === profiles.p1);
+
   return (
     <main className="min-h-dvh bg-meadow-deep px-6 py-10 text-cream">
       <div className="mx-auto max-w-5xl">
         <h1 className="font-display text-5xl">Armory</h1>
-        <p className="mt-2 text-cream/80">Every toy in the box. Cosmetics come with the roll machine later.</p>
+        <p className="mt-2 text-cream/80">Every toy in the box. Equip a hat or palette you rolled.</p>
+
+        {me && (
+          <section className="toy-shadow mt-6 rounded-card border-[3px] border-ink bg-cream p-4 text-ink">
+            <h2 className="font-display text-2xl">Equipped — {me.name}</h2>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {COSMETICS.map((c) => {
+                const owned = me.cosmetics?.includes(c.id);
+                const on = me.hat === c.id || me.palette === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={!owned}
+                    onClick={() => profiles.equip(me.id, c.id.startsWith("hat") ? "hat" : "palette", on ? null : c.id)}
+                    className={`rounded-btn border-[3px] border-ink px-3 py-2 font-display ${
+                      on ? "bg-ochre-hot" : owned ? "bg-parchment" : "bg-parchment/40 text-muted"
+                    }`}
+                  >
+                    {c.name}
+                    {!owned ? " (locked)" : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {M2_FACTIONS.map((f) => (
           <section key={f} className="mt-8">
             <h2 className="font-display text-3xl" style={{ color: FACTION_META[f].color }}>
@@ -22,6 +58,11 @@ function ArmoryPage() {
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {rosterFor(f).map((u) => (
                 <article key={u.id} className="toy-shadow rounded-card border-[3px] border-ink bg-cream p-3 text-ink">
+                  <div className="mb-1 flex h-8 overflow-hidden rounded-btn border-[2px] border-ink">
+                    <span className="w-1/2" style={{ background: u.palette.primary }} />
+                    <span className="w-1/4" style={{ background: u.palette.skin }} />
+                    <span className="w-1/4" style={{ background: u.palette.accent }} />
+                  </div>
                   <div className="flex items-baseline justify-between">
                     <h3 className="font-display text-xl">{u.name}</h3>
                     <span className="text-sm">{u.cost}</span>

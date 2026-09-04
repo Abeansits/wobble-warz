@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import type { Placement } from "@/game/data/types";
+
+export type SavedArmy = {
+  name: string;
+  units: Placement[];
+};
+
 export type Profile = {
   id: string;
   name: string;
@@ -13,6 +20,9 @@ export type Profile = {
   anomalies: string[];
   cosmetics: string[];
   powerups: Record<string, number>;
+  armies: SavedArmy[];
+  hat: string | null;
+  palette: string | null;
 };
 
 type ProfileStore = {
@@ -28,6 +38,8 @@ type ProfileStore = {
   grantPrize: (id: string, prize: { kind: string; id?: string; name?: string; amount?: number }) => void;
   spendCredits: (id: string, amount: number) => boolean;
   usePowerups: (id: string, ids: string[]) => void;
+  saveArmy: (id: string, name: string, units: Placement[]) => void;
+  equip: (id: string, kind: "hat" | "palette", value: string | null) => void;
   byId: (id: string) => Profile | undefined;
 };
 
@@ -46,6 +58,9 @@ function fresh(name: string, color: string): Profile {
     anomalies: [],
     cosmetics: [],
     powerups: {},
+    armies: [],
+    hat: null,
+    palette: null,
   };
 }
 
@@ -126,6 +141,22 @@ export const useProfiles = create<ProfileStore>()(
             }
             return { ...p, powerups };
           }),
+        })),
+      saveArmy: (id, name, units) =>
+        set((s) => ({
+          profiles: s.profiles.map((p) => {
+            if (p.id !== id) return p;
+            const armies = [...(p.armies ?? [])];
+            const i = armies.findIndex((a) => a.name === name);
+            const next = { name, units };
+            if (i >= 0) armies[i] = next;
+            else armies.push(next);
+            return { ...p, armies };
+          }),
+        })),
+      equip: (id, kind, value) =>
+        set((s) => ({
+          profiles: s.profiles.map((p) => (p.id === id ? { ...p, [kind]: value } : p)),
         })),
       byId: (id) => get().profiles.find((p) => p.id === id),
     }),

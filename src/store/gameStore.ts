@@ -28,6 +28,8 @@ type GameStore = {
   vsAI: boolean;
   ladderLevel: number | null;
   powerups: [string[], string[]];
+  ghost: { x: number; z: number } | null;
+  menuOpen: boolean;
   camBump: { id: number; kind: "yaw" | "pitch" | "zoom" | "reset"; value: number } | null;
   setSelected: (u: UnitDef) => void;
   setFaction: (f: FactionId) => void;
@@ -50,6 +52,8 @@ type GameStore = {
   setArena: (id: ArenaId) => void;
   startLadder: (level: number, budget: number) => void;
   togglePowerup: (side: 0 | 1, id: string) => void;
+  setGhost: (g: { x: number; z: number } | null) => void;
+  setMenuOpen: (v: boolean) => void;
   bumpCam: (kind: "yaw" | "pitch" | "zoom" | "reset", value?: number) => void;
   resetMatch: () => void;
 };
@@ -75,6 +79,8 @@ export const useGame = create<GameStore>((set, get) => ({
   vsAI: false,
   ladderLevel: null,
   powerups: [[], []],
+  ghost: null,
+  menuOpen: false,
   camBump: null,
   setSelected: (selected) => set({ selected, faction: selected.faction }),
   setFaction: (faction) => {
@@ -134,6 +140,8 @@ export const useGame = create<GameStore>((set, get) => ({
       if (id === "pockets") budget = has ? 3000 : Math.round(3000 * 1.15);
       return { powerups, budget };
     }),
+  setGhost: (ghost) => set({ ghost }),
+  setMenuOpen: (menuOpen) => set({ menuOpen }),
   bumpCam: (kind, value = 0) =>
     set((s) => ({ camBump: { id: (s.camBump?.id ?? 0) + 1, kind, value } })),
   resetMatch: () =>

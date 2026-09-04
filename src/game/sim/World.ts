@@ -28,6 +28,7 @@ export type UnitView = {
   root: TransformSnap;
   parts: Record<string, TransformSnap>;
   flash: number;
+  fade: number;
 };
 
 export type ProjectileView = {
@@ -83,6 +84,7 @@ type UnitInternal = {
   damageDealt: number;
   swingHits: Set<number>;
   charging: boolean;
+  deadT: number;
 };
 
 type Flying = {
@@ -118,7 +120,11 @@ export class World {
   spent: [number, number] = [0, 0];
   hitStop = 0;
   slowmoT = 0;
-  private pendingWinner: 0 | 1 | "draw" | null = null;
+  pendingWinner: 0 | 1 | "draw" | null = null;
+  private reinforceAt: [number | null, number | null] = [null, null];
+  private windAt: [number | null, number | null] = [null, null];
+  private potatoAt = 0;
+  private potatoId: number | null = null;
   private nextShot = 1;
   private flying: Flying[] = [];
   private scratch: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
@@ -181,6 +187,7 @@ export class World {
       damageDealt: 0,
       swingHits: new Set(),
       charging: false,
+      deadT: 0,
     };
     this.units.push(unit);
     this.spent[p.side] += def.cost;
@@ -231,6 +238,37 @@ export class World {
     return u;
   }
 
+  removeById(id: number) {
+    const idx = this.units.findIndex((u) => u.id === id);
+    if (idx < 0) return null;
+    const u = this.units[idx];
+    try {
+      this.physics.destroyRagdoll(u.ragdoll);
+    } catch {
+      this.physics.removeBody(u.ragdoll.rootBody);
+    }
+    this.units.splice(idx, 1);
+    this.spent[u.side] = Math.max(0, this.spent[u.side] - u.def.cost);
+    return u;
+  }
+
+  clearSide(side: Side) {
+    const keep = [];
+    for (const u of this.units) {
+      if (u.side !== side) {
+        keep.push(u);
+        continue;
+      }
+      try {
+        this.physics.destroyRagdoll(u.ragdoll);
+      } catch {
+        this.physics.removeBody(u.ragdoll.rootBody);
+      }
+    }
+    this.units = keep;
+    this.spent[side] = 0;
+  }
+
   mirrorSide(side: 0 | 1) {
     for (const u of this.units) {
       if (u.side !== side) continue;
@@ -270,6 +308,61 @@ export class World {
         pick.hp = pick.maxHp;
       }
     }
+    this.reinforceAt = [null, null];
+    this.windAt = [null, null];
+    this.potatoId = null;
+    this.potatoAt = 0;
+    for (const side of [0, 1] as const) {
+      const ids = chosen[side] ?? [];
+      if (ids.includes("reinforce")) this.reinforceAt[side] = 20;
+      if (ids.includes("wind")) this.windAt[side] = 30;
+      if (ids.includes("potato")) {
+        const foes = this.units.filter((u) => u.side !== side && u.state !== "dead");
+        foes.sort((a, b) => b.def.cost - a.def.cost);
+        if (foes[0]) {
+          this.potatoId = foes[0].id;
+          this.potatoAt = 5;
+        }
+      }
+    }
+  }
+
+  private tickTimedPowerups() {
+    for (const side of [0, 1] as const) {
+      if (this.reinforceAt[side] != null && this.time >= this.reinforceAt[side]!) {
+        this.reinforceAt[side] = null;
+        const x0 = side === 0 ? -22 : 22;
+        for (let i = 0; i < 5; i++) {
+          try {
+            this.place({
+              defId: "haunted.skeleton",
+              x: x0,
+              z: -6 + i * 3,
+              yaw: side === 0 ? -Math.PI / 2 : Math.PI / 2,
+              side,
+            });
+          } catch {
+            /* */
+          }
+        }
+      }
+      if (this.windAt[side] != null && this.time >= this.windAt[side]!) {
+        this.windAt[side] = null;
+        for (const u of this.units) {
+          if (u.side === side && u.state !== "dead") u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.3);
+        }
+      }
+    }
+    if (this.potatoId != null && this.time >= this.potatoAt) {
+      const u = this.units.find((n) => n.id === this.potatoId);
+      this.potatoId = null;
+      if (u && u.state !== "dead") {
+        for (const o of this.units) {
+          if (o.id === u.id || o.state === "dead") continue;
+          if (Math.hypot(o.x - u.x, o.z - u.z) < 3.2) this.damage(o, 40, 22, null);
+        }
+      }
+    }
   }
 
   step(dt: number, speed: number, paused: boolean) {
@@ -288,7 +381,6 @@ export class World {
     }
     const rate = this.slowmoT > 0 ? 0.22 : 1;
     const feed = Math.min(dt, 0.08) * speed * rate;
-    this.acc += feed;
     this.acc += feed;
     let steps = 0;
     while (this.acc >= FIXED_DT && steps < 4) {
@@ -311,6 +403,7 @@ export class World {
 
     this.time += FIXED_DT;
     this.noDamageT += FIXED_DT;
+    this.tickTimedPowerups();
     if (this.slowmoT > 0) {
       this.slowmoT -= FIXED_DT;
       if (this.slowmoT <= 0 && this.pendingWinner != null) {
@@ -322,8 +415,21 @@ export class World {
 
     const stepIndex = Math.floor(this.time / FIXED_DT);
     for (const u of this.units) {
-      if (u.state === "dead") continue;
+      if (u.state === "dead") {
+        u.deadT = (u.deadT ?? 0) + FIXED_DT;
+        continue;
+      }
       u.cooldown = Math.max(0, u.cooldown - FIXED_DT);
+      if (u.def.id === "anomaly.bard") {
+        for (const o of this.units) {
+          if (o.side === u.side || o.state === "dead") continue;
+          const d = Math.hypot(o.x - u.x, o.z - u.z);
+          if (d > 8 || d < 0.4) continue;
+          o.x += ((u.x - o.x) / d) * 1.6 * FIXED_DT;
+          o.z += ((u.z - o.z) / d) * 1.6 * FIXED_DT;
+          this.physics.setPosition(o.ragdoll.rootBody, o.x, o.y, o.z);
+        }
+      }
       u.flash = Math.max(0, u.flash - FIXED_DT);
       u.hurtT = Math.max(0, u.hurtT - FIXED_DT);
       if (u.hurtT <= 0 && u.swingT <= 0) u.face = u.state === "attack" ? "angry" : "idle";
@@ -482,6 +588,23 @@ export class World {
     if (!target || u.cooldown > 0) return;
     const dist = Math.hypot(target.x - u.x, target.z - u.z);
     const w = u.def.weapon;
+    if (w.kind === "summon") {
+      u.cooldown = w.cooldown;
+      u.state = "attack";
+      const ang = this.rng() * Math.PI * 2;
+      try {
+        this.place({
+          defId: "haunted.skeleton",
+          x: u.x + Math.cos(ang) * 1.6,
+          z: u.z + Math.sin(ang) * 1.6,
+          yaw: u.yaw,
+          side: u.side,
+        });
+      } catch {
+        /* cap */
+      }
+      return;
+    }
     if (w.kind === "charge") {
       if (dist <= w.range) this.resolveCharge(u, target);
       return;
@@ -706,6 +829,12 @@ export class World {
       if (attacker.def.id === "haunted.vampire") {
         attacker.hp = Math.min(attacker.maxHp, attacker.hp + dealt);
       }
+      if (attacker.def.id === "anomaly.tax") {
+        const steal = Math.max(4, Math.round(victim.maxHp * 0.05));
+        victim.maxHp = Math.max(10, victim.maxHp - steal);
+        attacker.maxHp += steal;
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + steal);
+      }
     }
     victim.flash = 0.08;
     victim.hurtT = 0.25;
@@ -736,7 +865,9 @@ export class World {
       victim.launchT = 1.4;
       this.events.push({ type: "launch", unitId: victim.id });
     }
-    if (victim.hp <= 0) this.kill(victim, attacker?.id ?? null);
+    if (victim.def.id === "anomaly.mirror" && attacker && attacker.id !== victim.id) {
+      this.damage(attacker, dealt * 0.35, knockback * 0.4, null);
+    }
   }
 
   private kill(u: UnitInternal, killerId: number | null) {
@@ -744,6 +875,7 @@ export class World {
     u.state = "dead";
     u.face = "dead";
     u.hp = 0;
+    u.deadT = 0;
     this.physics.applyImpulse(u.ragdoll.bodyIds.torso, (this.rng() - 0.5) * 8, 10, (this.rng() - 0.5) * 8);
     this.physics.removeBody(u.ragdoll.rootBody);
     this.events.push({ type: "death", unitId: u.id, killerId });
@@ -819,6 +951,7 @@ export class World {
         root,
         parts,
         flash: u.flash,
+        fade: u.state === "dead" ? Math.min(1, (u.deadT ?? 0) / 0.7) : 0,
       });
     }
     const hpPct: [number, number] = [

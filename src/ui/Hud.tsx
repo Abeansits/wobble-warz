@@ -36,6 +36,8 @@ export function Hud({ world }: { world: World }) {
   const setArena = useGame((s) => s.setArena);
   const powerups = useGame((s) => s.powerups);
   const togglePowerup = useGame((s) => s.togglePowerup);
+  const followId = useGame((s) => s.followId);
+  const menuOpen = useGame((s) => s.menuOpen);
   const p1id = useProfiles((s) => s.p1);
   const p2id = useProfiles((s) => s.p2);
   const plist = useProfiles((s) => s.profiles);
@@ -183,6 +185,21 @@ export function Hud({ world }: { world: World }) {
               {p2?.name ?? "P2"} {spent[1]}
             </span>
           </div>
+          {phase === "setup" && (
+            <div className="flex gap-1 text-xs">
+              {[3000, 4500, 6000].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => useGame.getState().setBudget(n)}
+                  className={`rounded-btn border-[2px] border-ink px-2 py-0.5 ${budget === n ? "bg-ochre-hot" : "bg-parchment"}`}
+                >
+                  {n}
+                </button>
+              ))}
+              {budget >= 6000 && <span className="text-crimson">will hitch</span>}
+            </div>
+          )}
           {snapshot && phase !== "setup" && (
             <div className="flex h-3 overflow-hidden rounded-full border-2 border-ink">
               <div
@@ -199,6 +216,12 @@ export function Hud({ world }: { world: World }) {
             {snapshot?.units.length ?? 0} on the field
             {p1 && p2 ? ` · ${p1.credits} / ${p2.credits}¢` : ""}
           </p>
+          {phase !== "setup" && snapshot && (
+            <div className="mt-1 flex h-2 overflow-hidden rounded-btn border-[2px] border-ink">
+              <span className="bg-steel" style={{ width: `${Math.max(4, (snapshot.counts[0] / Math.max(1, snapshot.counts[0] + snapshot.counts[1])) * 100)}%` }} />
+              <span className="bg-crimson" style={{ flex: 1 }} />
+            </div>
+          )}
         </div>
       </header>
 
@@ -241,6 +264,11 @@ export function Hud({ world }: { world: World }) {
                   on ? "bg-ochre-hot" : "bg-parchment"
                 }`}
               >
+                <div className="mb-1 flex h-8 overflow-hidden rounded-btn border-[2px] border-ink">
+                  <span className="w-1/2" style={{ background: u.palette.primary }} />
+                  <span className="w-1/4" style={{ background: u.palette.skin }} />
+                  <span className="w-1/4" style={{ background: u.palette.accent }} />
+                </div>
                 <div className="flex items-baseline justify-between">
                   <span className="font-display text-lg">{u.name}</span>
                   <span className="font-display text-steel">{u.cost}</span>
@@ -357,6 +385,44 @@ export function Hud({ world }: { world: World }) {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  const units = world.units
+                    .filter((u) => u.side === 0)
+                    .map((u) => ({ defId: u.def.id, x: u.x, z: u.z, yaw: u.yaw, side: 0 as const }));
+                  const who = useProfiles.getState().p1;
+                  useProfiles.getState().saveArmy(who, "Hot-seat", units);
+                  setMessage("Army saved.");
+                }}
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const who = placingSide === 0 ? p1 : p2;
+                  const army = who?.armies?.[0];
+                  if (!army) {
+                    setMessage("No saved army yet.");
+                    return;
+                  }
+                  world.clearSide(placingSide);
+                  for (const raw of army.units) {
+                    try {
+                      world.place({ ...raw, side: placingSide });
+                    } catch {
+                      /* cap */
+                    }
+                  }
+                  useGame.getState().setSnapshot(world.snapshot());
+                  setMessage(`Loaded ${army.name}.`);
+                }}
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
+              >
+                Load
+              </button>
+              <button
+                type="button"
                 onClick={readyP1}
                 className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-5 py-2 font-display text-xl"
               >
@@ -391,6 +457,15 @@ export function Hud({ world }: { world: World }) {
             <div className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-3 py-2 font-display">
               {snapshot ? Math.floor(snapshot.time) : 0}s / 120
               <span className="ml-2 text-sm text-muted">phys {snapshot?.physicsMs.toFixed(1)}ms</span>
+              {(() => {
+                const fu = snapshot?.units.find((u) => u.id === followId);
+                if (!fu) return <span className="ml-2 text-sm text-muted">click a toy · F</span>;
+                return (
+                  <span className="ml-2 text-sm">
+                    {fu.defId.split(".")[1]} {Math.ceil(fu.hp)}/{fu.maxHp}
+                  </span>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -398,6 +473,21 @@ export function Hud({ world }: { world: World }) {
 
       {seat === "pass" && <PassCurtain onDone={beginP2} />}
       {phase === "over" && <ResultsCard world={world} onRematch={rematch} onNew={wipe} />}
+      {menuOpen && (
+        <div className="pointer-events-auto absolute inset-0 z-50 flex items-center justify-center bg-ink/70" data-ui>
+          <div className="toy-shadow w-full max-w-sm rounded-card border-[3px] border-ink bg-cream p-5 text-ink">
+            <h2 className="font-display text-3xl">Paused</h2>
+            <div className="mt-4 flex flex-col gap-2">
+              <button type="button" className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-4 py-2 font-display" onClick={() => useGame.getState().setMenuOpen(false)}>
+                Resume
+              </button>
+              <Link to="/" className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display text-center">
+                Quit to title
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
       {world.slowmoT > 0 && phase === "battle" && (
         <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
           <p className="font-display text-6xl text-cream drop-shadow-[6px_6px_0_#1c1710]">FINISH</p>

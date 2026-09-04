@@ -7,8 +7,9 @@ import { useGame } from "@/store/gameStore";
 import { ArmyView } from "./ArmyView";
 import { CameraRig } from "./CameraRig";
 import { DeployPads, MeadowProps, Terrain } from "./Terrain";
+import { Particles, burst } from "./Particles";
 import { BattleFx } from "./Fx";
-import { sfx } from "@/game/audio";
+import { sfx, startMeadow, stopMeadow, duckMeadow } from "@/game/audio";
 import { useSettings } from "@/routes/settings";
 import { getArena } from "@/game/data/arenas";
 import { Hud } from "@/ui/Hud";
@@ -115,12 +116,22 @@ function SimLoop({ world }: { world: World }) {
                   `${killer?.def.name ?? "The meadow"} dropped ${victim?.def.name ?? "someone"}`,
                 );
                 sfx("yelp", useSettings.getState().sfx);
+                if (victim) burst(victim.x, victim.y + 0.6, victim.z, 18, victim.side === 0 ? "#3a5f8a" : "#b33a2b", 6);
               }
               if (e.type === "hit" && e.impulse > 18) {
                 sfx("hit", useSettings.getState().sfx);
                 if (useSettings.getState().shake) useGame.getState().bumpCam("pitch", 0.02);
+                const v = world.units.find((u) => u.id === e.victimId);
+                if (v) burst(v.x, v.y + 0.5, v.z, 8, "#ffe6b8", 5);
               }
-              if (e.type === "victory") sfx("win", useSettings.getState().sfx);
+              if (e.type === "shot") {
+                const u = world.units.find((n) => n.id === e.unitId);
+                if (u) burst(u.x, u.y + 0.7, u.z, 4, "#f0d090", 3);
+              }
+              if (e.type === "victory") {
+                sfx("win", useSettings.getState().sfx);
+                duckMeadow(true);
+              }
             }
           }
         }
@@ -215,6 +226,11 @@ export function BattleApp() {
   }, [setSnapshot]);
 
   useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      const st = useGame.getState();
+      if (st.snapshot?.phase !== "setup") return;
+      st.setYawOffset(st.yawOffset + (e.deltaY > 0 ? Math.PI / 12 : -Math.PI / 12));
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
@@ -225,9 +241,14 @@ export function BattleApp() {
       if (e.code === "Digit2") useGame.getState().setSpeed(0.5);
       if (e.code === "Digit3") useGame.getState().setSpeed(1);
       if (e.code === "Digit4") useGame.getState().setSpeed(2);
+      if (e.code === "Escape") useGame.getState().setMenuOpen(!useGame.getState().menuOpen);
     };
+    window.addEventListener("wheel", onWheel, { passive: true });
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
+    };
   }, []);
 
   if (err) {
@@ -277,11 +298,38 @@ export function BattleApp() {
           <CameraRig />
           <SetupInput world={world} />
           <SimLoop world={world} />
+          <Particles />
           <BattleFx />
         </Suspense>
       </Canvas>
       <Hud world={world} />
+      <MusicBed />
     </div>
+  );
+}
+
+function MusicBed() {
+  const phase = useGame((s) => s.snapshot?.phase ?? "setup");
+  useEffect(() => {
+    const vol = useSettings.getState().music;
+    if (phase === "setup") stopMeadow();
+    else startMeadow(vol);
+    return () => stopMeadow();
+  }, [phase]);
+  return null;
+}
+
+function GhostPreview() {
+  const ghost = useGame((s) => s.ghost);
+  const selected = useGame((s) => s.selected);
+  const side = useGame((s) => s.placingSide);
+  if (!ghost) return null;
+  const ok = side === 0 ? ghost.x < -8 : ghost.x > 8;
+  return (
+    <mesh position={[ghost.x, 1.1, ghost.z]} scale={selected.body.scale}>
+      <capsuleGeometry args={[0.22, 0.7, 4, 8]} />
+      <meshBasicMaterial color={ok ? (side === 0 ? "#3a5f8a" : "#b33a2b") : "#1c1710"} transparent opacity={0.35} />
+    </mesh>
   );
 }
 
@@ -316,6 +364,7 @@ function DeploymentZones({
       place.current(e.point.x, e.point.z);
     },
     onPointerMove: (e: { buttons: number; point: { x: number; z: number } }) => {
+      useGame.getState().setGhost({ x: e.point.x, z: e.point.z });
       if (!dragging.current || e.buttons !== 1) return;
       brush.current(e.point.x, e.point.z);
     },
@@ -337,6 +386,7 @@ function DeploymentZones({
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       <DeployPads active={side} />
+      <GhostPreview />
     </group>
   );
 }
