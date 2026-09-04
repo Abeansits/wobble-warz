@@ -47,7 +47,8 @@ const _quat = new THREE.Quaternion();
 function spawn(x: number, y: number, z: number, n: number, hex: string, speed: number, kind: Kind, size = 0.08) {
   _c.set(hex);
   for (let i = 0; i < n; i++) {
-    if (pool.length >= MAX) pool.shift();
+    const cap = useGame.getState().snapshot?.degraded ? MAX / 2 : MAX;
+    if (pool.length >= cap) pool.shift();
     const life =
       kind === "flash" ? 0.08 + Math.random() * 0.06 : kind === "heal" ? 0.45 + Math.random() * 0.25 : 0.35 + Math.random() * 0.45;
     pool.push({

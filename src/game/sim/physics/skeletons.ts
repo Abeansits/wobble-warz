@@ -52,6 +52,7 @@ export function jointCountFor(kind: UnitDef["body"]["kind"]): number {
 
 /** Combat always reads torso/pelvis/armR — alias extra bones onto those names. */
 export const BONE_ALIASES: Record<string, string[]> = {
+  arms: ["armL", "armR"],
   legFL: ["armL"],
   legFR: ["armR"],
   legBL: ["legs"],
@@ -60,7 +61,8 @@ export const BONE_ALIASES: Record<string, string[]> = {
   wheelBR: ["legs"],
 };
 
-export function skeletonLayout(kind: UnitDef["body"]["kind"]): SkelLayout {
+export function skeletonLayout(kind: UnitDef["body"]["kind"], lod = false): SkelLayout {
+  if (lod && kind === "humanoid") return HUMANOID_LOD;
   switch (kind) {
     case "quadruped":
       return QUAD;
@@ -87,6 +89,22 @@ const HUMANOID: SkelLayout = {
     p("armL", 1, [-0.28, 1.22, 0], [-0.16, 1.34, 0], "capsule", [0.15, 0.05, 0], 0.1, "-x", 35, 55, 40),
     p("armR", 1, [0.28, 1.22, 0], [0.16, 1.34, 0], "capsule", [0.15, 0.05, 0], 0.1, "x", 35, 55, 40),
     p("legs", 0, [0, 0.42, 0], [0, 0.68, 0], "capsule", [0.22, 0.11, 0], 0.1, "-y", 20, 28, 28),
+  ],
+};
+
+/** 4-body: merged pelvis+torso, head, arms-as-one, legs. */
+const HUMANOID_LOD: SkelLayout = {
+  kind: "humanoid",
+  orient: false,
+  rootLift: 0.95,
+  rootHalf: 0.42,
+  rootRadius: 0.16,
+  springSlack: 0.12,
+  parts: [
+    p("pelvis", -1, [0, 1.05, 0], [0, 0, 0], "capsule", [0.18, 0.16, 0], 0.5, "y", 0, 0, 0),
+    p("head", 0, [0, 1.54, 0], [0, 1.4, 0], "sphere", [0.15, 0, 0], 0.1, "y", 35, 28, 28),
+    p("arms", 0, [0, 1.22, 0], [0, 1.34, 0], "capsule", [0.12, 0.16, 0], 0.2, "x", 35, 50, 40),
+    p("legs", 0, [0, 0.42, 0], [0, 0.68, 0], "capsule", [0.22, 0.11, 0], 0.2, "-y", 20, 28, 28),
   ],
 };
 

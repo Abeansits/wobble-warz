@@ -68,11 +68,12 @@ function zero(j: JointEuler) {
  * ang = sin((1 - swingT/dur) * π) * 1.4 on the right arm.
  */
 export function poseJoints(req: PoseRequest, out: JointEuler[]): JointEuler[] {
-  const n = Math.max(JOINT_COUNT, req.jointCount ?? (req.kind === "quadruped" || req.kind === "vehicle" ? 7 : 6));
+  const n = req.jointCount ?? (req.kind === "quadruped" || req.kind === "vehicle" ? 7 : 6);
   while (out.length < n) out.push({ x: 0, y: 0, z: 0 });
   for (let i = 0; i < n; i++) zero(out[i]);
 
   const t = req.time + req.phase;
+  if (n === 4) return poseLod4(req, out, t);
   if (req.kind === "quadruped") return poseQuad(req, out, t, n);
   if (req.kind === "vehicle") return poseVehicle(req, out, t, n);
   if (req.kind === "static") return poseStatic(req, out, t);
@@ -119,6 +120,24 @@ export function poseJoints(req: PoseRequest, out: JointEuler[]): JointEuler[] {
     out[JOINT_ARML].x -= ang * 0.12;
   }
 
+  return out;
+}
+
+/** 4-body LOD: 0 pelvis, 1 head, 2 arms, 3 legs. */
+function poseLod4(req: PoseRequest, out: JointEuler[], t: number): JointEuler[] {
+  const a = Math.sin(t * (req.gait === "run" ? 8.4 : 2.2));
+  out[1].y = -a * 0.08;
+  out[2].x = a * (req.gait === "run" ? 0.4 : 0.08);
+  out[3].x = a * (req.gait === "run" ? 0.5 : 0.04);
+  if (req.gait === "stun") {
+    out[0].x = 0.2;
+    out[1].x = 0.22;
+    out[2].x = 0.3;
+  }
+  if (req.swingT > 0 && req.swingDur > 0) {
+    const u = Math.max(0, Math.min(1, 1 - req.swingT / req.swingDur));
+    out[2].x = Math.sin(u * Math.PI) * 1.2;
+  }
   return out;
 }
 

@@ -100,6 +100,7 @@ export type PlaceOpts = {
   free?: boolean;
   summoned?: boolean;
   mounted?: boolean;
+  lod?: boolean;
   def?: UnitDef;
 };
 

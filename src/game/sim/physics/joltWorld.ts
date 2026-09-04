@@ -281,8 +281,17 @@ export class JoltWorld {
     return this.createUnit(def, x, y, z, yaw, groupId, layer);
   }
 
-  createUnit(def: UnitDef, x: number, y: number, z: number, yaw: number, groupId: number, layer = LAYER_MOVING): BuiltRagdoll {
-    const layout = skeletonLayout(def.body.kind);
+  createUnit(
+    def: UnitDef,
+    x: number,
+    y: number,
+    z: number,
+    yaw: number,
+    groupId: number,
+    layer = LAYER_MOVING,
+    lod = false,
+  ): BuiltRagdoll {
+    const layout = skeletonLayout(def.body.kind, lod);
     return this.createFromLayout(def, layout, x, y, z, yaw, groupId, layer);
   }
 
@@ -416,6 +425,7 @@ export class JoltWorld {
       bodyIds[name] = id;
       for (const alias of BONE_ALIASES[name] ?? []) bodyIds[alias] = id;
     }
+    if (bodyIds.pelvis != null && bodyIds.torso == null) bodyIds.torso = bodyIds.pelvis;
 
     const lift = layout.rootLift * s;
     const rootBody = this.createKinematicCapsule(x, y + lift, z, layout.rootHalf * s, layout.rootRadius * s, layer);

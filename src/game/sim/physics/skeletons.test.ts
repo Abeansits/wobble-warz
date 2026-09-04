@@ -29,6 +29,16 @@ describe("skeleton layouts", () => {
     expect(rootLift("static", 1.3)).toBeLessThan(rootLift("humanoid", 1));
   });
 
+  it("humanoid LOD is 4 bodies with combat aliases", () => {
+    const lod = skeletonLayout("humanoid", true);
+    expect(lod.parts).toHaveLength(4);
+    expect(lod.parts.map((p) => p.name)).toEqual(["pelvis", "head", "arms", "legs"]);
+    expect(BONE_ALIASES.arms).toEqual(["armL", "armR"]);
+    lod.parts.forEach((p, i) => {
+      expect(p.parent).toBeLessThan(i);
+    });
+  });
+
   it("parent indices always point at earlier joints", () => {
     for (const kind of ["humanoid", "quadruped", "vehicle", "static"] as const) {
       skeletonLayout(kind).parts.forEach((p, i) => {

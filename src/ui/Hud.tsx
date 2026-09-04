@@ -687,6 +687,11 @@ export function Hud({ world }: { world: World }) {
             <div className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-3 py-2 font-display">
               {snapshot ? Math.floor(snapshot.time) : 0}s / 120
               <span className="ml-2 text-sm text-muted">phys {snapshot?.physicsMs.toFixed(1)}ms</span>
+              {snapshot?.degraded && (
+                <span className="ml-2 text-ochre-hot" title="Physics is heavy — LOD and corpses are thinning">
+                  ⚡
+                </span>
+              )}
               {(() => {
                 const fu = snapshot?.units.find((u) => u.id === followId);
                 if (!fu) return <span className="ml-2 text-sm text-muted">click a toy · F</span>;

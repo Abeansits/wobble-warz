@@ -79,6 +79,17 @@ describe("headless fight", () => {
     world.dispose();
   }, 30_000);
 
+  it("lod ragdoll is 4 bodies with torso aliased to pelvis", async () => {
+    const world = new World(2);
+    await world.init();
+    const id = world.place({ defId: "haunted.skeleton", x: 0, z: 0, yaw: 0, side: 0 }, { summoned: true, lod: true, free: true });
+    const u = world.units.find((n) => n.id === id)!;
+    expect(u.ragdoll.orderedIds).toHaveLength(4);
+    expect(u.ragdoll.bodyIds.torso).toBe(u.ragdoll.bodyIds.pelvis);
+    expect(u.ragdoll.bodyIds.armR).toBe(u.ragdoll.bodyIds.armL);
+    world.dispose();
+  }, 30_000);
+
   it("canyon planks hold the walkway until they are shot out", async () => {
     const world = new World(9);
     await world.init();

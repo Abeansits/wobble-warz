@@ -15,6 +15,7 @@ import { retarget, steer } from "./ai";
 import { deployYaw } from "./facing";
 import { applyDamage, killUnit } from "./combat";
 import { ARENA_HALF_X, ARENA_HALF_Z, CORPSE_FADE, CORPSE_LIFE, FIXED_DT } from "./constants";
+import { CORPSE_CAP, cullCorpses, shouldLod, updateDegrade } from "./lod";
 import { EventRing, type SimEvent } from "./events";
 import { LAYER_PHASE, JoltWorld, type BodyHandle, type TransformSnap } from "./physics/joltWorld";
 export type { TransformSnap };
@@ -81,6 +82,7 @@ export type WorldSnapshot = {
   counts: [number, number];
   hpPct: [number, number];
   physicsMs: number;
+  degraded: boolean;
 };
 
 export type BattleStats = {
@@ -123,6 +125,8 @@ export class World implements SimCtx {
   prevSnap: WorldSnapshot | null = null;
   currSnap: WorldSnapshot | null = null;
   renderAlpha = 1;
+  degraded = false;
+  private physSamples: number[] = [];
   private reinforceAt: [number | null, number | null] = [null, null];
   private windAt: [number | null, number | null] = [null, null];
   private potatoAt = 0;
@@ -207,7 +211,9 @@ export class World implements SimCtx {
     const def: UnitDef = opts.def ?? getUnit(p.defId);
     const y = this.groundY(p.x, p.z) + 0.05;
     const layer = def.id === "haunted.ghost" ? LAYER_PHASE : undefined;
-    const built = this.physics.createUnit(def, p.x, y, p.z, p.yaw, this.nextId, layer);
+    const alive = this.units.filter((u) => u.state !== "dead" && !u.gone).length;
+    const lod = opts.lod ?? shouldLod(alive, opts.summoned ?? false, this.degraded);
+    const built = this.physics.createUnit(def, p.x, y, p.z, p.yaw, this.nextId, layer, lod);
     const unit: UnitInternal = {
       id: this.nextId++,
       def,
@@ -277,6 +283,8 @@ export class World implements SimCtx {
     this.prevSnap = null;
     this.currSnap = null;
     this.renderAlpha = 1;
+    this.degraded = false;
+    this.physSamples = [];
     this.phase = "setup";
     this.winner = null;
     this.countdown = 0;
@@ -542,7 +550,7 @@ export class World implements SimCtx {
           for (const id of u.ragdoll.orderedIds) this.physics.freezeBody(id);
           u.frozenCorpse = true;
         }
-        if (u.deadT > CORPSE_LIFE + CORPSE_FADE) {
+        if (u.deadT > this.corpseLife() + CORPSE_FADE) {
           u.gone = true;
           try {
             this.physics.destroyRagdoll(u.ragdoll);
@@ -627,12 +635,20 @@ export class World implements SimCtx {
       }
     }
 
+    cullCorpses(this.units, CORPSE_CAP, this.corpseLife());
     stepShots(this);
     stepTethers(this);
     this.physics.step(FIXED_DT);
     this.checkVictory();
 
     this.lastPhysicsMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
+    const deg = updateDegrade(this.physSamples, this.lastPhysicsMs, this.degraded);
+    this.physSamples = deg.samples;
+    this.degraded = deg.degraded;
+  }
+
+  corpseLife(): number {
+    return CORPSE_LIFE * (this.degraded ? 0.5 : 1);
   }
 
   private checkVictory() {
@@ -695,8 +711,9 @@ export class World implements SimCtx {
         counts[u.side]++;
         hp[u.side] += Math.max(0, u.hp);
       }
+      const life = this.corpseLife();
       const fade =
-        u.state === "dead" ? (u.deadT < CORPSE_LIFE ? 0 : Math.min(1, (u.deadT - CORPSE_LIFE) / CORPSE_FADE)) : 0;
+        u.state === "dead" ? (u.deadT < life ? 0 : Math.min(1, (u.deadT - life) / CORPSE_FADE)) : 0;
       views.push({
         id: u.id,
         defId: u.def.id,
@@ -740,6 +757,7 @@ export class World implements SimCtx {
       counts,
       hpPct,
       physicsMs: this.lastPhysicsMs,
+      degraded: this.degraded,
     };
   }
 
