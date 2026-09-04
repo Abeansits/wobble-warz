@@ -230,6 +230,11 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
         <mesh
           key={`p${p.id}`}
           position={[p.x, p.y, p.z]}
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            useGame.getState().setHoverId(p.id);
+          }}
+          onPointerOut={() => useGame.getState().setHoverId(null)}
           onClick={(e) => {
             e.stopPropagation();
             useGame.getState().setFollowId(p.id);

@@ -37,6 +37,7 @@ export function Hud({ world }: { world: World }) {
   const powerups = useGame((s) => s.powerups);
   const togglePowerup = useGame((s) => s.togglePowerup);
   const followId = useGame((s) => s.followId);
+  const hoverId = useGame((s) => s.hoverId);
   const menuOpen = useGame((s) => s.menuOpen);
   const p1id = useProfiles((s) => s.p1);
   const p2id = useProfiles((s) => s.p2);
@@ -476,6 +477,15 @@ export function Hud({ world }: { world: World }) {
 
       {seat === "pass" && <PassCurtain onDone={beginP2} />}
       {phase === "over" && <ResultsCard world={world} onRematch={rematch} onNew={wipe} />}
+      {phase !== "setup" && hoverId != null && snapshot && (
+        <div className="pointer-events-none absolute left-1/2 top-24 z-20 -translate-x-1/2 rounded-btn border-[3px] border-ink bg-cream px-3 py-1 font-display text-ink">
+          {(() => {
+            const u = snapshot.units.find((n) => n.id === hoverId);
+            if (!u) return null;
+            return `${u.defId.split(".")[1]}  ${Math.ceil(u.hp)}/${u.maxHp}`;
+          })()}
+        </div>
+      )}
       {menuOpen && (
         <div className="pointer-events-auto absolute inset-0 z-50 flex items-center justify-center bg-ink/70" data-ui>
           <div className="toy-shadow w-full max-w-sm rounded-card border-[3px] border-ink bg-cream p-5 text-ink">

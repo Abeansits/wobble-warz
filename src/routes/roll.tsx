@@ -65,19 +65,21 @@ function RollPage() {
           ))}
         </div>
 
-        <div className="toy-shadow relative mt-8 h-72 overflow-hidden rounded-card border-[3px] border-ink bg-[#3a2a1c]">
-          <div className="absolute inset-x-6 top-4 grid grid-cols-5 gap-6 opacity-70">
-            {Array.from({ length: 15 }).map((_, i) => (
-              <span key={i} className="h-3 w-3 rounded-full bg-ochre" />
+        <div className="toy-shadow relative mt-8 h-80 overflow-hidden rounded-card border-[3px] border-ink bg-[#3a2a1c]">
+          <div className="absolute inset-x-8 top-6 grid grid-cols-5 gap-y-8">
+            {Array.from({ length: 20 }).map((_, i) => (
+              <span key={i} className="mx-auto h-3 w-3 rounded-full bg-ochre" />
             ))}
           </div>
           <div
-            className={`absolute left-1/2 h-10 w-10 -translate-x-1/2 rounded-full border-[3px] border-ink ${
-              dropping ? "animate-bounce bg-ochre-hot" : "top-8 bg-cream"
-            }`}
-            style={dropping ? { top: "70%" } : undefined}
+            className="absolute h-11 w-11 rounded-full border-[3px] border-ink bg-ochre-hot"
+            style={{
+              left: dropping ? "58%" : "46%",
+              top: dropping ? "72%" : "8%",
+              transition: dropping ? "left 1.2s ease-in-out, top 1.2s cubic-bezier(.2,1.4,.4,1)" : "none",
+            }}
           />
-          <div className="absolute inset-x-10 bottom-4 h-8 rounded-btn border-[3px] border-ink bg-parchment" />
+          <div className="absolute inset-x-8 bottom-3 h-10 rounded-btn border-[3px] border-ink bg-parchment" />
         </div>
 
         <p className="mt-4 font-display text-2xl">

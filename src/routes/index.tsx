@@ -25,6 +25,11 @@ function Home() {
           </p>
         </header>
         <div>
+          <img
+            src="/logo.jpg"
+            alt="Wobble Wars"
+            className="mb-4 max-h-28 w-auto rounded-card border-[3px] border-ink toy-shadow md:max-h-36"
+          />
           <h1 className="font-display text-6xl leading-none tracking-tight text-cream drop-shadow-[6px_6px_0_#1c1710] md:text-8xl">
             Wobble Wars
           </h1>

@@ -2,6 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useGame } from "@/store/gameStore";
+import { session } from "@/game/session";
 
 const MIN_PITCH = THREE.MathUtils.degToRad(18);
 const MAX_PITCH = THREE.MathUtils.degToRad(80);
@@ -148,6 +149,9 @@ export function CameraRig() {
         pitch.current = 0.7;
       }
       lastPhase.current = phase;
+    }
+    if (session.world && session.world.slowmoT > 0) {
+      dist.current = THREE.MathUtils.lerp(dist.current, 16, 0.06);
     }
     const k = keys.current;
     const right = new THREE.Vector3(Math.cos(yaw.current), 0, -Math.sin(yaw.current));

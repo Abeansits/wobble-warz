@@ -19,6 +19,7 @@ type GameStore = {
   snapshot: WorldSnapshot | null;
   message: string;
   followId: number | null;
+  hoverId: number | null;
   placements: Placement[];
   undo: Placement[];
   yawOffset: number;
@@ -40,6 +41,7 @@ type GameStore = {
   setPaused: (p: boolean) => void;
   setMessage: (m: string) => void;
   setFollowId: (id: number | null) => void;
+  setHoverId: (id: number | null) => void;
   setBudget: (n: number) => void;
   addSpend: (side: 0 | 1, cost: number) => void;
   resetSpend: () => void;
@@ -70,6 +72,7 @@ export const useGame = create<GameStore>((set, get) => ({
   snapshot: null,
   message: "P1 — click the glowing blue pad.",
   followId: null,
+  hoverId: null,
   placements: [],
   undo: [],
   yawOffset: 0,
@@ -94,6 +97,7 @@ export const useGame = create<GameStore>((set, get) => ({
   setPaused: (paused) => set({ paused }),
   setMessage: (message) => set({ message }),
   setFollowId: (followId) => set({ followId }),
+  setHoverId: (hoverId) => set({ hoverId }),
   setBudget: (budget) => set({ budget }),
   addSpend: (side, cost) =>
     set((s) => {
@@ -158,6 +162,7 @@ export const useGame = create<GameStore>((set, get) => ({
       speed: 1,
       message: "P1 — click the glowing blue pad.",
       followId: null,
+      hoverId: null,
       vsAI: false,
       ladderLevel: null,
       powerups: [[], []],

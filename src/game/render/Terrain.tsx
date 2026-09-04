@@ -45,6 +45,7 @@ export function Terrain() {
 }
 
 export function MeadowProps() {
+  const arenaId = useGame((s) => s.arena);
   const rocks = useMemo(
     () =>
       [
@@ -57,14 +58,40 @@ export function MeadowProps() {
       ] as [number, number, number, number][],
     [],
   );
+  const stones = useMemo(
+    () =>
+      [
+        [-4, 0.7, 4],
+        [5, 0.7, -3],
+        [-10, 0.7, -8],
+        [11, 0.7, 6],
+        [0, 0.7, 9],
+      ] as [number, number, number][],
+    [],
+  );
   return (
     <group>
       {rocks.map(([x, y, z, r], i) => (
-        <mesh key={i} position={[x, y, z]} castShadow receiveShadow raycast={() => {}}>
+        <mesh key={`r${i}`} position={[x, y, z]} castShadow receiveShadow raycast={() => {}}>
           <sphereGeometry args={[r, 6, 5]} />
-          <meshToonMaterial color={i % 2 ? "#7a6a52" : "#8d7a5c"} />
+          <meshToonMaterial color={arenaId === "canyon" ? "#a05030" : "#7a6a52"} />
         </mesh>
       ))}
+      {arenaId === "graveyard" &&
+        stones.map(([x, y, z], i) => (
+          <mesh key={`t${i}`} position={[x, y, z]} castShadow raycast={() => {}}>
+            <boxGeometry args={[0.45, 1.1, 0.18]} />
+            <meshToonMaterial color="#6a6a68" />
+          </mesh>
+        ))}
+      {arenaId === "canyon" && (
+        <>
+          <mesh position={[0, 0.2, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => {}}>
+            <planeGeometry args={[5.2, 40]} />
+            <meshToonMaterial color="#7a3a22" />
+          </mesh>
+        </>
+      )}
     </group>
   );
 }

@@ -56,7 +56,9 @@ function SettingsPage() {
           <input type="checkbox" checked={s.blind} onChange={(e) => s.setBlind(e.target.checked)} />
           Blind placement on pass
         </label>
-        <p className="mt-4 text-sm text-cream/70">Audio buses hook up with the juice pass. Sliders already remember themselves.</p>
+        <p className="mt-4 text-sm text-cream/70">
+          Music plays on the title and during fights. Shadows stay on; turn shake off if the camera wobbles too much.
+        </p>
         <Link to="/" className="toy-shadow mt-6 inline-block rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display text-ink">
           Back
         </Link>
