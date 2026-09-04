@@ -43,7 +43,7 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 - [x] Render interpolation (accumulator alpha)
 - [x] Ragdoll LOD (4-body above 60 alive) + adaptive degrade ⚡
 - [x] Corpse freeze already exists; hard cap 80
-- [ ] Zod `UnitDef`; `UnitDef.audio` keys; ban `Math.random` in `sim/`
+- [x] Zod `UnitDef`; `UnitDef.audio` keys; ban `Math.random` in `sim/`
 - [ ] Tests: same-seed determinism 600 steps; every unit 1v1 30s no NaN; stalemate breaker
 - [x] `src/game/sim/balance.ts` equal-cost mirrors (vitest smoke 2 rounds); flag >65% still a follow-up printout
 - [ ] Spatial SFX (`PannerNode`); per-arena music loop; last-kill duck already sketched

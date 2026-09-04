@@ -136,6 +136,15 @@ export type AbilityDef = {
   amount: number;
 };
 
+export const AUDIO_KEYS = ["swing", "shot", "hit", "boom", "yelp", "win"] as const;
+export type AudioKey = (typeof AUDIO_KEYS)[number];
+
+export type UnitAudio = {
+  attack: AudioKey;
+  hit: AudioKey;
+  death: AudioKey;
+};
+
 export type UnitDef = {
   id: string;
   faction: FactionId;
@@ -162,6 +171,7 @@ export type UnitDef = {
     accent: string;
     skin: string;
   };
+  audio: UnitAudio;
 };
 
 export type Side = 0 | 1;

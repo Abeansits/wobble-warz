@@ -1,3 +1,4 @@
+import { parseRoster } from "./schema";
 import type { MeshRecipe, UnitDef } from "./types";
 
 function recipe(
@@ -35,7 +36,7 @@ const medieval = {
   skin: "#e6c2a0",
 };
 
-export const UNITS: Record<string, UnitDef> = {
+const RAW: Record<string, unknown> = {
   "stoneage.clubber": {
     id: "stoneage.clubber",
     faction: "stoneage",
@@ -308,7 +309,7 @@ const haunted = {
   skin: "#c8d9b0",
 };
 
-Object.assign(UNITS, {
+Object.assign(RAW, {
   "pirate.deckhand": {
     id: "pirate.deckhand",
     faction: "pirate",
@@ -768,7 +769,9 @@ Object.assign(UNITS, {
     ]),
     palette: { primary: "#1c1710", secondary: "#5a3a6a", accent: "#d4a017", skin: "#e6c2a0" },
   },
-} satisfies Record<string, UnitDef>);
+});
+
+export const UNITS: Record<string, UnitDef> = parseRoster(RAW);
 
 export const M0_ROSTER = [UNITS["stoneage.clubber"], UNITS["medieval.squire"]] as const;
 

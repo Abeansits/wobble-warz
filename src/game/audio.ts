@@ -9,7 +9,9 @@ function ac() {
   return ctx;
 }
 
-export function sfx(kind: "hit" | "boom" | "yelp" | "win", volume = 0.4) {
+import type { AudioKey } from "@/game/data/types";
+
+export function sfx(kind: AudioKey, volume = 0.4) {
   const c = ac();
   if (!c || volume <= 0) return;
   if (c.state === "suspended") void c.resume();
@@ -18,7 +20,8 @@ export function sfx(kind: "hit" | "boom" | "yelp" | "win", volume = 0.4) {
   const g = c.createGain();
   o.connect(g);
   g.connect(c.destination);
-  const freq = kind === "hit" ? 180 : kind === "boom" ? 70 : kind === "win" ? 440 : 320;
+  const freq =
+    kind === "hit" ? 180 : kind === "boom" ? 70 : kind === "win" ? 440 : kind === "shot" ? 520 : kind === "swing" ? 240 : 320;
   o.type = kind === "yelp" ? "square" : "triangle";
   o.frequency.setValueAtTime(freq + Math.random() * 40, t);
   o.frequency.exponentialRampToValueAtTime(Math.max(40, freq * 0.5), t + 0.12);

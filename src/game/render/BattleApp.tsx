@@ -128,16 +128,22 @@ function SimLoop({ world }: { world: World }) {
               useGame.getState().pushKill(
                 `${killer?.def.name ?? "The meadow"} dropped ${victim?.def.name ?? "someone"}`,
               );
-              sfx("yelp", useSettings.getState().sfx);
+              sfx(victim?.def.audio.death ?? "yelp", useSettings.getState().sfx);
               if (victim) burst(victim.x, victim.y + 0.6, victim.z, 18, victim.side === 0 ? "#3a5f8a" : "#b33a2b", 6);
             }
+            if (e.type === "swing") {
+              const u = world.units.find((n) => n.id === e.unitId);
+              if (u) sfx(u.def.audio.attack, useSettings.getState().sfx);
+            }
             if (e.type === "hit" && e.impulse > 18) {
-              sfx("hit", useSettings.getState().sfx);
-              if (useSettings.getState().shake) useGame.getState().bumpCam("pitch", 0.02);
               const v = world.units.find((u) => u.id === e.victimId);
+              sfx(v?.def.audio.hit ?? "hit", useSettings.getState().sfx);
+              if (useSettings.getState().shake) useGame.getState().bumpCam("pitch", 0.02);
               if (v) burst(v.x, v.y + 0.5, v.z, 8, "#ffe6b8", 5);
             }
             if (e.type === "shot") {
+              const shooter = world.units.find((n) => n.id === e.unitId);
+              if (shooter) sfx(shooter.def.audio.attack, useSettings.getState().sfx);
               muzzleFlash(e.ox, e.oy, e.oz);
               if (e.flavor === "hitscan") {
                 addTracer(e.ox, e.oy, e.oz, e.tx, e.ty, e.tz, "#fff6c8");
