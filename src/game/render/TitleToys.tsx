@@ -8,6 +8,7 @@ import { ArmyView } from "./ArmyView";
 import { posedSnapshot } from "./interp";
 import { Clouds, SkyDome } from "./SkyBits";
 import { MeadowProps, Terrain } from "./Terrain";
+import { hitJuice } from "./hitJuice";
 
 const DEMO: { defId: string; x: number; z: number; side: 0 | 1 }[] = [
   { defId: "stoneage.clubber", x: -12, z: -6, side: 0 },
@@ -45,7 +46,7 @@ function DemoLoop({ world, onSnap }: { world: World; onSnap: (s: WorldSnapshot) 
         if (u) sfx("yelp", 0.16, { x: u.x, y: u.y, z: u.z });
       } else if (e.type === "hit") {
         const v = world.units.find((n) => n.id === e.victimId);
-        sfx("hit", e.impulse > 18 ? 0.18 : 0.1, v ? { x: v.x, y: v.y, z: v.z } : undefined);
+        sfx("hit", hitJuice(e.impulse).volume * 0.4, v ? { x: v.x, y: v.y, z: v.z } : undefined);
       } else if (e.type === "swing") {
         const u = world.units.find((n) => n.id === e.unitId);
         if (u) sfx("swing", 0.1, { x: u.x, y: u.y, z: u.z });

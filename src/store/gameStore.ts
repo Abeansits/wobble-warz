@@ -7,6 +7,7 @@ import type { WorldSnapshot } from "@/game/sim/World";
 
 export type Speed = 0 | 0.25 | 0.5 | 1 | 2;
 export type SeatPhase = "setupP1" | "pass" | "setupP2" | "fight" | "results";
+export type CamBumpKind = "yaw" | "pitch" | "zoom" | "reset" | "shake";
 
 type GameStore = {
   selected: UnitDef;
@@ -32,7 +33,7 @@ type GameStore = {
   powerups: [string[], string[]];
   ghost: { x: number; z: number } | null;
   menuOpen: boolean;
-  camBump: { id: number; kind: "yaw" | "pitch" | "zoom" | "reset"; value: number } | null;
+  camBump: { id: number; kind: CamBumpKind; value: number } | null;
   setSelected: (u: UnitDef) => void;
   setFaction: (f: FactionId) => void;
   setSeat: (seat: SeatPhase) => void;
@@ -58,7 +59,7 @@ type GameStore = {
   togglePowerup: (side: 0 | 1, id: string) => void;
   setGhost: (g: { x: number; z: number } | null) => void;
   setMenuOpen: (v: boolean) => void;
-  bumpCam: (kind: "yaw" | "pitch" | "zoom" | "reset", value?: number) => void;
+  bumpCam: (kind: CamBumpKind, value?: number) => void;
   resetMatch: () => void;
 };
 

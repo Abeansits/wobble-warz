@@ -20,6 +20,7 @@ import { TEAM } from "./palette";
 import { RecipeMesh } from "./RecipeMesh";
 import { posedSnapshot } from "./interp";
 import { renderFrame } from "./renderFrame";
+import { hitJuice } from "./hitJuice";
 
 function SetupInput({ world }: { world: World }) {
   const selected = useGame((s) => s.selected);
@@ -150,11 +151,14 @@ function SimLoop({ world }: { world: World }) {
               const u = world.units.find((n) => n.id === e.unitId);
               if (u) sfx(u.def.audio.attack, 0.4, { x: u.x, y: u.y, z: u.z });
             }
-            if (e.type === "hit" && e.impulse > 18) {
+            if (e.type === "hit") {
               const v = world.units.find((u) => u.id === e.victimId);
-              sfx(v?.def.audio.hit ?? "hit", 0.4, v ? { x: v.x, y: v.y, z: v.z } : undefined);
-              if (useSettings.getState().shake) useGame.getState().bumpCam("pitch", 0.02);
-              if (v) burst(v.x, v.y + 0.5, v.z, 8, "#ffe6b8", 5);
+              const juice = hitJuice(e.impulse);
+              sfx(v?.def.audio.hit ?? "hit", juice.volume, v ? { x: v.x, y: v.y, z: v.z } : undefined);
+              if (useSettings.getState().shake && juice.trauma > 0) {
+                useGame.getState().bumpCam("shake", juice.trauma);
+              }
+              if (v) burst(v.x, v.y + 0.5, v.z, juice.particles, "#ffe6b8", juice.speed);
             }
             if (e.type === "shot") {
               const shooter = world.units.find((n) => n.id === e.unitId);

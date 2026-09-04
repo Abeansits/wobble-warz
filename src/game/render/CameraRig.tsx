@@ -5,6 +5,7 @@ import { useGame } from "@/store/gameStore";
 import { session } from "@/game/session";
 import { setListener } from "@/game/audio";
 import { fightFocus } from "./actionCam";
+import { addTrauma, stepTrauma, traumaOffset } from "./hitJuice";
 
 const MIN_PITCH = THREE.MathUtils.degToRad(18);
 const MAX_PITCH = THREE.MathUtils.degToRad(80);
@@ -31,6 +32,8 @@ export function CameraRig() {
   const camBump = useGame((s) => s.camBump);
   const lastPhase = useRef(snapshot?.phase);
   const autoTrack = useRef(true);
+  const trauma = useRef(0);
+  const shakeT = useRef(0);
 
   useEffect(() => {
     if (!camBump) return;
@@ -41,10 +44,14 @@ export function CameraRig() {
     if (camBump.kind === "zoom") {
       dist.current = THREE.MathUtils.clamp(dist.current + camBump.value, MIN_DIST, MAX_DIST);
     }
+    if (camBump.kind === "shake") {
+      trauma.current = addTrauma(trauma.current, camBump.value);
+    }
     if (camBump.kind === "reset") {
       yaw.current = 0.2;
       pitch.current = 0.72;
       autoTrack.current = true;
+      trauma.current = 0;
       useGame.getState().setFollowId(null);
     }
     if (camBump.kind === "zoom") autoTrack.current = false;
@@ -257,6 +264,14 @@ export function CameraRig() {
     );
     camera.position.lerp(desired, 1 - Math.pow(0.0008, dt));
     camera.lookAt(target.current);
+    shakeT.current += dt;
+    trauma.current = stepTrauma(trauma.current, dt);
+    if (trauma.current > 0.001) {
+      const o = traumaOffset(trauma.current, shakeT.current);
+      camera.position.x += o.x;
+      camera.position.y += o.y;
+      camera.position.z += o.z;
+    }
     camera.getWorldDirection(lookDir);
     setListener(camera.position.x, camera.position.y, camera.position.z, lookDir.x, lookDir.y, lookDir.z);
   });
