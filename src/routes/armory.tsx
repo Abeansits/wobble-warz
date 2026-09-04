@@ -6,6 +6,7 @@ import { FACTION_META, type UnitDef } from "@/game/data/types";
 import { M2_FACTIONS, rosterFor } from "@/game/data/units";
 import { useProfiles, type Profile } from "@/game/meta/profiles";
 import { UnitPreview } from "@/game/render/UnitPreview";
+import { ToyButton } from "@/ui/ToyButton";
 
 export const Route = createFileRoute("/armory")({
   ssr: false,
@@ -195,9 +196,9 @@ function ArmoryPage() {
           </div>
         </section>
 
-        <Link to="/" className="toy-shadow mt-8 inline-block rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display text-ink">
-          Back
-        </Link>
+        <ToyButton variant="secondary" className="mt-8" asChild>
+          <Link to="/">Back</Link>
+        </ToyButton>
       </div>
     </main>
   );

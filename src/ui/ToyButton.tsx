@@ -1,6 +1,6 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 const toyButton = cva(
@@ -37,4 +37,20 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> &
 export function ToyButton({ className, variant, size, asChild, ...props }: Props) {
   const Comp = asChild ? Slot : "button";
   return <Comp className={cn(toyButton({ variant, size }), className)} {...props} />;
+}
+
+export function ToyTray({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn("toy-shadow flex gap-1 rounded-[16px] border-[3px] border-ink bg-cream p-1", className)}>
+      {children}
+    </div>
+  );
+}
+
+export function ToyPanel({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn("toy-shadow overflow-hidden rounded-[16px] border-[3px] border-ink bg-cream text-ink", className)}>
+      {children}
+    </div>
+  );
 }

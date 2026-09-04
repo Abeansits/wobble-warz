@@ -13,6 +13,7 @@ import { getUnit } from "@/game/data/units";
 import { useProfiles } from "@/game/meta/profiles";
 import { PlinkoBoard } from "@/game/render/PlinkoBoard";
 import { UnitPreview } from "@/game/render/UnitPreview";
+import { ToyButton } from "@/ui/ToyButton";
 
 export const Route = createFileRoute("/roll")({
   ssr: false,
@@ -154,7 +155,7 @@ function RollPage() {
               key={p.id}
               type="button"
               onClick={() => setWho(p.id)}
-              className={`toy-shadow rounded-btn border-[3px] border-ink px-3 py-2 font-display text-ink ${
+              className={`min-h-11 rounded-btn border-[3px] border-ink px-3 py-2 font-display text-ink toy-press ${
                 who === p.id ? "bg-ochre-hot" : "bg-cream"
               }`}
             >
@@ -191,25 +192,15 @@ function RollPage() {
           </ul>
         )}
 
-        <button
-          type="button"
-          onClick={pull}
-          disabled={dropping}
-          className="toy-shadow mt-6 rounded-btn border-[3px] border-ink bg-ochre-hot px-6 py-3 font-display text-2xl text-ink active:scale-95 disabled:opacity-60"
-        >
+        <ToyButton variant="primary" size="lg" className="mt-6" onClick={pull} disabled={dropping}>
           Pull lever
-        </button>
-        <button
-          type="button"
-          onClick={pullTen}
-          disabled={dropping}
-          className="toy-shadow ml-3 mt-6 rounded-btn border-[3px] border-ink bg-parchment px-4 py-3 font-display text-xl text-ink active:scale-95 disabled:opacity-60"
-        >
+        </ToyButton>
+        <ToyButton variant="ghost" size="lg" className="ml-3 mt-6" onClick={pullTen} disabled={dropping}>
           10-pull · {ROLL_BUNDLE_COST}
-        </button>
-        <Link to="/" className="toy-shadow ml-3 inline-block rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display text-ink">
-          Back
-        </Link>
+        </ToyButton>
+        <ToyButton variant="secondary" className="ml-3 mt-6" asChild>
+          <Link to="/">Back</Link>
+        </ToyButton>
       </div>
 
       {cine && prize?.kind === "anomaly" && anomalyDef && (

@@ -63,8 +63,8 @@ function PlayProfiles() {
                       key={p.id}
                       type="button"
                       onClick={() => profiles.setSeat(seat, p.id)}
-                      className={`rounded-btn border-[3px] border-ink px-3 py-2 text-left ${
-                        current === p.id ? "bg-ochre-hot" : "bg-parchment"
+                      className={`min-h-11 rounded-btn border-[3px] border-ink px-3 py-2 text-left ${
+                        current === p.id ? "bg-ochre-hot" : "bg-parchment hover:bg-cream"
                       }`}
                     >
                       <span className="mr-2 inline-block h-3 w-3 rounded-full" style={{ background: p.color }} />
@@ -99,7 +99,7 @@ function PlayProfiles() {
                     const ok = useProfiles.getState().remove(p.id);
                     setNote(ok ? `Removed ${p.name}.` : "Need two profiles to play hot-seat.");
                   }}
-                  className="rounded-btn border-[3px] border-ink bg-cream px-3 py-1 text-sm font-display"
+                  className="min-h-11 rounded-btn border-[3px] border-ink bg-cream px-3 py-1 text-sm font-display hover:bg-parchment"
                 >
                   Remove
                 </button>
@@ -137,12 +137,12 @@ function PlayProfiles() {
               />
             ))}
           </div>
-          <button type="submit" className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display">
+          <ToyButton variant="ghost" type="submit">
             Add
-          </button>
-          <button
+          </ToyButton>
+          <ToyButton
+            variant="ghost"
             type="button"
-            className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
             onClick={() => {
               const blob = new Blob([JSON.stringify(useProfiles.getState().profiles, null, 2)], { type: "application/json" });
               const a = document.createElement("a");
@@ -152,7 +152,7 @@ function PlayProfiles() {
             }}
           >
             Export
-          </button>
+          </ToyButton>
           <label className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display">
             Import
             <input

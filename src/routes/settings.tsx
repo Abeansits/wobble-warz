@@ -2,6 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { CORPSE_LIFE, CORPSE_LIFE_MAX, CORPSE_LIFE_MIN } from "@/game/sim/constants";
+import { ToyButton } from "@/ui/ToyButton";
 
 export const Route = createFileRoute("/settings")({
   ssr: false,
@@ -119,9 +120,9 @@ function SettingsPage() {
         <p className="mt-4 text-sm text-cream/70">
           Music plays on the title and during fights. Shadows stay on; turn shake off if the camera wobbles too much.
         </p>
-        <Link to="/" className="toy-shadow mt-6 inline-block rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display text-ink">
-          Back
-        </Link>
+        <ToyButton variant="secondary" className="mt-6" asChild>
+          <Link to="/">Back</Link>
+        </ToyButton>
       </div>
     </main>
   );

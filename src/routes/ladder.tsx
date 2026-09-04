@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { LADDER } from "@/game/data/ladder";
 import { useGame } from "@/store/gameStore";
 import { useProfiles } from "@/game/meta/profiles";
+import { ToyButton } from "@/ui/ToyButton";
 
 export const Route = createFileRoute("/ladder")({
   ssr: false,
@@ -52,9 +53,9 @@ function LadderPage() {
             );
           })}
         </div>
-        <Link to="/" className="toy-shadow mt-6 inline-block rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display text-ink">
-          Back
-        </Link>
+        <ToyButton variant="secondary" className="mt-6" asChild>
+          <Link to="/">Back</Link>
+        </ToyButton>
       </div>
     </main>
   );

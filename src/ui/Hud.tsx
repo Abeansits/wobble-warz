@@ -9,11 +9,19 @@ import type { World } from "@/game/sim/World";
 import { creditPayout, DAILY_BATTLE_BONUS, ladderPayout, localDateKey, useProfiles } from "@/game/meta/profiles";
 import { useGame, type Speed } from "@/store/gameStore";
 import { deployYaw } from "@/game/sim/facing";
-import { useSettings } from "@/routes/settings";
-import { BUDGET_MAX, BUDGET_MIN, BUDGET_WARN } from "@/game/setup";
-import { ToyButton } from "@/ui/ToyButton";
+import { BUDGET_WARN } from "@/game/setup";
+import { ToyButton, ToyPanel, ToyTray } from "@/ui/ToyButton";
 
 const SPEEDS: Speed[] = [0.25, 0.5, 1, 2];
+
+const EMBLEM_POS: Record<string, string> = {
+  stoneage: "0% 0%",
+  medieval: "50% 0%",
+  pirate: "100% 0%",
+  frontier: "0% 100%",
+  haunted: "50% 100%",
+  anomaly: "100% 100%",
+};
 
 export function Hud({ world }: { world: World }) {
   const selected = useGame((s) => s.selected);
@@ -46,7 +54,6 @@ export function Hud({ world }: { world: World }) {
   const p1id = useProfiles((s) => s.p1);
   const p2id = useProfiles((s) => s.p2);
   const plist = useProfiles((s) => s.profiles);
-  const blind = useSettings((s) => s.blind);
 
   useEffect(() => {
     try {
@@ -64,12 +71,6 @@ export function Hud({ world }: { world: World }) {
   const p2 = plist.find((p) => p.id === p2id);
   const phase = snapshot?.phase ?? "setup";
   const cards = rosterFor(faction);
-  const [budgetDraft, setBudgetDraft] = useState<string | null>(null);
-
-  const commitBudget = (raw: string) => {
-    useGame.getState().setBudget(Number(raw));
-    setBudgetDraft(null);
-  };
   const meProfile = placingSide === 0 ? p1 : p2;
   const newAnomalies = meProfile?.newAnomalies ?? [];
 
@@ -275,89 +276,59 @@ export function Hud({ world }: { world: World }) {
   };
 
   return (
-    <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 text-ink md:p-4">
-      <header className="pointer-events-auto flex flex-wrap items-start justify-between gap-3">
+    <div className="pointer-events-none absolute inset-0 flex flex-col p-3 text-ink md:p-4">
+      <header className="pointer-events-auto flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <ToyButton variant="secondary" size="sm" asChild>
             <Link to="/">Wobble Wars</Link>
           </ToyButton>
-          {phase === "setup" && !vsAI && (
-            <ToyButton variant="ghost" size="sm" asChild>
-              <Link to="/play">Change players</Link>
-            </ToyButton>
+          {phase === "setup" && (
+            <ToyTray>
+              {ARENAS.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => {
+                    setArena(a.id);
+                    world.setArena(a.id);
+                    useGame.getState().setSnapshot(world.snapshot());
+                  }}
+                  className={`min-h-11 rounded-btn px-3 py-2 text-sm font-display transition-colors duration-150 ${arena === a.id ? "bg-ochre-hot" : "hover:bg-parchment"}`}
+                >
+                  {a.name.split(" ")[0]}
+                </button>
+              ))}
+            </ToyTray>
           )}
         </div>
-        {phase === "setup" && (
-          <div className="toy-shadow flex gap-1 rounded-[16px] border-[3px] border-ink bg-cream p-1">
-            {ARENAS.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => {
-                  setArena(a.id);
-                  world.setArena(a.id);
-                  useGame.getState().setSnapshot(world.snapshot());
-                }}
-                className={`min-h-11 rounded-btn px-3 py-2 text-sm font-display transition-colors duration-150 ${arena === a.id ? "bg-ochre-hot" : "hover:bg-parchment"}`}
-              >
-                {a.name.split(" ")[0]}
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="toy-shadow flex min-w-[240px] flex-col gap-1 rounded-card border-[3px] border-ink bg-cream/95 px-3 py-2">
-          <div className="flex justify-between font-display text-lg">
+        <ToyPanel className="min-w-[220px] px-3 py-2">
+          <div className="flex items-baseline justify-between gap-3 font-display text-lg tabular-nums">
             <span className="text-steel">
               {p1?.name ?? "P1"} {spent[0]}
             </span>
-            <span className="text-muted">/ {budget}</span>
+            <span className="text-muted">/{budget}</span>
             <span className="text-crimson">
               {p2?.name ?? "P2"} {spent[1]}
             </span>
           </div>
           {phase === "setup" && (
-            <div className="flex flex-wrap items-center gap-1 text-xs">
+            <div className="mt-1 flex flex-wrap items-center gap-1">
               {[1500, 3000, 6000].map((n) => (
                 <button
                   key={n}
                   type="button"
                   disabled={vsAI}
-                  onClick={() => {
-                    setBudgetDraft(null);
-                    useGame.getState().setBudget(n);
-                  }}
-                  className={`rounded-btn border-[2px] border-ink px-2 py-0.5 disabled:opacity-60 ${budget === n ? "bg-ochre-hot" : "bg-parchment"}`}
+                  onClick={() => useGame.getState().setBudget(n)}
+                  className={`min-h-9 rounded-btn px-2 text-xs font-display tabular-nums disabled:opacity-60 ${budget === n ? "bg-ochre-hot" : "bg-parchment hover:bg-cream"}`}
                 >
                   {n}
                 </button>
               ))}
-              <label className="flex items-center gap-1">
-                <span className="text-muted">custom</span>
-                <input
-                  type="number"
-                  min={BUDGET_MIN}
-                  max={BUDGET_MAX}
-                  step={50}
-                  value={budgetDraft ?? budget}
-                  disabled={vsAI}
-                  aria-label="Custom budget"
-                  onChange={(e) => setBudgetDraft(e.target.value)}
-                  onBlur={(e) => commitBudget(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      commitBudget((e.target as HTMLInputElement).value);
-                      (e.target as HTMLInputElement).blur();
-                    }
-                  }}
-                  className="w-20 rounded-btn border-[2px] border-ink bg-parchment px-1 py-0.5 font-display text-ink"
-                />
-              </label>
-              {budget >= BUDGET_WARN && <span className="text-crimson">will hitch</span>}
+              {budget >= BUDGET_WARN && <span className="text-xs text-crimson">will hitch</span>}
             </div>
           )}
           {snapshot && phase !== "setup" && (
-            <div className="flex h-3 overflow-hidden rounded-full border-2 border-ink">
+            <div className="mt-1 flex h-3 overflow-hidden rounded-full border-2 border-ink">
               <div
                 className="bg-steel"
                 style={{
@@ -367,126 +338,103 @@ export function Hud({ world }: { world: World }) {
               <div className="flex-1 bg-crimson" />
             </div>
           )}
-          <p className="text-sm text-muted">{message}</p>
-          <p className="text-xs text-muted">
-            {snapshot?.units.length ?? 0} on the field
-            {p1 && p2 ? ` · ${p1.credits} / ${p2.credits}¢` : ""}
-          </p>
-          <PowerupRow
-            powerups={powerups}
-            placingSide={placingSide}
-            phase={phase}
-            blind={blind}
-            p1Name={p1?.name ?? "P1"}
-            p2Name={p2?.name ?? "P2"}
-          />
-        </div>
+          {message ? <p className="mt-1 text-sm text-muted">{message}</p> : null}
+        </ToyPanel>
       </header>
 
+      <div className="flex min-h-0 flex-1 items-start pt-2">
       {(seat === "setupP1" || seat === "setupP2") && phase === "setup" && (
-        <div className="pointer-events-auto flex max-h-[70vh] max-w-[220px] flex-col gap-2 overflow-auto">
-          <div className="flex flex-wrap gap-1">
+        <ToyPanel className="pointer-events-auto w-52">
+          <div className="flex border-b-[3px] border-ink">
             {([...M1_FACTIONS, "anomaly"] as const).map((id) => {
               if (id === "anomaly") {
                 const unlocked = placingSide === 0 ? (p1?.anomalies?.length ?? 0) : (p2?.anomalies?.length ?? 0);
                 if (!unlocked) return null;
               }
+              const on = faction === id;
               return (
                 <button
                   key={id}
                   type="button"
+                  title={FACTION_META[id].name}
                   onClick={() => setFaction(id as FactionId)}
-                  className={`toy-shadow flex items-center gap-1 rounded-btn border-[3px] border-ink px-2 py-1 text-sm font-display ${
-                    faction === id ? "bg-ochre-hot" : "bg-parchment"
-                  }`}
+                  className={`relative flex min-h-11 flex-1 items-center justify-center ${on ? "bg-ochre-hot" : "hover:bg-parchment"}`}
                 >
                   <span
-                    className="inline-block h-5 w-5 rounded-sm border-[2px] border-ink bg-cover"
+                    className="inline-block h-6 w-6 rounded-sm border-[2px] border-ink bg-cover"
                     style={{
                       backgroundImage: "url(/assets/emblems.png)",
                       backgroundSize: "300% 200%",
-                      backgroundPosition: {
-                        stoneage: "0% 0%",
-                        medieval: "50% 0%",
-                        pirate: "100% 0%",
-                        frontier: "0% 100%",
-                        haunted: "50% 100%",
-                        anomaly: "100% 100%",
-                      }[id],
+                      backgroundPosition: EMBLEM_POS[id],
                     }}
                   />
-                  {FACTION_META[id].name}
                   {id === "anomaly" && newAnomalies.length > 0 && (
-                    <span className="rounded-btn bg-ochre-hot px-1 text-xs font-display">NEW</span>
+                    <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-ochre-hot ring-2 ring-ink" />
                   )}
                 </button>
               );
             })}
           </div>
-          {cards
-            .filter((u) => {
-              if (u.faction !== "anomaly") return true;
-              const bag = placingSide === 0 ? p1?.anomalies : p2?.anomalies;
-              return bag?.includes(u.id);
-            })
-            .map((u) => {
-            const on = selected.id === u.id;
-            const isNew = u.faction === "anomaly" && newAnomalies.includes(u.id);
-            return (
-              <button
-                key={u.id}
-                type="button"
-                onClick={() => {
-                  setSelected(u);
-                  if (isNew) {
-                    const who = placingSide === 0 ? p1id : p2id;
-                    if (who) useProfiles.getState().clearNewAnomaly(who, u.id);
-                  }
-                }}
-                className={`toy-shadow relative w-[200px] rounded-card border-[3px] border-ink px-3 py-2 text-left ${
-                  on ? "bg-ochre-hot" : "bg-parchment"
-                }`}
-              >
-                {isNew && (
-                  <img
-                    src="/assets/badge-new.png"
-                    alt="NEW"
-                    className="pointer-events-none absolute -right-2 -top-2 h-10 w-10"
-                  />
-                )}
-                <div className="mb-1 flex h-8 overflow-hidden rounded-btn border-[2px] border-ink">
-                  <span className="w-1/2" style={{ background: u.palette.primary }} />
-                  <span className="w-1/4" style={{ background: u.palette.skin }} />
-                  <span className="w-1/4" style={{ background: u.palette.accent }} />
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="font-display text-lg">{u.name}</span>
-                  <span className="font-display text-steel">{u.cost}</span>
-                </div>
-                <p className="text-xs text-muted">{u.blurb}</p>
-              </button>
-            );
-          })}
-          <div className="mt-2 flex flex-wrap gap-1">
-            {POWERUPS.map((p) => {
-              const bag = (placingSide === 0 ? p1?.powerups : p2?.powerups) ?? {};
-              const owned = bag[p.id] ?? 0;
-              if (owned <= 0) return null;
-              const on = powerups[placingSide].includes(p.id);
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => togglePowerup(placingSide, p.id)}
-                  className={`rounded-btn border-[3px] border-ink px-2 py-1 text-xs font-display ${on ? "bg-ochre-hot" : "bg-cream"}`}
-                >
-                  {p.name} ×{owned}
-                </button>
-              );
-            })}
+          <div className="max-h-[min(48vh,22rem)] overflow-auto">
+            {cards
+              .filter((u) => {
+                if (u.faction !== "anomaly") return true;
+                const bag = placingSide === 0 ? p1?.anomalies : p2?.anomalies;
+                return bag?.includes(u.id);
+              })
+              .map((u) => {
+                const on = selected.id === u.id;
+                const isNew = u.faction === "anomaly" && newAnomalies.includes(u.id);
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => {
+                      setSelected(u);
+                      if (isNew) {
+                        const who = placingSide === 0 ? p1id : p2id;
+                        if (who) useProfiles.getState().clearNewAnomaly(who, u.id);
+                      }
+                    }}
+                    className={`flex w-full min-h-11 items-center gap-2 px-2 py-1.5 text-left ${on ? "bg-ochre-hot" : "hover:bg-parchment"}`}
+                  >
+                    <span
+                      className="h-7 w-7 shrink-0 overflow-hidden rounded-sm border-[2px] border-ink"
+                      style={{ background: u.palette.primary }}
+                    >
+                      <span className="block h-1/2 w-full" style={{ background: u.palette.skin }} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-display">{u.name}</span>
+                    <span className="font-display text-sm tabular-nums text-steel">{u.cost}</span>
+                    {isNew && <span className="h-2 w-2 shrink-0 rounded-full bg-ochre-hot ring-2 ring-ink" />}
+                  </button>
+                );
+              })}
           </div>
-        </div>
+          <p className="border-t-[3px] border-ink px-2 py-1.5 text-xs text-muted">{selected.blurb}</p>
+          {POWERUPS.some((p) => ((placingSide === 0 ? p1?.powerups : p2?.powerups) ?? {})[p.id]) && (
+            <div className="flex flex-wrap gap-1 border-t-[3px] border-ink p-1">
+              {POWERUPS.map((p) => {
+                const bag = (placingSide === 0 ? p1?.powerups : p2?.powerups) ?? {};
+                const owned = bag[p.id] ?? 0;
+                if (owned <= 0) return null;
+                const on = powerups[placingSide].includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => togglePowerup(placingSide, p.id)}
+                    className={`min-h-9 rounded-btn px-2 text-xs font-display ${on ? "bg-ochre-hot" : "bg-parchment hover:bg-cream"}`}
+                  >
+                    {p.name} ×{owned}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </ToyPanel>
       )}
+      </div>
 
       {phase !== "setup" && phase !== "over" && killFeed.length > 0 && (
         <ul className="pointer-events-none absolute left-4 top-28 space-y-1 text-sm text-cream drop-shadow-[2px_2px_0_#1c1710]">
@@ -498,25 +446,27 @@ export function Hud({ world }: { world: World }) {
 
       <footer className="pointer-events-auto flex flex-wrap items-end justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <div className="toy-shadow flex gap-1 rounded-[16px] border-[3px] border-ink bg-cream p-1">
-            <button type="button" className="min-h-11 rounded-btn px-3 py-2 font-display hover:bg-parchment" onClick={() => setPaused(!paused)}>
-              {paused ? "Play" : "Pause"}
-            </button>
-            {SPEEDS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSpeed(s)}
-                className={`min-h-11 rounded-btn px-3 py-2 font-display tabular-nums transition-colors duration-150 ${speed === s ? "bg-ochre-hot" : "hover:bg-parchment"}`}
-              >
-                {s}×
+          {phase !== "setup" && (
+            <>
+            <ToyTray>
+              <button type="button" className="min-h-11 rounded-btn px-3 py-2 font-display hover:bg-parchment" onClick={() => setPaused(!paused)}>
+                {paused ? "Play" : "Pause"}
               </button>
-            ))}
-          </div>
-          <p className="text-xs text-cream drop-shadow-[2px_2px_0_#1c1710]">
-            Right-drag turn · wheel zoom · WASD move · Q/E spin · R reset
-          </p>
-          <div className="toy-shadow flex gap-1 rounded-[16px] border-[3px] border-ink bg-cream p-1">
+              {SPEEDS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSpeed(s)}
+                  className={`min-h-11 rounded-btn px-3 py-2 font-display tabular-nums transition-colors duration-150 ${speed === s ? "bg-ochre-hot" : "hover:bg-parchment"}`}
+                >
+                  {s}×
+                </button>
+              ))}
+            </ToyTray>
+              <p className="text-xs text-cream drop-shadow-[2px_2px_0_#1c1710]">
+                Right-drag turn · wheel zoom · WASD move · Q/E spin · R reset
+              </p>
+              <ToyTray>
             {(
               [
                 ["⟲", () => useGame.getState().bumpCam("yaw", -0.35), "Yaw left"],
@@ -538,7 +488,9 @@ export function Hud({ world }: { world: World }) {
                 {label}
               </button>
             ))}
-          </div>
+              </ToyTray>
+            </>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {seat === "setupP1" && phase === "setup" && (
@@ -775,50 +727,6 @@ function PassCurtain({ onDone }: { onDone: () => void }) {
       <ToyButton variant="primary" size="lg" className="mt-6" onClick={onDone}>
         I'm P2
       </ToyButton>
-    </div>
-  );
-}
-
-function PowerupRow({
-  powerups,
-  placingSide,
-  phase,
-  blind,
-  p1Name,
-  p2Name,
-}: {
-  powerups: [string[], string[]];
-  placingSide: 0 | 1;
-  phase: string;
-  blind: boolean;
-  p1Name: string;
-  p2Name: string;
-}) {
-  if (powerups[0].length === 0 && powerups[1].length === 0) return null;
-  const names = [p1Name, p2Name];
-  return (
-    <div className="mt-1 flex flex-col gap-0.5 text-xs">
-      {([0, 1] as const).map((side) => {
-        const ids = powerups[side];
-        if (ids.length === 0) return null;
-        const mine = phase === "setup" ? side === placingSide : true;
-        const hide = blind && !mine;
-        if (hide) {
-          return (
-            <p key={side} className="text-muted">
-              {names[side]} is using {ids.length} powerup{ids.length === 1 ? "" : "s"}
-            </p>
-          );
-        }
-        return (
-          <p key={side} className="text-muted">
-            {names[side]}:{" "}
-            {ids
-              .map((id) => POWERUPS.find((p) => p.id === id)?.name ?? id)
-              .join(", ")}
-          </p>
-        );
-      })}
     </div>
   );
 }
