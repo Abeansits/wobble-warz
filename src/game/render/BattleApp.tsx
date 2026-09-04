@@ -13,6 +13,7 @@ import { BattleFx } from "./Fx";
 import { duckMusic, setMixer, sfx, startMusic, stopMusic } from "@/game/audio";
 import { useSettings } from "@/routes/settings";
 import { getArena, terrainHeight } from "@/game/data/arenas";
+import { CORPSE_LIFE } from "@/game/sim/constants";
 import { deployYaw } from "@/game/sim/facing";
 import { Hud } from "@/ui/Hud";
 import { TEAM } from "./palette";
@@ -89,6 +90,7 @@ function SetupInput({ world }: { world: World }) {
 function SimLoop({ world }: { world: World }) {
   const speedRef = useRef(useGame.getState().speed);
   const pausedRef = useRef(useGame.getState().paused);
+  const corpseRef = useRef(useSettings.getState().corpseLife ?? CORPSE_LIFE);
   const setSnapshot = useGame((s) => s.setSnapshot);
   const last = useRef(performance.now());
   const frame = useRef(0);
@@ -97,6 +99,12 @@ function SimLoop({ world }: { world: World }) {
     useGame.subscribe((s) => {
       speedRef.current = s.speed;
       pausedRef.current = s.paused;
+    }),
+  []);
+
+  useEffect(() =>
+    useSettings.subscribe((s) => {
+      corpseRef.current = s.corpseLife ?? CORPSE_LIFE;
     }),
   []);
 
@@ -114,6 +122,7 @@ function SimLoop({ world }: { world: World }) {
           ducked = wantDuck;
           duckMusic(wantDuck);
         }
+        world.setCorpseLife(corpseRef.current);
         const before = world.phase;
         if (before !== "setup" && before !== "over") {
           world.step(dt, speedRef.current, pausedRef.current || speedRef.current === 0);

@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { CORPSE_LIFE, CORPSE_LIFE_MAX, CORPSE_LIFE_MIN } from "@/game/sim/constants";
 
 export const Route = createFileRoute("/settings")({
   ssr: false,
@@ -14,7 +15,7 @@ type Settings = {
   shake: boolean;
   blind: boolean;
   shadows: "high" | "low";
-  /** Seconds ragdolls sit before fading. Sim still reads CORPSE_LIFE (6) until it wires this. */
+  /** Seconds ragdolls sit before fading. World reads this each frame. */
   corpseLife: number;
   setMaster: (n: number) => void;
   setMusic: (n: number) => void;
@@ -34,7 +35,7 @@ export const useSettings = create<Settings>()(
       shake: true,
       blind: true,
       shadows: "high",
-      corpseLife: 6,
+      corpseLife: CORPSE_LIFE,
       setMaster: (master) => set({ master, music: master, sfx: master }),
       setMusic: (music) => set({ music }),
       setSfx: (sfx) => set({ sfx }),
@@ -94,22 +95,26 @@ function SettingsPage() {
           </select>
         </label>
         <label className="mt-4 block font-display">
-          Corpse lifetime {s.corpseLife ?? 6}s
+          Corpse lifetime {s.corpseLife ?? CORPSE_LIFE}s
           <input
             type="number"
-            min={1}
-            max={30}
+            min={CORPSE_LIFE_MIN}
+            max={CORPSE_LIFE_MAX}
             step={1}
-            value={s.corpseLife ?? 6}
+            value={s.corpseLife ?? CORPSE_LIFE}
             onChange={(e) => {
               const n = Number(e.target.value);
-              s.setCorpseLife(Number.isFinite(n) ? Math.max(1, Math.min(30, Math.round(n))) : 6);
+              s.setCorpseLife(
+                Number.isFinite(n)
+                  ? Math.max(CORPSE_LIFE_MIN, Math.min(CORPSE_LIFE_MAX, Math.round(n)))
+                  : CORPSE_LIFE,
+              );
             }}
             className="ml-2 w-20 rounded-btn border-[3px] border-ink bg-cream px-2 py-1 text-ink"
           />
         </label>
         <p className="mt-1 text-sm text-cream/70">
-          How long ragdolls sit before fading. Stored here; the fight still uses its built-in 6s until the sim reads this.
+          How long ragdolls sit before fading. Applies to the next fight step.
         </p>
         <p className="mt-4 text-sm text-cream/70">
           Music plays on the title and during fights. Shadows stay on; turn shake off if the camera wobbles too much.

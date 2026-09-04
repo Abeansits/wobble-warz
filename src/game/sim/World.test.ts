@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { rosterFor, UNITS } from "@/game/data/units";
 import { applyDamage } from "./combat";
+import { CORPSE_LIFE, CORPSE_LIFE_MAX, CORPSE_LIFE_MIN } from "./constants";
 import { mulberry32 } from "./rng";
 import type { SimCtx, UnitInternal } from "./unitTypes";
+import { World } from "./World";
 
 describe("mulberry32", () => {
   it("is deterministic for a seed", () => {
@@ -115,5 +117,23 @@ describe("applyDamage", () => {
     expect(killed).toEqual([]);
     expect(victim.hp).toBe(78);
     expect(victim.state).toBe("seek");
+  });
+});
+
+describe("corpseLife setting", () => {
+  it("defaults to 6s and honors the slider, including degrade and clamps", () => {
+    const w = new World(1);
+    expect(w.corpseLife()).toBe(CORPSE_LIFE);
+    w.setCorpseLife(12);
+    expect(w.corpseLife()).toBe(12);
+    w.degraded = true;
+    expect(w.corpseLife()).toBe(6);
+    w.degraded = false;
+    w.setCorpseLife(0);
+    expect(w.corpseLife()).toBe(CORPSE_LIFE_MIN);
+    w.setCorpseLife(99);
+    expect(w.corpseLife()).toBe(CORPSE_LIFE_MAX);
+    w.setCorpseLife(Number.NaN);
+    expect(w.corpseLife()).toBe(CORPSE_LIFE);
   });
 });

@@ -14,7 +14,15 @@ import type { Placement, Side, UnitDef } from "@/game/data/types";
 import { retarget, steer } from "./ai";
 import { deployYaw } from "./facing";
 import { applyDamage, killUnit } from "./combat";
-import { ARENA_HALF_X, ARENA_HALF_Z, CORPSE_FADE, CORPSE_LIFE, FIXED_DT } from "./constants";
+import {
+  ARENA_HALF_X,
+  ARENA_HALF_Z,
+  CORPSE_FADE,
+  CORPSE_LIFE,
+  CORPSE_LIFE_MAX,
+  CORPSE_LIFE_MIN,
+  FIXED_DT,
+} from "./constants";
 import { CORPSE_CAP, cullCorpses, shouldLod, updateDegrade } from "./lod";
 import { EventRing, type SimEvent } from "./events";
 import { LAYER_PHASE, JoltWorld, type BodyHandle, type TransformSnap } from "./physics/joltWorld";
@@ -126,6 +134,7 @@ export class World implements SimCtx {
   currSnap: WorldSnapshot | null = null;
   renderAlpha = 1;
   degraded = false;
+  private corpseLifeSec = CORPSE_LIFE;
   private physSamples: number[] = [];
   private reinforceAt: [number | null, number | null] = [null, null];
   private windAt: [number | null, number | null] = [null, null];
@@ -647,8 +656,13 @@ export class World implements SimCtx {
     this.degraded = deg.degraded;
   }
 
+  setCorpseLife(seconds: number) {
+    const n = Number.isFinite(seconds) ? seconds : CORPSE_LIFE;
+    this.corpseLifeSec = Math.max(CORPSE_LIFE_MIN, Math.min(CORPSE_LIFE_MAX, n));
+  }
+
   corpseLife(): number {
-    return CORPSE_LIFE * (this.degraded ? 0.5 : 1);
+    return this.corpseLifeSec * (this.degraded ? 0.5 : 1);
   }
 
   private checkVictory() {
