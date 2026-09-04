@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { FactionId, Placement, UnitDef } from "@/game/data/types";
 import type { ArenaId } from "@/game/data/arenas";
 import { M1_ROSTER } from "@/game/data/units";
+import { clampBudget } from "@/game/setup";
 import type { WorldSnapshot } from "@/game/sim/World";
 
 export type Speed = 0 | 0.25 | 0.5 | 1 | 2;
@@ -99,7 +100,7 @@ export const useGame = create<GameStore>((set, get) => ({
   setMessage: (message) => set({ message }),
   setFollowId: (followId) => set({ followId }),
   setHoverId: (hoverId) => set({ hoverId }),
-  setBudget: (budget) => set({ budget }),
+  setBudget: (n) => set({ budget: clampBudget(n) }),
   addSpend: (side, cost) =>
     set((s) => {
       const spent: [number, number] = [...s.spent];
@@ -149,7 +150,7 @@ export const useGame = create<GameStore>((set, get) => ({
       const next = has ? cur.filter((x) => x !== id) : cur.length < 2 ? [...cur, id] : cur;
       const powerups: [string[], string[]] = side === 0 ? [next, s.powerups[1]] : [s.powerups[0], next];
       let budget = s.budget;
-      if (id === "pockets") budget = has ? 3000 : Math.round(3000 * 1.15);
+      if (id === "pockets") budget = clampBudget(has ? s.budget / 1.15 : s.budget * 1.15);
       return { powerups, budget };
     }),
   setGhost: (ghost) => set({ ghost }),

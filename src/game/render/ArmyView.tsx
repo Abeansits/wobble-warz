@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { session } from "@/game/session";
+import { UNIT_CAP, duplicatePlacement } from "@/game/setup";
 import { getHat, HAT_BRIM_Y } from "@/game/data/hats";
 import { getUnit } from "@/game/data/units";
 import type { WorldSnapshot } from "@/game/sim/World";
@@ -9,6 +10,40 @@ import { useGame } from "@/store/gameStore";
 import { COSMETIC_PALETTES, METAL, TEAM, WOOD } from "./palette";
 import { useSettings } from "@/routes/settings";
 import { getCloth, getFace, getMetalTex, getRamp, getWood, type FaceMood } from "./textures";
+
+function tryDuplicate(id: number) {
+  const st = useGame.getState();
+  const world = session.world;
+  if (!world || st.snapshot?.phase !== "setup") return;
+  const u = world.units.find((n) => n.id === id);
+  if (!u || u.mounted || u.summoned) return;
+  if (u.side !== st.placingSide) return;
+  if (st.spent[u.side] + u.def.cost > st.budget) {
+    st.setMessage("Over budget.");
+    return;
+  }
+  if (world.units.filter((n) => n.side === u.side).length >= UNIT_CAP) {
+    st.setMessage("Unit cap (60) reached.");
+    return;
+  }
+  const next = duplicatePlacement(
+    { defId: u.def.id, x: u.x, z: u.z, yaw: u.yaw, side: u.side },
+    world.units.map((n) => ({ x: n.x, z: n.z })),
+  );
+  if (!next) {
+    st.setMessage("No room to copy.");
+    return;
+  }
+  try {
+    world.place(next);
+    st.addSpend(u.side, u.def.cost);
+    st.pushPlace(next);
+    st.setSnapshot(world.snapshot());
+    st.setMessage(`Copied ${u.def.name}.`);
+  } catch {
+    st.setMessage("Could not copy that unit.");
+  }
+}
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 const _q = new THREE.Quaternion();
@@ -335,8 +370,13 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
           onPointerOut={() => useGame.getState().setHoverId(null)}
           onClick={(e) => {
             e.stopPropagation();
-            const cur = useGame.getState().followId;
-            useGame.getState().setFollowId(cur === p.id ? null : p.id);
+            const st = useGame.getState();
+            if (st.snapshot?.phase === "setup" && e.shiftKey) {
+              tryDuplicate(p.id);
+              return;
+            }
+            const cur = st.followId;
+            st.setFollowId(cur === p.id ? null : p.id);
           }}
           onContextMenu={(e) => {
             e.stopPropagation();

@@ -27,8 +27,8 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 
 ## Wave C — loop chrome
 
-- [ ] Custom budget field; 6000 warning already exists
-- [ ] Shift+click duplicate; formation brush already works
+- [x] Custom budget field; 6000 warning already exists
+- [x] Shift+click duplicate; formation brush already works
 - [x] Pause menu: resume / rematch / surrender / settings / quit
 - [x] Results: animated credit counter; Roll button only if ≥ 200
 - [x] Powerup chips: opponent sees "P2 is using N" not which (unless blind off)

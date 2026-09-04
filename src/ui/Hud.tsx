@@ -10,6 +10,7 @@ import { creditPayout, DAILY_BATTLE_BONUS, ladderPayout, localDateKey, useProfil
 import { useGame, type Speed } from "@/store/gameStore";
 import { deployYaw } from "@/game/sim/facing";
 import { useSettings } from "@/routes/settings";
+import { BUDGET_MAX, BUDGET_MIN, BUDGET_WARN } from "@/game/setup";
 
 const SPEEDS: Speed[] = [0.25, 0.5, 1, 2];
 
@@ -62,6 +63,12 @@ export function Hud({ world }: { world: World }) {
   const p2 = plist.find((p) => p.id === p2id);
   const phase = snapshot?.phase ?? "setup";
   const cards = rosterFor(faction);
+  const [budgetDraft, setBudgetDraft] = useState<string | null>(null);
+
+  const commitBudget = (raw: string) => {
+    useGame.getState().setBudget(Number(raw));
+    setBudgetDraft(null);
+  };
   const meProfile = placingSide === 0 ? p1 : p2;
   const newAnomalies = meProfile?.newAnomalies ?? [];
 
@@ -153,6 +160,8 @@ export function Hud({ world }: { world: World }) {
       const st = useGame.getState();
       const ph = st.snapshot?.phase ?? "setup";
       if (e.code === "Enter" && ph === "setup") {
+        const t = e.target as HTMLElement | null;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
         e.preventDefault();
         if (st.seat === "setupP1") readyP1();
         if (st.seat === "setupP2") go();
@@ -299,18 +308,44 @@ export function Hud({ world }: { world: World }) {
             </span>
           </div>
           {phase === "setup" && (
-            <div className="flex gap-1 text-xs">
+            <div className="flex flex-wrap items-center gap-1 text-xs">
               {[1500, 3000, 6000].map((n) => (
                 <button
                   key={n}
                   type="button"
-                  onClick={() => useGame.getState().setBudget(n)}
-                  className={`rounded-btn border-[2px] border-ink px-2 py-0.5 ${budget === n ? "bg-ochre-hot" : "bg-parchment"}`}
+                  disabled={vsAI}
+                  onClick={() => {
+                    setBudgetDraft(null);
+                    useGame.getState().setBudget(n);
+                  }}
+                  className={`rounded-btn border-[2px] border-ink px-2 py-0.5 disabled:opacity-60 ${budget === n ? "bg-ochre-hot" : "bg-parchment"}`}
                 >
                   {n}
                 </button>
               ))}
-              {budget >= 6000 && <span className="text-crimson">will hitch</span>}
+              <label className="flex items-center gap-1">
+                <span className="text-muted">custom</span>
+                <input
+                  type="number"
+                  min={BUDGET_MIN}
+                  max={BUDGET_MAX}
+                  step={50}
+                  value={budgetDraft ?? budget}
+                  disabled={vsAI}
+                  aria-label="Custom budget"
+                  onChange={(e) => setBudgetDraft(e.target.value)}
+                  onBlur={(e) => commitBudget(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitBudget((e.target as HTMLInputElement).value);
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  className="w-20 rounded-btn border-[2px] border-ink bg-parchment px-1 py-0.5 font-display text-ink"
+                />
+              </label>
+              {budget >= BUDGET_WARN && <span className="text-crimson">will hitch</span>}
             </div>
           )}
           {snapshot && phase !== "setup" && (
