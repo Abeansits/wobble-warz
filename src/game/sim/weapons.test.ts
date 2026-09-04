@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getUnit } from "@/game/data/units";
 import type { SimEvent } from "./events";
 import type { SimCtx, UnitInternal } from "./unitTypes";
-import { emitShot, tickAura, tryAttack } from "./weapons";
+import { applyCheerSprings, emitShot, tickAura, tryAttack } from "./weapons";
 
 function stub(partial: Partial<UnitInternal> & { defId: string; id: number; side: 0 | 1 }): UnitInternal {
   const def = getUnit(partial.defId);
@@ -64,6 +64,7 @@ function simOf(units: UnitInternal[], events: SimEvent[]): SimCtx {
       applyImpulse: () => {},
       setActive: () => {},
       beginLaunch: () => {},
+      applySpringBoost: () => {},
     },
     noDamageT: 0,
     hitStop: 0,
@@ -115,5 +116,27 @@ describe("splat emitters", () => {
     tickAura(simOf([shaman, pal], events), shaman);
     expect(events.some((e) => e.type === "splat" && e.kind === "heal")).toBe(true);
     expect(pal.hp).toBeGreaterThan(40);
+  });
+});
+
+describe("cheer spring aura", () => {
+  it("stiffens nearby allies and restores 1× outside / on enemies", () => {
+    const cheer = stub({ defId: "anomaly.cheer", id: 1, side: 0, x: 0, z: 0 });
+    const pal = stub({ defId: "stoneage.clubber", id: 2, side: 0, x: 1, z: 0 });
+    const far = stub({ defId: "stoneage.clubber", id: 3, side: 0, x: 20, z: 0 });
+    const foe = stub({ defId: "medieval.squire", id: 4, side: 1, x: 1, z: 0 });
+    const flying = stub({ defId: "stoneage.clubber", id: 5, side: 0, x: 1, z: 1, state: "launched" });
+    const seen: { id: number; mul: number }[] = [];
+    const sim = simOf([cheer, pal, far, foe, flying], []);
+    sim.physics.applySpringBoost = (ragdoll, mul) => {
+      const who = [cheer, pal, far, foe, flying].find((u) => u.ragdoll === ragdoll);
+      seen.push({ id: who?.id ?? -1, mul });
+    };
+    applyCheerSprings(sim);
+    expect(seen.find((s) => s.id === 1)?.mul).toBeCloseTo(1.5);
+    expect(seen.find((s) => s.id === 2)?.mul).toBeCloseTo(1.5);
+    expect(seen.find((s) => s.id === 3)?.mul).toBe(1);
+    expect(seen.find((s) => s.id === 4)?.mul).toBe(1);
+    expect(seen.some((s) => s.id === 5)).toBe(false);
   });
 });

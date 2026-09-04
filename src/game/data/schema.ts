@@ -160,6 +160,7 @@ export const UnitDefSchema = z
           kind: z.enum(["heal-aura", "damage-aura", "taunt", "speed-aura"]),
           radius: z.number().nonnegative(),
           amount: z.number(),
+          spring: z.number().nonnegative().optional(),
         }),
       )
       .optional(),

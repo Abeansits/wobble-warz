@@ -32,6 +32,7 @@ import type { Flying, PlaceOpts, Plank, SimCtx, Tombstone, TetherLink, UnitInter
 import { poseGait } from "./poses";
 import { dropMountSpring, rootLift, spawnCoachRiders, syncMounts } from "./mounts";
 import {
+  applyCheerSprings,
   clearShots,
   resolveMelee,
   stepShots,
@@ -643,6 +644,8 @@ export class World implements SimCtx {
         this.kill(u, u.lastHitBy);
       }
     }
+
+    if (stepIndex % 6 === 0) applyCheerSprings(this);
 
     cullCorpses(this.units, CORPSE_CAP, this.corpseLife());
     stepShots(this);

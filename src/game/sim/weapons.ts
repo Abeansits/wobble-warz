@@ -233,7 +233,28 @@ export function tickAura(sim: SimCtx, u: UnitInternal) {
         }
       }
     }
-    // speed-aura is applied in steer; spring stiffness cannot change at runtime.
+    // speed-aura speed is applied in steer; spring boost is applyCheerSprings().
+  }
+}
+
+/** +springStiffness for living allies inside a speed-aura. Restores 1× outside. */
+export function applyCheerSprings(sim: SimCtx) {
+  const cheers = sim.units.filter((u) => {
+    if (u.gone || u.state === "dead") return false;
+    return Boolean(u.def.abilities?.some((a) => a.kind === "speed-aura" && (a.spring ?? 0) > 0));
+  });
+  for (const o of sim.units) {
+    if (o.gone || o.state === "dead" || o.state === "launched") continue;
+    let mul = 1;
+    for (const c of cheers) {
+      if (c.side !== o.side) continue;
+      const aura = c.def.abilities?.find((a) => a.kind === "speed-aura" && (a.spring ?? 0) > 0);
+      if (!aura) continue;
+      if (Math.hypot(c.x - o.x, c.z - o.z) <= aura.radius) {
+        mul = Math.max(mul, 1 + (aura.spring ?? 0));
+      }
+    }
+    sim.physics.applySpringBoost(o.ragdoll, mul);
   }
 }
 

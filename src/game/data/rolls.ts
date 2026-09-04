@@ -18,7 +18,7 @@ export const POWERUPS = [
 export const ANOMALIES = [
   { id: "anomaly.jelly", name: "Jelly Titan", blurb: "Bouncy giant. Hits launch everyone." },
   { id: "anomaly.boulder", name: "Boulder Boy", blurb: "It's just a boulder." },
-  { id: "anomaly.cheer", name: "The Cheerleader", blurb: "Allies nearby hit harder." },
+  { id: "anomaly.cheer", name: "The Cheerleader", blurb: "Allies nearby run faster and stumble less." },
   { id: "anomaly.ice", name: "Ice Wizard", blurb: "Shots that freeze a crowd." },
   { id: "anomaly.tax", name: "Tax Collector", blurb: "Steals max HP on hit." },
   { id: "anomaly.chicken", name: "Chicken Storm", blurb: "Lays angry hens." },

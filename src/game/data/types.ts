@@ -134,6 +134,8 @@ export type AbilityDef = {
   kind: "heal-aura" | "damage-aura" | "taunt" | "speed-aura";
   radius: number;
   amount: number;
+  /** Extra pelvis-spring stiffness, e.g. Cheerleader +0.5. */
+  spring?: number;
 };
 
 export const AUDIO_KEYS = ["swing", "shot", "hit", "boom", "yelp", "win"] as const;

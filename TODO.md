@@ -8,9 +8,9 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 
 - [x] Pose table: idle sway, run cycle, attack swing into `DriveToPoseUsingMotors` (weak motors)
 - [x] Launch feel: spring/motors off in flight; root re-snaps to pelvis on land
-- [x] Real beast/vehicle skeletons (mammoth 4 legs, coach wheels, cannon/catapult static) — visuals already clustered, physics is still a scaled humanoid
+- [x] Real beast/vehicle skeletons (mammoth 4 legs, coach wheels, cannon/catapult static)
 - [x] Stagecoach: two gunslingers ride it and spill out alive when it flips
-- [x] Gimmicks: Knight armor, Reaper instakill, Mirror reflect, Tax steal, Jelly restitution 0.9, Ice freeze-shatter knockback, Cheer speed aura (spring still skipped)
+- [x] Gimmicks: Knight armor, Reaper instakill, Mirror reflect, Tax steal, Jelly restitution 0.9, Ice freeze-shatter knockback, Cheer speed + spring aura
 - [x] Obstacle-avoidance raycast so units don't eat boulders/trenches
 - [x] Launch motion trails (cosmetic, team-colored)
 
@@ -22,7 +22,7 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 - [x] Particle cap 1200 + launch trails (team-colored) on launched units
 - [x] Hitscan tracer line + muzzle flash; freeze/heal/pumpkin splat emitters still thin
 - [x] Title demo: mixed Clubber / Lobber / Mammoth vs Squire / Archer / Deckhand
-- [x] ~12 hats (cone + crown only); palettes now include pumpkin/bone/royal/rust/moss/ink
+- [x] ~12 hats; palettes include pumpkin/bone/royal/rust/moss/ink
 - [x] Armory: stats, gimmick, locked Anomalies, equipped cosmetics visible on the turntable
 
 ## Wave C — loop chrome

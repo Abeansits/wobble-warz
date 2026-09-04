@@ -757,6 +757,13 @@ export class JoltWorld {
     this.setMotorTorque(built, built.swingTorque, false);
   }
 
+  /** Cheer aura: multiply the bind spring. Skip if the ragdoll is mid-launch. */
+  applySpringBoost(built: BuiltRagdoll, multiplier: number) {
+    if (!built.alive) return;
+    const mul = Number.isFinite(multiplier) ? Math.max(0.2, multiplier) : 1;
+    this.setSpringFreq(built, built.springFreq * mul);
+  }
+
   private setSpringEnabled(built: BuiltRagdoll, on: boolean) {
     try {
       built.pelvisSpring.SetEnabled(on);
