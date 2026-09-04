@@ -1,5 +1,5 @@
 import { spillRiders } from "./mounts";
-import type { SimCtx, UnitInternal } from "./unitTypes";
+import type { Plank, SimCtx, UnitInternal } from "./unitTypes";
 
 export function applyDamage(
   sim: SimCtx,
@@ -62,6 +62,7 @@ export function applyDamage(
     impulse: knockback,
   });
   smashStones(sim, victim.x, victim.z, knockback);
+  smashPlanks(sim, victim.x, victim.z, knockback);
 
   if (victim.hp <= 0) {
     sim.kill(victim, attacker?.id ?? null);
@@ -127,6 +128,41 @@ export function smashStones(sim: SimCtx, x: number, z: number, force: number) {
     keep.push(s);
   }
   sim.stones = keep;
+}
+
+export function smashPlanks(sim: SimCtx, x: number, z: number, force: number) {
+  if (force < 16) return;
+  for (const p of sim.planks) {
+    if (p.gone) continue;
+    if (Math.hypot(p.x - x, p.z - z) < p.hx + 1.4) damagePlank(sim, p, force);
+  }
+}
+
+export function plankForBody(sim: SimCtx, handle: number): Plank | null {
+  for (const p of sim.planks) {
+    if (!p.gone && p.handle === handle) return p;
+  }
+  return null;
+}
+
+export function damagePlank(sim: SimCtx, plank: Plank, amount: number) {
+  if (plank.gone) return;
+  plank.hp -= amount;
+  if (plank.hp > 0) return;
+  plank.gone = true;
+  try {
+    sim.physics.removeBody(plank.handle);
+  } catch {
+    /* */
+  }
+  try {
+    const debris = sim.physics.createDynamicBox(plank.x, plank.y, plank.z, plank.hx, plank.hy, plank.hz, 5, 0.4);
+    sim.debris.push(debris);
+    sim.physics.applyImpulse(debris, (sim.rng() - 0.5) * 4, 2, (sim.rng() - 0.5) * 4);
+  } catch {
+    /* */
+  }
+  sim.events.push({ type: "break", x: plank.x, y: plank.y, z: plank.z });
 }
 
 export function unitForBody(sim: SimCtx, handle: number): UnitInternal | null {

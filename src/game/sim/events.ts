@@ -19,6 +19,7 @@ export type SimEvent =
       tz: number;
     }
   | { type: "splat"; kind: SplatKind; x: number; y: number; z: number }
+  | { type: "break"; x: number; y: number; z: number }
   | { type: "victory"; winner: 0 | 1 | "draw" };
 
 

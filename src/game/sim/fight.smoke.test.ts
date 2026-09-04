@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { damagePlank } from "./combat";
 import { World } from "./World";
 
 describe("headless fight", () => {
@@ -75,6 +76,22 @@ describe("headless fight", () => {
       expect(r.state).not.toBe("dead");
       expect(r.hp).toBeGreaterThan(0);
     }
+    world.dispose();
+  }, 30_000);
+
+  it("canyon planks hold the walkway until they are shot out", async () => {
+    const world = new World(9);
+    await world.init();
+    world.setArena("canyon");
+    expect(world.planks).toHaveLength(12);
+    const mid = world.planks.find((p) => Math.abs(p.x) < 0.6 && Math.abs(p.z - 8) < 0.2);
+    expect(mid).toBeTruthy();
+    const yWalk = world.groundY(mid!.x, mid!.z);
+    expect(yWalk).toBeGreaterThan(0.2);
+    damagePlank(world, mid!, 99);
+    expect(mid!.gone).toBe(true);
+    expect(world.groundY(mid!.x, mid!.z)).toBeLessThan(yWalk - 0.4);
+    expect(world.snapshot().planks).toHaveLength(11);
     world.dispose();
   }, 30_000);
 });

@@ -84,6 +84,18 @@ export type Tombstone = {
   hp: number;
 };
 
+export type Plank = {
+  handle: BodyHandle;
+  x: number;
+  y: number;
+  z: number;
+  hx: number;
+  hy: number;
+  hz: number;
+  hp: number;
+  gone: boolean;
+};
+
 export type PlaceOpts = {
   free?: boolean;
   summoned?: boolean;
@@ -106,6 +118,8 @@ export type SimCtx = {
   scratch: TransformSnap;
   bananaSide: 0 | 1 | null;
   stones: Tombstone[];
+  planks: Plank[];
+  debris: BodyHandle[];
   kill: (u: UnitInternal, killerId: number | null) => void;
   place: (p: Placement, opts?: PlaceOpts) => number;
   groundY: (x?: number, z?: number) => number;

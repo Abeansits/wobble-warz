@@ -5,6 +5,8 @@ import {
   BRIDGE_Z,
   GRAVEYARD_STONES,
   MEADOW_BOULDERS,
+  WET_PATCH,
+  bridgePlankLayout,
   getArena,
   terrainHeight,
   type ArenaId,
@@ -36,6 +38,9 @@ export function Terrain() {
       pos.setY(i, y);
       const slope = Math.min(1, Math.abs(Math.sin(x * 0.14) * Math.cos(z * 0.18)) * 1.4);
       tmp.copy(grass).lerp(dirt, slope * 0.45);
+      if (arenaId === "graveyard" && Math.abs(x) < 6 && Math.abs(z) < 6) {
+        tmp.lerp(new THREE.Color("#1a3a32"), 0.55);
+      }
       colors[i * 3] = tmp.r;
       colors[i * 3 + 1] = tmp.g;
       colors[i * 3 + 2] = tmp.b;
@@ -54,8 +59,11 @@ export function Terrain() {
 
 export function MeadowProps() {
   const arenaId = useGame((s) => s.arena);
+  const livePlanks = useGame((s) => s.snapshot?.planks);
   const stone = useMemo(() => getPropTex("stone"), []);
   const wood = useMemo(() => getPropTex("wood"), []);
+  const planks =
+    livePlanks ?? (arenaId === "canyon" ? BRIDGE_Z.flatMap((z) => bridgePlankLayout(z)) : []);
   const rocks = MEADOW_BOULDERS;
   const flowers = useMemo(
     () =>
@@ -89,13 +97,26 @@ export function MeadowProps() {
             <planeGeometry args={[6.4, 40]} />
             <meshToonMaterial color="#7a3a22" />
           </mesh>
-          {BRIDGE_Z.map((z) => (
-            <mesh key={`b${z}`} position={[0, 0.28, z]} castShadow receiveShadow raycast={() => {}}>
-              <boxGeometry args={[6.8, 0.12, 1.1]} />
+          {planks.map((p, i) => (
+            <mesh
+              key={`b${i}-${p.x}-${p.z}`}
+              position={[p.x, p.y, p.z]}
+              scale={[p.hx * 2, p.hy * 2, p.hz * 2]}
+              castShadow
+              receiveShadow
+              raycast={() => {}}
+            >
+              <boxGeometry args={[1, 1, 1]} />
               <meshToonMaterial color="#6a3a22" map={wood} />
             </mesh>
           ))}
         </>
+      )}
+      {arenaId === "graveyard" && (
+        <mesh position={[0, WET_PATCH.cy + WET_PATCH.hy + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => {}}>
+          <planeGeometry args={[WET_PATCH.hx * 2, WET_PATCH.hz * 2]} />
+          <meshToonMaterial color="#1a4a38" transparent opacity={0.55} />
+        </mesh>
       )}
       {arenaId === "graveyard" &&
         GRAVEYARD_STONES.map(([x, z], i) => (

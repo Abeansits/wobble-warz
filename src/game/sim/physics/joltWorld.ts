@@ -177,6 +177,31 @@ export class JoltWorld {
     return handle;
   }
 
+  createDynamicBox(cx: number, cy: number, cz: number, hx: number, hy: number, hz: number, mass: number, friction = 0.45) {
+    const Jolt = this.Jolt;
+    const half = new Jolt.Vec3(hx, hy, hz);
+    const shape = new Jolt.BoxShape(half, 0.04);
+    Jolt.destroy(half);
+    const settings = new Jolt.BodyCreationSettings(
+      shape,
+      this.rv(cx, cy, cz),
+      this.qid(),
+      Jolt.EMotionType_Dynamic,
+      LAYER_MOVING,
+    );
+    settings.mFriction = friction;
+    settings.mRestitution = 0.05;
+    settings.mOverrideMassProperties = Jolt.EOverrideMassProperties_CalculateInertia;
+    settings.mMassPropertiesOverride.mMass = Math.max(0.4, mass);
+    const body = this.bodyInterface.CreateBody(settings);
+    Jolt.destroy(settings);
+    this.bodyInterface.AddBody(body.GetID(), Jolt.EActivation_Activate);
+    this.ownedShapes.push(shape);
+    const handle = body.GetID().GetIndexAndSequenceNumber();
+    this.remember(handle);
+    return handle;
+  }
+
   createStaticSphere(x: number, y: number, z: number, r: number, restitution = 0) {
     const Jolt = this.Jolt;
     const shape = new Jolt.SphereShape(r);

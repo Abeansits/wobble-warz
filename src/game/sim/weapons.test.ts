@@ -68,6 +68,8 @@ function simOf(units: UnitInternal[], events: SimEvent[]): SimCtx {
     noDamageT: 0,
     hitStop: 0,
     stones: [],
+    planks: [],
+    debris: [],
     arena: "meadow",
     rng: () => 0.5,
     time: 0,

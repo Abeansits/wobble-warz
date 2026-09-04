@@ -25,7 +25,7 @@ export const ARENAS: ArenaDef[] = [
   {
     id: "canyon",
     name: "Sunset Canyon",
-    blurb: "A dry trench down the middle. Ranged likes the rims.",
+    blurb: "A dry trench. Shoot the rope-bridge planks out.",
     grass: "#c45a32",
     dirt: "#7a3a22",
     sky: "#f0a060",
@@ -35,7 +35,7 @@ export const ARENAS: ArenaDef[] = [
   {
     id: "graveyard",
     name: "Hollow Graveyard",
-    blurb: "Fog and slick grass. Tombstones to smash.",
+    blurb: "Fog, smashable stones, and a slick wet-grass patch.",
     grass: "#2f4a38",
     dirt: "#3a3228",
     sky: "#1a2230",
@@ -71,16 +71,40 @@ export const BRIDGE_Z = [8, -8] as const;
 export const TRENCH_HALF = 3;
 export const TRENCH_DEPTH = 1.5;
 
-/** Visual + kinematic-root height. Physics colliders follow the same function. */
+/** Center slick. cy sits above the graveyard floor so ragdolls actually touch it. */
+export const WET_PATCH = {
+  hx: 6,
+  hy: 0.05,
+  hz: 6,
+  cy: 0.14,
+  friction: 0.04,
+} as const;
+
+export type PlankSpec = {
+  x: number;
+  y: number;
+  z: number;
+  hx: number;
+  hy: number;
+  hz: number;
+};
+
+export function bridgePlankLayout(bridgeZ: number): PlankSpec[] {
+  const xs = [-2.55, -1.53, -0.51, 0.51, 1.53, 2.55];
+  const hx = 0.48;
+  const hy = 0.06;
+  const hz = 0.52;
+  const y = 0.22;
+  return xs.map((x) => ({ x, y, z: bridgeZ, hx, hy, hz }));
+}
+
+/** Visual + kinematic-root height. Planks lift canyon walkers in World.groundY. */
 export function terrainHeight(x: number, z: number, arena: ArenaId = "meadow") {
   let y = 0.08 + ((x + 30) / 60) * 2;
   y += 0.05 * Math.sin(x * 0.14) * Math.cos(z * 0.18);
   if (arena === "canyon") {
     const trench = Math.max(0, 1 - Math.abs(x) / TRENCH_HALF);
     y -= trench * TRENCH_DEPTH;
-    if (BRIDGE_Z.some((bz) => Math.abs(z - bz) < 0.7) && Math.abs(x) < 3.4) {
-      y = 0.08 + ((x + 30) / 60) * 2;
-    }
   }
   if (arena === "graveyard") {
     y = 0.08 + 0.03 * Math.sin(x * 0.2) * Math.cos(z * 0.2);

@@ -80,6 +80,7 @@ describe("applyDamage", () => {
       noDamageT: 1,
       hitStop: 0,
       stones: [],
+      planks: [],
       events: { push() {} },
       physics: { applyImpulse() {} },
       kill: (u: UnitInternal) => {
@@ -101,6 +102,7 @@ describe("applyDamage", () => {
       noDamageT: 1,
       hitStop: 0,
       stones: [],
+      planks: [],
       events: { push() {} },
       physics: { applyImpulse() {} },
       kill: (u: UnitInternal) => {

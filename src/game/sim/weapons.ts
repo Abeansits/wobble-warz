@@ -1,4 +1,4 @@
-import { applyDamage, smashStones, unitForBody } from "./combat";
+import { applyDamage, damagePlank, plankForBody, smashPlanks, smashStones, unitForBody } from "./combat";
 import { FIXED_DT, SUMMON_CAP } from "./constants";
 import type { ShotFlavor } from "./events";
 import type { Flying, SimCtx, UnitInternal } from "./unitTypes";
@@ -77,12 +77,18 @@ export function tryAttack(sim: SimCtx, u: UnitInternal) {
       const dz = target.z - u.z;
       const len = Math.hypot(dx, dz) || 1;
       const hit = sim.physics.raycast(u.x, u.y + 0.4, u.z, (dx / len) * range, 0.1, (dz / len) * range);
-      const victim = hit ? unitForBody(sim, hit.handle) : target;
-      const who = victim && victim.side !== u.side ? victim : target;
-      applyDamage(sim, who, w.damage, shatterKb(who, w.knockback), u);
       u.cooldown = w.cooldown;
       u.state = "attack";
       u.face = "angry";
+      const plank = hit ? plankForBody(sim, hit.handle) : null;
+      if (plank) {
+        damagePlank(sim, plank, w.damage);
+        emitShot(sim, u, "hitscan", plank);
+        return;
+      }
+      const victim = hit ? unitForBody(sim, hit.handle) : target;
+      const who = victim && victim.side !== u.side ? victim : target;
+      applyDamage(sim, who, w.damage, shatterKb(who, w.knockback), u);
       emitShot(sim, u, "hitscan", who);
     }
     return;
@@ -297,7 +303,19 @@ export function stepShots(sim: SimCtx) {
     const pz = sim.scratch.z;
     let consumed = shot.life <= 0 || py < -2;
     const owner = sim.units.find((u) => u.id === shot.ownerId) ?? null;
+    if (!consumed) {
+      for (const plank of sim.planks) {
+        if (plank.gone) continue;
+        if (Math.hypot(plank.x - px, plank.z - pz) < plank.hx + shot.radius && Math.abs(plank.y - py) < 1.2) {
+          damagePlank(sim, plank, shot.damage);
+          if (shot.explosive) explode(sim, px, pz, shot, owner);
+          consumed = true;
+          break;
+        }
+      }
+    }
     for (const o of sim.units) {
+      if (consumed) break;
       if (o.side === shot.side || o.state === "dead" || o.gone) continue;
       if (shot.hit.has(o.id)) continue;
       const d = Math.hypot(o.x - px, o.z - pz);
@@ -333,6 +351,7 @@ export function stepShots(sim: SimCtx) {
 
 export function explode(sim: SimCtx, x: number, z: number, shot: Flying, owner: UnitInternal | null) {
   smashStones(sim, x, z, shot.knockback + 20);
+  smashPlanks(sim, x, z, shot.knockback + 20);
   for (const o of sim.units) {
     if (o.state === "dead" || o.gone) continue;
     const d = Math.hypot(o.x - x, o.z - z);

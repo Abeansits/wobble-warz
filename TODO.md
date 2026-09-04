@@ -36,7 +36,7 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 - [x] 10-roll bundle (1800); daily first-battle +50
 - [x] Settings: master volume, corpse lifetime (persisted; sim still 6s)
 - [x] Ladder 16–20 include Anomalies as a preview
-- [ ] Canyon: shootable rope-bridge planks; Graveyard: wet-grass low-friction patch
+- [x] Canyon: shootable rope-bridge planks; Graveyard: wet-grass low-friction patch
 
 ## Wave D — stay inside the budgets
 

@@ -4,6 +4,8 @@ import {
   MEADOW_BOULDERS,
   TRENCH_DEPTH,
   TRENCH_HALF,
+  WET_PATCH,
+  bridgePlankLayout,
   terrainHeight,
   type ArenaId,
 } from "@/game/data/arenas";
@@ -16,7 +18,7 @@ import { ARENA_HALF_X, ARENA_HALF_Z, CORPSE_FADE, CORPSE_LIFE, FIXED_DT } from "
 import { EventRing, type SimEvent } from "./events";
 import { LAYER_PHASE, JoltWorld, type BodyHandle, type TransformSnap } from "./physics/joltWorld";
 import { mulberry32, type Rng } from "./rng";
-import type { Flying, PlaceOpts, SimCtx, Tombstone, TetherLink, UnitInternal } from "./unitTypes";
+import type { Flying, PlaceOpts, Plank, SimCtx, Tombstone, TetherLink, UnitInternal } from "./unitTypes";
 import { poseGait } from "./poses";
 import { dropMountSpring, rootLift, spawnCoachRiders, syncMounts } from "./mounts";
 import {
@@ -58,6 +60,15 @@ export type ProjectileView = {
   kind: "rock" | "spear" | "arrow" | "boom" | "pumpkin" | "ice";
 };
 
+export type PlankView = {
+  x: number;
+  y: number;
+  z: number;
+  hx: number;
+  hy: number;
+  hz: number;
+};
+
 export type WorldSnapshot = {
   time: number;
   phase: Phase;
@@ -65,6 +76,7 @@ export type WorldSnapshot = {
   winner: 0 | 1 | "draw" | null;
   units: UnitView[];
   projectiles: ProjectileView[];
+  planks: PlankView[];
   counts: [number, number];
   hpPct: [number, number];
   physicsMs: number;
@@ -104,6 +116,8 @@ export class World implements SimCtx {
   scratch: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
   bananaSide: 0 | 1 | null = null;
   stones: Tombstone[] = [];
+  planks: Plank[] = [];
+  debris: number[] = [];
   layout: Placement[] = [];
   private reinforceAt: [number | null, number | null] = [null, null];
   private windAt: [number | null, number | null] = [null, null];
@@ -131,8 +145,17 @@ export class World implements SimCtx {
   }
 
   private buildArena() {
+    for (const h of this.debris) {
+      try {
+        this.physics.removeBody(h);
+      } catch {
+        /* */
+      }
+    }
+    this.debris = [];
     this.physics.beginArena();
     this.stones = [];
+    this.planks = [];
     const slope = Math.atan2(2, 60);
     if (this.arena === "meadow") {
       this.physics.createStaticBox(0, -0.6, 0, 40, 0.5, 28, 0, 0.85);
@@ -142,16 +165,18 @@ export class World implements SimCtx {
       }
     } else if (this.arena === "canyon") {
       const rimY = 0.08;
-      const leftCx = -(TRENCH_HALF + 16) / 2 - TRENCH_HALF / 2;
       this.physics.createStaticBox(-18, rimY - 0.4, 0, 15, 0.5, 28, 0, 0.9);
       this.physics.createStaticBox(18, rimY - 0.4, 0, 15, 0.5, 28, 0, 0.9);
       this.physics.createStaticBox(0, rimY - TRENCH_DEPTH - 0.25, 0, TRENCH_HALF + 0.2, 0.3, 28, 0, 0.7);
       for (const z of BRIDGE_Z) {
-        this.physics.createStaticBox(0, rimY + 0.12, z, 3.4, 0.08, 0.55, 0, 0.6);
+        for (const spec of bridgePlankLayout(z)) {
+          const handle = this.physics.createStaticBox(spec.x, spec.y, spec.z, spec.hx, spec.hy, spec.hz, 0, 0.65);
+          this.planks.push({ ...spec, handle, hp: 40, gone: false });
+        }
       }
     } else {
       this.physics.createStaticBox(0, -0.4, 0, 40, 0.5, 28, 0, 0.75);
-      this.physics.createStaticBox(0, 0.02, 0, 6, 0.04, 6, 0, 0.04);
+      this.physics.createStaticBox(0, WET_PATCH.cy, 0, WET_PATCH.hx, WET_PATCH.hy, WET_PATCH.hz, 0, WET_PATCH.friction);
       for (const [x, z] of GRAVEYARD_STONES) {
         const y = this.groundY(x, z) + 0.55;
         const handle = this.physics.createStaticBox(x, y, z, 0.22, 0.55, 0.09, 0, 0.9);
@@ -162,7 +187,16 @@ export class World implements SimCtx {
   }
 
   groundY(x = 0, z = 0) {
-    return terrainHeight(x, z, this.arena);
+    let y = terrainHeight(x, z, this.arena);
+    if (this.arena === "canyon") {
+      for (const p of this.planks) {
+        if (p.gone) continue;
+        if (Math.abs(p.z - z) <= p.hz + 0.12 && Math.abs(p.x - x) <= p.hx + 0.12) {
+          y = Math.max(y, p.y + p.hy);
+        }
+      }
+    }
+    return y;
   }
 
   place(p: Placement, opts: PlaceOpts = {}): number {
@@ -676,6 +710,9 @@ export class World implements SimCtx {
       countdown: this.countdown,
       winner: this.winner,
       units: views,
+      planks: this.planks
+        .filter((p) => !p.gone)
+        .map((p) => ({ x: p.x, y: p.y, z: p.z, hx: p.hx, hy: p.hy, hz: p.hz })),
       projectiles: this.flying.map((s) => {
         const t: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
         this.physics.getTransform(s.body, t);

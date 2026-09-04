@@ -142,6 +142,7 @@ function SimLoop({ world }: { world: World }) {
               }
             }
             if (e.type === "splat") splat(e.kind, e.x, e.y, e.z);
+            if (e.type === "break") burst(e.x, e.y + 0.2, e.z, 12, "#6b4a28", 5);
             if (e.type === "victory") {
               sfx("win", useSettings.getState().sfx);
               duckMeadow(true);
