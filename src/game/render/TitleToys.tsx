@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
-import { startMeadow, stopMeadow } from "@/game/audio";
+import { setMixer, startMusic, stopMusic } from "@/game/audio";
 import { deployYaw } from "@/game/sim/facing";
 import { World, type WorldSnapshot } from "@/game/sim/World";
 import { ArmyView } from "./ArmyView";
@@ -54,7 +54,8 @@ export function TitleToys() {
   const [snap, setSnap] = useState<WorldSnapshot | null>(null);
 
   useEffect(() => {
-    startMeadow(0.25);
+    setMixer(0.7, 0.25, 0.8);
+    startMusic("menu", 0.25);
     let alive = true;
     const w = new World(44);
     void w.init().then(() => {
@@ -68,7 +69,7 @@ export function TitleToys() {
     });
     return () => {
       alive = false;
-      stopMeadow();
+      stopMusic();
       try {
         w.dispose();
       } catch {

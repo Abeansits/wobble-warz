@@ -10,7 +10,7 @@ import { Clouds, SkyDome } from "./SkyBits";
 import { DeployPads, MeadowProps, Terrain } from "./Terrain";
 import { Particles, addTracer, burst, muzzleFlash, splat } from "./Particles";
 import { BattleFx } from "./Fx";
-import { sfx, startMeadow, stopMeadow, duckMeadow } from "@/game/audio";
+import { duckMusic, setMixer, sfx, startMusic, stopMusic } from "@/game/audio";
 import { useSettings } from "@/routes/settings";
 import { getArena, terrainHeight } from "@/game/data/arenas";
 import { deployYaw } from "@/game/sim/facing";
@@ -103,11 +103,17 @@ function SimLoop({ world }: { world: World }) {
   useEffect(() => {
     let raf = 0;
     let alive = true;
+    let ducked = false;
     const tick = (now: number) => {
       if (!alive) return;
       const dt = Math.min(0.05, (now - last.current) / 1000);
       last.current = now;
       try {
+        const wantDuck = world.slowmoT > 0;
+        if (wantDuck !== ducked) {
+          ducked = wantDuck;
+          duckMusic(wantDuck);
+        }
         const before = world.phase;
         if (before !== "setup" && before !== "over") {
           world.step(dt, speedRef.current, pausedRef.current || speedRef.current === 0);
@@ -128,22 +134,22 @@ function SimLoop({ world }: { world: World }) {
               useGame.getState().pushKill(
                 `${killer?.def.name ?? "The meadow"} dropped ${victim?.def.name ?? "someone"}`,
               );
-              sfx(victim?.def.audio.death ?? "yelp", useSettings.getState().sfx);
+              sfx(victim?.def.audio.death ?? "yelp", 0.4, victim ? { x: victim.x, y: victim.y, z: victim.z } : undefined);
               if (victim) burst(victim.x, victim.y + 0.6, victim.z, 18, victim.side === 0 ? "#3a5f8a" : "#b33a2b", 6);
             }
             if (e.type === "swing") {
               const u = world.units.find((n) => n.id === e.unitId);
-              if (u) sfx(u.def.audio.attack, useSettings.getState().sfx);
+              if (u) sfx(u.def.audio.attack, 0.4, { x: u.x, y: u.y, z: u.z });
             }
             if (e.type === "hit" && e.impulse > 18) {
               const v = world.units.find((u) => u.id === e.victimId);
-              sfx(v?.def.audio.hit ?? "hit", useSettings.getState().sfx);
+              sfx(v?.def.audio.hit ?? "hit", 0.4, v ? { x: v.x, y: v.y, z: v.z } : undefined);
               if (useSettings.getState().shake) useGame.getState().bumpCam("pitch", 0.02);
               if (v) burst(v.x, v.y + 0.5, v.z, 8, "#ffe6b8", 5);
             }
             if (e.type === "shot") {
               const shooter = world.units.find((n) => n.id === e.unitId);
-              if (shooter) sfx(shooter.def.audio.attack, useSettings.getState().sfx);
+              if (shooter) sfx(shooter.def.audio.attack, 0.4, { x: e.ox, y: e.oy, z: e.oz });
               muzzleFlash(e.ox, e.oy, e.oz);
               if (e.flavor === "hitscan") {
                 addTracer(e.ox, e.oy, e.oz, e.tx, e.ty, e.tz, "#fff6c8");
@@ -155,8 +161,7 @@ function SimLoop({ world }: { world: World }) {
             if (e.type === "splat") splat(e.kind, e.x, e.y, e.z);
             if (e.type === "break") burst(e.x, e.y + 0.2, e.z, 12, "#6b4a28", 5);
             if (e.type === "victory") {
-              sfx("win", useSettings.getState().sfx);
-              duckMeadow(true);
+              sfx("win", 0.5);
             }
           }
         }
@@ -381,12 +386,16 @@ export function BattleApp() {
 
 function MusicBed() {
   const phase = useGame((s) => s.snapshot?.phase ?? "setup");
+  const arena = useGame((s) => s.arena);
+  const master = useSettings((s) => s.master);
+  const music = useSettings((s) => s.music);
+  const sfxVol = useSettings((s) => s.sfx);
   useEffect(() => {
-    const vol = useSettings.getState().music;
-    if (phase === "setup") stopMeadow();
-    else startMeadow(vol);
-    return () => stopMeadow();
-  }, [phase]);
+    setMixer(master ?? 0.7, music, sfxVol);
+    if (phase === "setup") stopMusic();
+    else startMusic(arena, music);
+    return () => stopMusic();
+  }, [phase, arena, master, music, sfxVol]);
   return null;
 }
 

@@ -3,11 +3,13 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useGame } from "@/store/gameStore";
 import { session } from "@/game/session";
+import { setListener } from "@/game/audio";
 
 const MIN_PITCH = THREE.MathUtils.degToRad(18);
 const MAX_PITCH = THREE.MathUtils.degToRad(80);
 const MIN_DIST = 8;
 const MAX_DIST = 55;
+const lookDir = new THREE.Vector3();
 
 export function CameraRig() {
   const { camera, gl } = useThree();
@@ -199,6 +201,8 @@ export function CameraRig() {
     );
     camera.position.lerp(desired, 1 - Math.pow(0.0008, dt));
     camera.lookAt(target.current);
+    camera.getWorldDirection(lookDir);
+    setListener(camera.position.x, camera.position.y, camera.position.z, lookDir.x, lookDir.y, lookDir.z);
   });
 
   return null;
