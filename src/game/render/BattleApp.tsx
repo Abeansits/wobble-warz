@@ -8,7 +8,7 @@ import { ArmyView } from "./ArmyView";
 import { CameraRig } from "./CameraRig";
 import { Clouds, SkyDome } from "./SkyBits";
 import { DeployPads, MeadowProps, Terrain } from "./Terrain";
-import { Particles, burst } from "./Particles";
+import { Particles, addTracer, burst, muzzleFlash, splat } from "./Particles";
 import { BattleFx } from "./Fx";
 import { sfx, startMeadow, stopMeadow, duckMeadow } from "@/game/audio";
 import { useSettings } from "@/routes/settings";
@@ -133,9 +133,15 @@ function SimLoop({ world }: { world: World }) {
               if (v) burst(v.x, v.y + 0.5, v.z, 8, "#ffe6b8", 5);
             }
             if (e.type === "shot") {
-              const u = world.units.find((n) => n.id === e.unitId);
-              if (u) burst(u.x, u.y + 0.7, u.z, 4, "#f0d090", 3);
+              muzzleFlash(e.ox, e.oy, e.oz);
+              if (e.flavor === "hitscan") {
+                addTracer(e.ox, e.oy, e.oz, e.tx, e.ty, e.tz, "#fff6c8");
+                burst(e.tx, e.ty, e.tz, 6, "#fff3c0", 4);
+              } else {
+                burst(e.ox, e.oy, e.oz, 4, "#f0d090", 3);
+              }
             }
+            if (e.type === "splat") splat(e.kind, e.x, e.y, e.z);
             if (e.type === "victory") {
               sfx("win", useSettings.getState().sfx);
               duckMeadow(true);

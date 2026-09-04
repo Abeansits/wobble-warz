@@ -62,7 +62,7 @@ export type Flying = {
   life: number;
   linger: number;
   explosive: boolean;
-  kind: "rock" | "spear" | "arrow" | "boom";
+  kind: "rock" | "spear" | "arrow" | "boom" | "pumpkin" | "ice";
   hit: Set<number>;
   slow?: number;
   slowT?: number;

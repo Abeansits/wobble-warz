@@ -1,6 +1,35 @@
 import { applyDamage, smashStones, unitForBody } from "./combat";
 import { FIXED_DT, SUMMON_CAP } from "./constants";
+import type { ShotFlavor } from "./events";
 import type { Flying, SimCtx, UnitInternal } from "./unitTypes";
+
+function muzzleOf(sim: SimCtx, u: UnitInternal): [number, number, number] {
+  try {
+    const arm = u.ragdoll.bodyIds.armR;
+    if (arm) {
+      sim.physics.getTransform(arm, sim.scratch);
+      if (Number.isFinite(sim.scratch.x)) return [sim.scratch.x, sim.scratch.y, sim.scratch.z];
+    }
+  } catch {
+    /* */
+  }
+  return [u.x, u.y + 0.55 * u.def.body.scale, u.z];
+}
+
+export function emitShot(sim: SimCtx, u: UnitInternal, flavor: ShotFlavor, target: { x: number; y: number; z: number }) {
+  const [ox, oy, oz] = muzzleOf(sim, u);
+  sim.events.push({
+    type: "shot",
+    unitId: u.id,
+    flavor,
+    ox,
+    oy,
+    oz,
+    tx: target.x,
+    ty: target.y + 0.5,
+    tz: target.z,
+  });
+}
 
 export function tryAttack(sim: SimCtx, u: UnitInternal) {
   const target = sim.units.find((o) => o.id === u.targetId && o.state !== "dead" && !o.gone);
@@ -54,7 +83,7 @@ export function tryAttack(sim: SimCtx, u: UnitInternal) {
       u.cooldown = w.cooldown;
       u.state = "attack";
       u.face = "angry";
-      sim.events.push({ type: "shot", unitId: u.id });
+      emitShot(sim, u, "hitscan", who);
     }
     return;
   }
@@ -91,7 +120,7 @@ export function tryAttack(sim: SimCtx, u: UnitInternal) {
       u.cooldown = w.cooldown;
       u.state = "attack";
       u.face = "angry";
-      sim.events.push({ type: "shot", unitId: u.id });
+      emitShot(sim, u, "status", target);
     }
     return;
   }
@@ -104,7 +133,7 @@ export function tryAttack(sim: SimCtx, u: UnitInternal) {
       u.state = "attack";
       u.face = "angry";
       if (u.def.body.kind === "static") u.swingT = 0.32;
-      sim.events.push({ type: "shot", unitId: u.id });
+      emitShot(sim, u, w.kind === "explosive" ? "explosive" : "projectile", target);
     }
     return;
   }
@@ -186,10 +215,15 @@ export function tickAura(sim: SimCtx, u: UnitInternal) {
   if (!abs) return;
   for (const a of abs) {
     if (a.kind === "heal-aura") {
+      let sparkles = 0;
       for (const o of sim.units) {
         if (o.side !== u.side || o.state === "dead" || o.gone) continue;
-        if (Math.hypot(o.x - u.x, o.z - u.z) <= a.radius) {
-          o.hp = Math.min(o.maxHp, o.hp + a.amount * 0.5);
+        if (Math.hypot(o.x - u.x, o.z - u.z) > a.radius) continue;
+        const before = o.hp;
+        o.hp = Math.min(o.maxHp, o.hp + a.amount * 0.5);
+        if (o.hp > before && sparkles < 2) {
+          sparkles++;
+          sim.events.push({ type: "splat", kind: "heal", x: o.x, y: o.y + 0.7, z: o.z });
         }
       }
     }
@@ -222,12 +256,14 @@ export function fireShot(sim: SimCtx, u: UnitInternal, target: UnitInternal) {
     w.kind === "explosive"
       ? "boom"
       : u.def.id.includes("pumpkin")
-        ? "rock"
-        : u.def.id.includes("spear")
-          ? "spear"
-          : u.def.id.includes("archer")
-            ? "arrow"
-            : "rock";
+        ? "pumpkin"
+        : u.def.id.includes("ice")
+          ? "ice"
+          : u.def.id.includes("spear")
+            ? "spear"
+            : u.def.id.includes("archer")
+              ? "arrow"
+              : "rock";
   if (sim.flying.length > 24) {
     const extra = sim.flying.shift();
     if (extra) sim.physics.removeBody(extra.body);
@@ -277,8 +313,10 @@ export function stepShots(sim: SimCtx) {
           o.frozenT = Math.max(o.frozenT, shot.freeze);
           o.state = "stunned";
           o.stunT = shot.freeze;
+          sim.events.push({ type: "splat", kind: "freeze", x: px, y: py, z: pz });
         } else if (shot.slowT) {
           o.slowT = Math.max(o.slowT, shot.slowT);
+          sim.events.push({ type: "splat", kind: "pumpkin", x: px, y: py, z: pz });
         }
         if (shot.linger <= 0) consumed = true;
       }

@@ -55,7 +55,7 @@ export type ProjectileView = {
   y: number;
   z: number;
   r: number;
-  kind: "rock" | "spear" | "arrow" | "boom";
+  kind: "rock" | "spear" | "arrow" | "boom" | "pumpkin" | "ice";
 };
 
 export type WorldSnapshot = {
@@ -679,7 +679,13 @@ export class World implements SimCtx {
       projectiles: this.flying.map((s) => {
         const t: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
         this.physics.getTransform(s.body, t);
-        return { x: t.x, y: t.y, z: t.z, r: s.kind === "boom" ? 0.28 : 0.16, kind: s.kind };
+        return {
+          x: t.x,
+          y: t.y,
+          z: t.z,
+          r: s.kind === "boom" ? 0.28 : s.kind === "pumpkin" ? 0.22 : 0.16,
+          kind: s.kind,
+        };
       }),
       counts,
       hpPct,
