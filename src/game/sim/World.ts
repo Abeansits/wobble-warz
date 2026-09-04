@@ -116,6 +116,9 @@ export class World {
   noDamageT = 0;
   startingHp: [number, number] = [0, 0];
   spent: [number, number] = [0, 0];
+  hitStop = 0;
+  slowmoT = 0;
+  private pendingWinner: 0 | 1 | "draw" | null = null;
   private nextShot = 1;
   private flying: Flying[] = [];
   private scratch: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
@@ -145,8 +148,8 @@ export class World {
     }
   }
 
-  groundY(_x?: number) {
-    return 0.45;
+  groundY(x = 0, z = 0) {
+    return 0.4;
   }
 
   place(p: Placement): number {
@@ -188,11 +191,15 @@ export class World {
   clearUnits() {
     for (const u of this.units) {
       try {
-        u.ragdoll.ragdoll.RemoveFromPhysicsSystem();
+        this.physics.destroyRagdoll(u.ragdoll);
       } catch {
-        /* */
+        try {
+          u.ragdoll.ragdoll.RemoveFromPhysicsSystem();
+        } catch {
+          /* */
+        }
+        this.physics.removeBody(u.ragdoll.rootBody);
       }
-      this.physics.removeBody(u.ragdoll.rootBody);
     }
     this.units = [];
     this.nextId = 1;
@@ -201,15 +208,67 @@ export class World {
     this.winner = null;
     this.acc = 0;
     this.spent = [0, 0];
+    this.hitStop = 0;
+    this.slowmoT = 0;
+    this.pendingWinner = null;
     this.clearShots();
   }
 
-  startCountdown() {
+  removeLast(side?: 0 | 1) {
+    const idx =
+      side == null
+        ? this.units.length - 1
+        : [...this.units].map((u, i) => ({ u, i })).reverse().find((x) => x.u.side === side)?.i;
+    if (idx == null || idx < 0) return null;
+    const u = this.units[idx];
+    try {
+      this.physics.destroyRagdoll(u.ragdoll);
+    } catch {
+      this.physics.removeBody(u.ragdoll.rootBody);
+    }
+    this.units.splice(idx, 1);
+    this.spent[u.side] = Math.max(0, this.spent[u.side] - u.def.cost);
+    return u;
+  }
+
+  mirrorSide(side: 0 | 1) {
+    for (const u of this.units) {
+      if (u.side !== side) continue;
+      u.z = -u.z;
+      u.yaw = -u.yaw;
+      this.physics.setPosition(u.ragdoll.rootBody, u.x, u.y, u.z);
+    }
+  }
+
+  startCountdown(powerups: [string[], string[]] = [[], []]) {
     this.phase = "countdown";
     this.countdown = 3;
     this.startingHp = [0, 0];
+    this.applyPowerups(powerups);
     for (const u of this.units) {
       this.startingHp[u.side] += u.maxHp;
+    }
+  }
+
+  applyPowerups(chosen: [string[], string[]]) {
+    for (const u of this.units) {
+      const ids = chosen[u.side] ?? [];
+      if (ids.includes("iron")) {
+        u.maxHp = Math.round(u.maxHp * 1.2);
+        u.hp = u.maxHp;
+      }
+      if (ids.includes("boots")) {
+        u.def = { ...u.def, body: { ...u.def.body, launchThreshold: u.def.body.launchThreshold * 1.35 } };
+      }
+    }
+    for (const side of [0, 1] as const) {
+      if (!(chosen[side] ?? []).includes("giant")) continue;
+      const pool = this.units.filter((u) => u.side === side && u.state !== "dead");
+      const pick = pool[Math.floor(this.rng() * pool.length)];
+      if (pick) {
+        pick.maxHp *= 2;
+        pick.hp = pick.maxHp;
+      }
     }
   }
 
@@ -223,7 +282,13 @@ export class World {
     }
     if (this.phase === "setup" || this.phase === "over") return;
     if (paused || speed === 0) return;
-    const feed = Math.min(dt, 0.08) * speed;
+    if (this.hitStop > 0) {
+      this.hitStop -= dt;
+      return;
+    }
+    const rate = this.slowmoT > 0 ? 0.22 : 1;
+    const feed = Math.min(dt, 0.08) * speed * rate;
+    this.acc += feed;
     this.acc += feed;
     let steps = 0;
     while (this.acc >= FIXED_DT && steps < 4) {
@@ -246,6 +311,13 @@ export class World {
 
     this.time += FIXED_DT;
     this.noDamageT += FIXED_DT;
+    if (this.slowmoT > 0) {
+      this.slowmoT -= FIXED_DT;
+      if (this.slowmoT <= 0 && this.pendingWinner != null) {
+        this.finish(this.pendingWinner);
+        return;
+      }
+    }
     const rush = this.noDamageT > 15;
 
     const stepIndex = Math.floor(this.time / FIXED_DT);
@@ -303,10 +375,9 @@ export class World {
 
       this.physics.drivePose(u.ragdoll);
       this.physics.moveKinematic(u.ragdoll.rootBody, u.x, u.y, u.z, u.yaw, FIXED_DT);
-      this.physics.holdUpright(u.ragdoll.bodyIds.pelvis, u.yaw);
-      this.physics.holdUpright(u.ragdoll.bodyIds.torso, u.yaw);
-      this.physics.holdUpright(u.ragdoll.bodyIds.legs, u.yaw);
-      this.physics.holdUpright(u.ragdoll.bodyIds.head, u.yaw);
+      if (stepIndex % 2 === 0) {
+        this.physics.holdUpright(u.ragdoll.bodyIds.pelvis, u.yaw);
+      }
 
       if (Math.abs(u.x) > ARENA_HALF_X + 4 || Math.abs(u.z) > ARENA_HALF_Z + 4) {
         this.kill(u, u.lastHitBy);
@@ -415,6 +486,42 @@ export class World {
       if (dist <= w.range) this.resolveCharge(u, target);
       return;
     }
+    if (w.kind === "hitscan") {
+      if (dist <= w.range) {
+        this.damage(target, w.damage, w.knockback, u);
+        u.cooldown = w.cooldown;
+        u.state = "attack";
+        u.face = "angry";
+        this.events.push({ type: "shot", unitId: u.id });
+      }
+      return;
+    }
+    if (w.kind === "tether") {
+      if (dist <= w.range) {
+        const pull = Math.min(4.5, dist * 0.55);
+        const px = (u.x - target.x) / (dist || 1);
+        const pz = (u.z - target.z) / (dist || 1);
+        target.x += px * pull;
+        target.z += pz * pull;
+        this.physics.setPosition(target.ragdoll.rootBody, target.x, target.y, target.z);
+        this.damage(target, w.damage, w.knockback, u);
+        u.cooldown = w.cooldown;
+        u.state = "attack";
+        u.face = "angry";
+      }
+      return;
+    }
+    if (w.kind === "status") {
+      if (dist <= w.range) {
+        this.fireShot(u, target);
+        target.hurtT = Math.max(target.hurtT, w.slowT ?? 2);
+        u.cooldown = w.cooldown;
+        u.state = "attack";
+        u.face = "angry";
+        this.events.push({ type: "shot", unitId: u.id });
+      }
+      return;
+    }
     if (w.kind === "projectile" || w.kind === "explosive") {
       const minR = w.minRange ?? 0;
       if (dist <= w.range && dist >= minR) {
@@ -487,7 +594,7 @@ export class World {
 
   private fireShot(u: UnitInternal, target: UnitInternal) {
     const w = u.def.weapon;
-    if (w.kind !== "projectile" && w.kind !== "explosive") return;
+    if (w.kind !== "projectile" && w.kind !== "explosive" && w.kind !== "status") return;
     const dx = target.x - u.x;
     const dz = target.z - u.z;
     const dist = Math.hypot(dx, dz) || 1;
@@ -497,7 +604,11 @@ export class World {
     const vy = w.arc + 0.5 * 18 * flight * 0.35;
     this.physics.setLinearVelocity(body, (dx / dist) * w.speed, vy, (dz / dist) * w.speed);
     const kind: ProjectileView["kind"] =
-      w.kind === "explosive" ? "boom" : u.def.id.includes("spear") ? "spear" : u.def.id.includes("archer") ? "arrow" : "rock";
+      w.kind === "explosive" ? "boom" : u.def.id.includes("pumpkin") ? "rock" : u.def.id.includes("spear") ? "spear" : u.def.id.includes("archer") ? "arrow" : "rock";
+    if (this.flying.length > 24) {
+      const extra = this.flying.shift();
+      if (extra) this.physics.removeBody(extra.body);
+    }
     this.flying.push({
       id: this.nextShot++,
       body,
@@ -505,9 +616,9 @@ export class World {
       side: u.side,
       damage: w.damage,
       knockback: w.knockback,
-      radius: w.radius ?? 0.45,
+      radius: ("radius" in w ? w.radius : undefined) ?? 0.45,
       life: 6,
-      linger: w.linger ?? 0,
+      linger: ("linger" in w ? w.linger : undefined) ?? 0,
       explosive: w.kind === "explosive",
       kind,
       hit: new Set(),
@@ -590,7 +701,12 @@ export class World {
       }
     }
     victim.hp -= dealt;
-    if (attacker) attacker.damageDealt += dealt;
+    if (attacker) {
+      attacker.damageDealt += dealt;
+      if (attacker.def.id === "haunted.vampire") {
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + dealt);
+      }
+    }
     victim.flash = 0.08;
     victim.hurtT = 0.25;
     victim.face = "hurt";
@@ -603,6 +719,7 @@ export class World {
     const iz = (dirz / len) * knockback;
     const iy = knockback * 0.35;
     this.physics.applyImpulse(victim.ragdoll.bodyIds.torso, ix, iy, iz);
+    if (knockback > 16) this.hitStop = Math.min(0.06, 0.02 + knockback * 0.001);
     this.events.push({
       type: "hit",
       attackerId: attacker?.id ?? -1,
@@ -643,15 +760,15 @@ export class World {
       }
     }
     if (alive[0] === 0 && alive[1] === 0) {
-      this.finish("draw");
+      this.beginSlowmo("draw");
       return;
     }
     if (alive[0] === 0) {
-      this.finish(1);
+      this.beginSlowmo(1);
       return;
     }
     if (alive[1] === 0) {
-      this.finish(0);
+      this.beginSlowmo(0);
       return;
     }
     if (this.time >= 120) {
@@ -659,6 +776,12 @@ export class World {
       const p1 = this.startingHp[1] ? hp[1] / this.startingHp[1] : 0;
       this.finish(p0 === p1 ? "draw" : p0 > p1 ? 0 : 1);
     }
+  }
+
+  private beginSlowmo(winner: 0 | 1 | "draw") {
+    if (this.pendingWinner != null) return;
+    this.pendingWinner = winner;
+    this.slowmoT = 1.4;
   }
 
   private finish(winner: 0 | 1 | "draw") {

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { FactionId, Placement, UnitDef } from "@/game/data/types";
+import type { ArenaId } from "@/game/data/arenas";
 import { M1_ROSTER } from "@/game/data/units";
 import type { WorldSnapshot } from "@/game/sim/World";
 
@@ -23,6 +24,10 @@ type GameStore = {
   yawOffset: number;
   killFeed: string[];
   awarded: boolean;
+  arena: ArenaId;
+  vsAI: boolean;
+  ladderLevel: number | null;
+  powerups: [string[], string[]];
   camBump: { id: number; kind: "yaw" | "pitch" | "zoom" | "reset"; value: number } | null;
   setSelected: (u: UnitDef) => void;
   setFaction: (f: FactionId) => void;
@@ -42,6 +47,9 @@ type GameStore = {
   pushKill: (line: string) => void;
   clearFeed: () => void;
   setAwarded: (v: boolean) => void;
+  setArena: (id: ArenaId) => void;
+  startLadder: (level: number, budget: number) => void;
+  togglePowerup: (side: 0 | 1, id: string) => void;
   bumpCam: (kind: "yaw" | "pitch" | "zoom" | "reset", value?: number) => void;
   resetMatch: () => void;
 };
@@ -63,6 +71,10 @@ export const useGame = create<GameStore>((set, get) => ({
   yawOffset: 0,
   killFeed: [],
   awarded: false,
+  arena: "meadow",
+  vsAI: false,
+  ladderLevel: null,
+  powerups: [[], []],
   camBump: null,
   setSelected: (selected) => set({ selected, faction: selected.faction }),
   setFaction: (faction) => {
@@ -97,6 +109,31 @@ export const useGame = create<GameStore>((set, get) => ({
     set((s) => ({ killFeed: [line, ...s.killFeed].slice(0, 6) })),
   clearFeed: () => set({ killFeed: [], awarded: false }),
   setAwarded: (awarded) => set({ awarded }),
+  setArena: (arena) => set({ arena }),
+  startLadder: (ladderLevel, budget) =>
+    set({
+      vsAI: true,
+      ladderLevel,
+      budget,
+      seat: "setupP1",
+      placingSide: 0,
+      spent: [0, 0],
+      placements: [],
+      undo: [],
+      awarded: false,
+      killFeed: [],
+      message: `Ladder ${ladderLevel} — plant on the blue pad.`,
+    }),
+  togglePowerup: (side, id) =>
+    set((s) => {
+      const cur = s.powerups[side];
+      const has = cur.includes(id);
+      const next = has ? cur.filter((x) => x !== id) : cur.length < 2 ? [...cur, id] : cur;
+      const powerups: [string[], string[]] = side === 0 ? [next, s.powerups[1]] : [s.powerups[0], next];
+      let budget = s.budget;
+      if (id === "pockets") budget = has ? 3000 : Math.round(3000 * 1.15);
+      return { powerups, budget };
+    }),
   bumpCam: (kind, value = 0) =>
     set((s) => ({ camBump: { id: (s.camBump?.id ?? 0) + 1, kind, value } })),
   resetMatch: () =>
@@ -113,5 +150,8 @@ export const useGame = create<GameStore>((set, get) => ({
       speed: 1,
       message: "P1 — click the glowing blue pad.",
       followId: null,
+      vsAI: false,
+      ladderLevel: null,
+      powerups: [[], []],
     }),
 }));

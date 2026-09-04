@@ -41,6 +41,9 @@ export function CameraRig() {
   useEffect(() => {
     const el = gl.domElement;
     const onDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest("button, a, input, textarea, select, [data-ui]")) return;
+      if (e.target !== el && !el.contains(e.target as Node)) return;
       const setup = useGame.getState().snapshot?.phase === "setup";
       if (e.button === 0 && setup && !e.altKey && !e.shiftKey) return;
       if (e.button === 2 || e.altKey || e.button === 1 || (!setup && e.button === 0 && !e.shiftKey)) {
@@ -81,7 +84,7 @@ export function CameraRig() {
       dist.current = THREE.MathUtils.clamp(dist.current + e.deltaY * 0.025, MIN_DIST, MAX_DIST);
     };
     const onCtx = (e: Event) => e.preventDefault();
-    window.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     el.addEventListener("wheel", onWheel, { passive: true });
@@ -92,7 +95,7 @@ export function CameraRig() {
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     return () => {
-      window.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       el.removeEventListener("wheel", onWheel);

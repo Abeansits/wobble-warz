@@ -12,6 +12,7 @@ export class EventRing {
   private items: SimEvent[] = [];
 
   push(ev: SimEvent) {
+    if (this.items.length > 40) this.items.shift();
     this.items.push(ev);
   }
 

@@ -375,10 +375,45 @@ export class JoltWorld {
   }
 
   holdUpright(handle: BodyHandle, yaw: number) {
-    const id = this.wrapId(handle);
-    this.bodyInterface.SetRotation(id, this.qYaw(yaw), this.Jolt.EActivation_DontActivate);
-    this.bodyInterface.SetAngularVelocity(id, this.v(0, 0, 0));
-    this.Jolt.destroy(id);
+    try {
+      const id = this.wrapId(handle);
+      this.bodyInterface.SetRotation(id, this.qYaw(yaw), this.Jolt.EActivation_DontActivate);
+      this.bodyInterface.SetAngularVelocity(id, this.v(0, 0, 0));
+      this.Jolt.destroy(id);
+    } catch {
+      /* body already gone */
+    }
+  }
+
+  destroyRagdoll(built: BuiltRagdoll) {
+    const Jolt = this.Jolt;
+    try {
+      this.system.RemoveConstraint(built.pelvisSpring);
+    } catch {
+      /* */
+    }
+    try {
+      Jolt.destroy(built.pelvisSpring);
+    } catch {
+      /* */
+    }
+    try {
+      built.ragdoll.RemoveFromPhysicsSystem();
+    } catch {
+      /* */
+    }
+    try {
+      Jolt.destroy(built.ragdoll);
+    } catch {
+      /* */
+    }
+    try {
+      Jolt.destroy(built.pose);
+    } catch {
+      /* */
+    }
+    this.removeBody(built.rootBody);
+    this.ownedRagdolls = this.ownedRagdolls.filter((r) => r !== built);
   }
 
   moveKinematic(handle: BodyHandle, x: number, y: number, z: number, yaw: number, dt: number) {
@@ -388,16 +423,29 @@ export class JoltWorld {
   }
 
   getTransform(handle: BodyHandle, out: TransformSnap) {
-    const id = this.wrapId(handle);
-    this.bodyInterface.GetPositionAndRotation(id, this.rvec3, this.quat);
-    out.x = this.rvec3.GetX();
-    out.y = this.rvec3.GetY();
-    out.z = this.rvec3.GetZ();
-    out.qx = this.quat.GetX();
-    out.qy = this.quat.GetY();
-    out.qz = this.quat.GetZ();
-    out.qw = this.quat.GetW();
-    this.Jolt.destroy(id);
+    try {
+      const id = this.wrapId(handle);
+      this.bodyInterface.GetPositionAndRotation(id, this.rvec3, this.quat);
+      out.x = this.rvec3.GetX();
+      out.y = this.rvec3.GetY();
+      out.z = this.rvec3.GetZ();
+      out.qx = this.quat.GetX();
+      out.qy = this.quat.GetY();
+      out.qz = this.quat.GetZ();
+      out.qw = this.quat.GetW();
+      this.Jolt.destroy(id);
+    } catch {
+      return;
+    }
+    if (!Number.isFinite(out.x) || !Number.isFinite(out.qw)) {
+      out.x = 0;
+      out.y = 1;
+      out.z = 0;
+      out.qx = 0;
+      out.qy = 0;
+      out.qz = 0;
+      out.qw = 1;
+    }
   }
 
   applyImpulse(handle: BodyHandle, ix: number, iy: number, iz: number) {

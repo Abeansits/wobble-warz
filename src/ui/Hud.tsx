@@ -1,6 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { FACTION_META, type FactionId } from "@/game/data/types";
+import { ARENAS } from "@/game/data/arenas";
+import { POWERUPS } from "@/game/data/rolls";
+import { LADDER, ladderArmy } from "@/game/data/ladder";
 import { M1_FACTIONS, rosterFor } from "@/game/data/units";
 import type { World } from "@/game/sim/World";
 import { creditPayout, useProfiles } from "@/game/meta/profiles";
@@ -25,8 +28,14 @@ export function Hud({ world }: { world: World }) {
   const seat = useGame((s) => s.seat);
   const setSeat = useGame((s) => s.setSeat);
   const setPlacingSide = useGame((s) => s.setPlacingSide);
+  const placingSide = useGame((s) => s.placingSide);
   const resetSpend = useGame((s) => s.resetSpend);
   const killFeed = useGame((s) => s.killFeed);
+  const vsAI = useGame((s) => s.vsAI);
+  const arena = useGame((s) => s.arena);
+  const setArena = useGame((s) => s.setArena);
+  const powerups = useGame((s) => s.powerups);
+  const togglePowerup = useGame((s) => s.togglePowerup);
   const p1id = useProfiles((s) => s.p1);
   const p2id = useProfiles((s) => s.p2);
   const plist = useProfiles((s) => s.profiles);
@@ -51,6 +60,27 @@ export function Hud({ world }: { world: World }) {
   const readyP1 = () => {
     if (world.units.filter((u) => u.side === 0).length < 1) {
       setMessage("P1 needs at least one unit.");
+      return;
+    }
+    if (vsAI) {
+      const lvl = LADDER.find((l) => l.id === useGame.getState().ladderLevel) ?? LADDER[0];
+      for (const p of ladderArmy(lvl, 1)) {
+        try {
+          world.place(p);
+        } catch {
+          /* cap */
+        }
+      }
+      useGame.getState().addSpend(1, lvl.army.reduce((n, a) => n + 0, 0));
+      world.startCountdown(useGame.getState().powerups);
+      const api = useProfiles.getState();
+      api.usePowerups(api.p1, useGame.getState().powerups[0]);
+      api.usePowerups(api.p2, useGame.getState().powerups[1]);
+      useGame.getState().setSnapshot(world.snapshot());
+      useGame.getState().setPaused(false);
+      useGame.getState().setSpeed(1);
+      setSeat("fight");
+      setMessage(`${lvl.name} marches in.`);
       return;
     }
     setSeat("pass");
@@ -78,28 +108,46 @@ export function Hud({ world }: { world: World }) {
   };
 
   const rematch = () => {
-    const placed = world.units.map((u) => ({
-      defId: u.def.id,
-      x: u.x,
-      z: u.z,
-      yaw: u.yaw,
-      side: u.side,
-    }));
-    world.clearUnits();
-    for (const p of placed) world.place(p);
-    useGame.getState().setAwarded(false);
-    useGame.getState().clearFeed();
-    world.startCountdown();
-    useGame.getState().setSnapshot(world.snapshot());
-    setSeat("fight");
-    setMessage("Rematch!");
+    const stored = useGame.getState().placements;
+    const placed =
+      stored.length > 0
+        ? stored
+        : world.units.map((u) => ({
+            defId: u.def.id,
+            x: u.x,
+            z: u.z,
+            yaw: u.yaw,
+            side: u.side,
+          }));
+    try {
+      world.clearUnits();
+      for (const p of placed) world.place(p);
+      useGame.getState().setAwarded(false);
+      useGame.getState().clearFeed();
+      world.startCountdown(useGame.getState().powerups);
+      const api = useProfiles.getState();
+      api.usePowerups(api.p1, useGame.getState().powerups[0]);
+      api.usePowerups(api.p2, useGame.getState().powerups[1]);
+      useGame.getState().setSnapshot(world.snapshot());
+      useGame.getState().setPaused(false);
+      useGame.getState().setSpeed(1);
+      setSeat("fight");
+      setMessage("Rematch!");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Rematch failed.");
+    }
   };
 
   const wipe = () => {
-    world.clearUnits();
-    resetSpend();
-    useGame.getState().resetMatch();
-    useGame.getState().setSnapshot(world.snapshot());
+    try {
+      world.clearUnits();
+      resetSpend();
+      useGame.getState().resetMatch();
+      useGame.getState().setSnapshot(world.snapshot());
+      setMessage("P1 — click the glowing blue pad.");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Could not reset.");
+    }
   };
 
   return (
@@ -111,6 +159,20 @@ export function Hud({ world }: { world: World }) {
         >
           Wobble Wars
         </Link>
+        {phase === "setup" && (
+          <div className="toy-shadow flex gap-1 rounded-btn border-[3px] border-ink bg-cream p-1">
+            {ARENAS.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setArena(a.id)}
+                className={`rounded-btn px-2 py-1 text-sm font-display ${arena === a.id ? "bg-ochre" : ""}`}
+              >
+                {a.name.split(" ")[0]}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="toy-shadow flex min-w-[240px] flex-col gap-1 rounded-card border-[3px] border-ink bg-cream/95 px-3 py-2">
           <div className="flex justify-between font-display text-lg">
             <span className="text-steel">
@@ -142,21 +204,33 @@ export function Hud({ world }: { world: World }) {
 
       {(seat === "setupP1" || seat === "setupP2") && phase === "setup" && (
         <div className="pointer-events-auto flex max-h-[70vh] max-w-[220px] flex-col gap-2 overflow-auto">
-          <div className="flex gap-1">
-            {M1_FACTIONS.map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setFaction(id as FactionId)}
-                className={`toy-shadow rounded-btn border-[3px] border-ink px-2 py-1 text-sm font-display ${
-                  faction === id ? "bg-ochre-hot" : "bg-parchment"
-                }`}
-              >
-                {FACTION_META[id].name}
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-1">
+            {([...M1_FACTIONS, "anomaly"] as const).map((id) => {
+              if (id === "anomaly") {
+                const unlocked = placingSide === 0 ? (p1?.anomalies?.length ?? 0) : (p2?.anomalies?.length ?? 0);
+                if (!unlocked) return null;
+              }
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFaction(id as FactionId)}
+                  className={`toy-shadow rounded-btn border-[3px] border-ink px-2 py-1 text-sm font-display ${
+                    faction === id ? "bg-ochre-hot" : "bg-parchment"
+                  }`}
+                >
+                  {FACTION_META[id].name}
+                </button>
+              );
+            })}
           </div>
-          {cards.map((u) => {
+          {cards
+            .filter((u) => {
+              if (u.faction !== "anomaly") return true;
+              const bag = placingSide === 0 ? p1?.anomalies : p2?.anomalies;
+              return bag?.includes(u.id);
+            })
+            .map((u) => {
             const on = selected.id === u.id;
             return (
               <button
@@ -175,6 +249,24 @@ export function Hud({ world }: { world: World }) {
               </button>
             );
           })}
+          <div className="mt-2 flex flex-wrap gap-1">
+            {POWERUPS.map((p) => {
+              const bag = (placingSide === 0 ? p1?.powerups : p2?.powerups) ?? {};
+              const owned = bag[p.id] ?? 0;
+              if (owned <= 0) return null;
+              const on = powerups[placingSide].includes(p.id);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => togglePowerup(placingSide, p.id)}
+                  className={`rounded-btn border-[3px] border-ink px-2 py-1 text-xs font-display ${on ? "bg-ochre-hot" : "bg-cream"}`}
+                >
+                  {p.name} ×{owned}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -242,6 +334,29 @@ export function Hud({ world }: { world: World }) {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  const last = world.removeLast(0);
+                  if (!last) return;
+                  useGame.getState().popPlace();
+                  useGame.getState().addSpend(0, -last.def.cost);
+                  useGame.getState().setSnapshot(world.snapshot());
+                }}
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
+              >
+                Undo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  world.mirrorSide(0);
+                  useGame.getState().setSnapshot(world.snapshot());
+                }}
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
+              >
+                Flip
+              </button>
+              <button
+                type="button"
                 onClick={readyP1}
                 className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-5 py-2 font-display text-xl"
               >
@@ -283,6 +398,11 @@ export function Hud({ world }: { world: World }) {
 
       {seat === "pass" && <PassCurtain onDone={beginP2} />}
       {phase === "over" && <ResultsCard world={world} onRematch={rematch} onNew={wipe} />}
+      {world.slowmoT > 0 && phase === "battle" && (
+        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+          <p className="font-display text-6xl text-cream drop-shadow-[6px_6px_0_#1c1710]">FINISH</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -347,7 +467,7 @@ function ResultsCard({
     snapshot?.winner === "draw" ? "DRAW" : snapshot?.winner === 0 ? `${p1?.name ?? "P1"} WINS` : `${p2?.name ?? "P2"} WINS`;
 
   return (
-    <div className="pointer-events-auto absolute inset-0 z-20 flex items-center justify-center bg-ink/55 p-4">
+    <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-ink/55 p-4" data-ui>
       <div className="toy-shadow w-full max-w-lg rounded-card border-[3px] border-ink bg-cream p-5 text-ink">
         <h2 className="font-display text-4xl">{title}</h2>
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -370,13 +490,34 @@ function ResultsCard({
           MVP: {stats.mvpName} ({stats.mvpSide === 0 ? "P1" : "P2"})
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={onRematch} className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-4 py-2 font-display">
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onRematch}
+            className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-4 py-2 font-display"
+          >
             Rematch
           </button>
-          <button type="button" onClick={onNew} className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display">
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onNew}
+            className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display"
+          >
             New armies
           </button>
-          <Link to="/" className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display">
+          <Link
+            to="/roll"
+            onPointerDown={(e) => e.stopPropagation()}
+            className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display"
+          >
+            Roll
+          </Link>
+          <Link
+            to="/"
+            onPointerDown={(e) => e.stopPropagation()}
+            className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display"
+          >
             Menu
           </Link>
         </div>

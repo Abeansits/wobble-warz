@@ -8,6 +8,11 @@ export type Profile = {
   credits: number;
   battles: number;
   wins: number;
+  pity: number;
+  rolls: number;
+  anomalies: string[];
+  cosmetics: string[];
+  powerups: Record<string, number>;
 };
 
 type ProfileStore = {
@@ -20,6 +25,9 @@ type ProfileStore = {
   setSeat: (seat: 0 | 1, id: string) => void;
   addCredits: (id: string, amount: number) => void;
   recordBattle: (id: string, won: boolean) => void;
+  grantPrize: (id: string, prize: { kind: string; id?: string; name?: string; amount?: number }) => void;
+  spendCredits: (id: string, amount: number) => boolean;
+  usePowerups: (id: string, ids: string[]) => void;
   byId: (id: string) => Profile | undefined;
 };
 
@@ -33,6 +41,11 @@ function fresh(name: string, color: string): Profile {
     credits: 80,
     battles: 0,
     wins: 0,
+    pity: 0,
+    rolls: 0,
+    anomalies: [],
+    cosmetics: [],
+    powerups: {},
   };
 }
 
@@ -74,6 +87,45 @@ export const useProfiles = create<ProfileStore>()(
           profiles: s.profiles.map((p) =>
             p.id === id ? { ...p, battles: p.battles + 1, wins: p.wins + (won ? 1 : 0) } : p,
           ),
+        })),
+      spendCredits: (id, amount) => {
+        const p = get().profiles.find((x) => x.id === id);
+        if (!p || p.credits < amount) return false;
+        set((s) => ({
+          profiles: s.profiles.map((x) => (x.id === id ? { ...x, credits: x.credits - amount } : x)),
+        }));
+        return true;
+      },
+      grantPrize: (id, prize) =>
+        set((s) => ({
+          profiles: s.profiles.map((p) => {
+            if (p.id !== id) return p;
+            const next = {
+              ...p,
+              pity: prize.kind === "anomaly" ? 0 : (p.pity ?? 0) + 1,
+              rolls: (p.rolls ?? 0) + 1,
+              anomalies: [...(p.anomalies ?? [])],
+              cosmetics: [...(p.cosmetics ?? [])],
+              powerups: { ...(p.powerups ?? {}) },
+            };
+            if (prize.kind === "credits") next.credits += prize.amount ?? 0;
+            if (prize.kind === "anomaly" && prize.id && !next.anomalies.includes(prize.id)) next.anomalies.push(prize.id);
+            if (prize.kind === "cosmetic" && prize.id && !next.cosmetics.includes(prize.id)) next.cosmetics.push(prize.id);
+            if (prize.kind === "powerup" && prize.id) next.powerups[prize.id] = (next.powerups[prize.id] ?? 0) + 1;
+            return next;
+          }),
+        })),
+      usePowerups: (id, ids) =>
+        set((s) => ({
+          profiles: s.profiles.map((p) => {
+            if (p.id !== id) return p;
+            const powerups = { ...(p.powerups ?? {}) };
+            for (const k of ids) {
+              powerups[k] = Math.max(0, (powerups[k] ?? 0) - 1);
+              if (powerups[k] === 0) delete powerups[k];
+            }
+            return { ...p, powerups };
+          }),
         })),
       byId: (id) => get().profiles.find((p) => p.id === id),
     }),

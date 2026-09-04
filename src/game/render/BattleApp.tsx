@@ -7,6 +7,10 @@ import { useGame } from "@/store/gameStore";
 import { ArmyView } from "./ArmyView";
 import { CameraRig } from "./CameraRig";
 import { DeployPads, MeadowProps, Terrain } from "./Terrain";
+import { BattleFx } from "./Fx";
+import { sfx } from "@/game/audio";
+import { useSettings } from "@/routes/settings";
+import { getArena } from "@/game/data/arenas";
 import { Hud } from "@/ui/Hud";
 
 function SetupInput({ world }: { world: World }) {
@@ -80,6 +84,7 @@ function SimLoop({ world }: { world: World }) {
   const pausedRef = useRef(useGame.getState().paused);
   const setSnapshot = useGame((s) => s.setSnapshot);
   const last = useRef(performance.now());
+  const frame = useRef(0);
 
   useEffect(() =>
     useGame.subscribe((s) => {
@@ -96,17 +101,26 @@ function SimLoop({ world }: { world: World }) {
       const dt = Math.min(0.05, (now - last.current) / 1000);
       last.current = now;
       try {
-        if (world.phase !== "setup") {
+        if (world.phase !== "setup" && world.phase !== "over") {
           world.step(dt, speedRef.current, pausedRef.current || speedRef.current === 0);
-          setSnapshot(world.snapshot());
-          const ev = world.drainEvents();
-          for (const e of ev) {
-            if (e.type === "death") {
-              const victim = world.units.find((u) => u.id === e.unitId);
-              const killer = e.killerId != null ? world.units.find((u) => u.id === e.killerId) : undefined;
-              useGame.getState().pushKill(
-                `${killer?.def.name ?? "The meadow"} dropped ${victim?.def.name ?? "someone"}`,
-              );
+          frame.current++;
+          if (frame.current % 2 === 0) {
+            setSnapshot(world.snapshot());
+            const ev = world.drainEvents();
+            for (const e of ev) {
+              if (e.type === "death") {
+                const victim = world.units.find((u) => u.id === e.unitId);
+                const killer = e.killerId != null ? world.units.find((u) => u.id === e.killerId) : undefined;
+                useGame.getState().pushKill(
+                  `${killer?.def.name ?? "The meadow"} dropped ${victim?.def.name ?? "someone"}`,
+                );
+                sfx("yelp", useSettings.getState().sfx);
+              }
+              if (e.type === "hit" && e.impulse > 18) {
+                sfx("hit", useSettings.getState().sfx);
+                if (useSettings.getState().shake) useGame.getState().bumpCam("pitch", 0.02);
+              }
+              if (e.type === "victory") sfx("win", useSettings.getState().sfx);
             }
           }
         }
@@ -123,6 +137,16 @@ function SimLoop({ world }: { world: World }) {
   }, [world, setSnapshot]);
 
   return null;
+}
+
+function SkyMood() {
+  const arena = getArena(useGame((s) => s.arena));
+  return (
+    <>
+      <color attach="background" args={[arena.sky]} />
+      <fog attach="fog" args={[arena.fog, arena.night ? 20 : 48, arena.night ? 72 : 95]} />
+    </>
+  );
 }
 
 function Lights() {
@@ -143,8 +167,7 @@ function Lights() {
   });
   return (
     <>
-      <color attach="background" args={["#8ec6e8"]} />
-      <fog attach="fog" args={["#9fd0ee", 48, 95]} />
+      <SkyMood />
       <hemisphereLight args={["#cfe8ff", "#4a6a32", 0.7]} />
       <directionalLight
         castShadow
@@ -254,6 +277,7 @@ export function BattleApp() {
           <CameraRig />
           <SetupInput world={world} />
           <SimLoop world={world} />
+          <BattleFx />
         </Suspense>
       </Canvas>
       <Hud world={world} />

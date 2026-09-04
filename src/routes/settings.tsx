@@ -1,11 +1,66 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ComingSoon } from "@/ui/ComingSoon";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export const Route = createFileRoute("/settings")({
-  component: () => (
-    <ComingSoon
-      title="Settings"
-      blurb="Volume, shadows, corpse lifetime and screen shake will live here. Defaults are already sensible."
-    />
-  ),
+  ssr: false,
+  component: SettingsPage,
 });
+
+type Settings = {
+  music: number;
+  sfx: number;
+  shake: boolean;
+  blind: boolean;
+  setMusic: (n: number) => void;
+  setSfx: (n: number) => void;
+  setShake: (v: boolean) => void;
+  setBlind: (v: boolean) => void;
+};
+
+export const useSettings = create<Settings>()(
+  persist(
+    (set) => ({
+      music: 0.6,
+      sfx: 0.8,
+      shake: true,
+      blind: true,
+      setMusic: (music) => set({ music }),
+      setSfx: (sfx) => set({ sfx }),
+      setShake: (shake) => set({ shake }),
+      setBlind: (blind) => set({ blind }),
+    }),
+    { name: "wobble-wars-settings" },
+  ),
+);
+
+function SettingsPage() {
+  const s = useSettings();
+  return (
+    <main className="min-h-dvh bg-meadow-deep px-6 py-10 text-cream">
+      <div className="mx-auto max-w-lg">
+        <h1 className="font-display text-5xl">Settings</h1>
+        <label className="mt-6 block font-display">
+          Music {Math.round(s.music * 100)}
+          <input type="range" min={0} max={1} step={0.05} value={s.music} onChange={(e) => s.setMusic(Number(e.target.value))} className="mt-1 w-full" />
+        </label>
+        <label className="mt-4 block font-display">
+          Clunks {Math.round(s.sfx * 100)}
+          <input type="range" min={0} max={1} step={0.05} value={s.sfx} onChange={(e) => s.setSfx(Number(e.target.value))} className="mt-1 w-full" />
+        </label>
+        <label className="mt-4 flex items-center gap-2 font-display">
+          <input type="checkbox" checked={s.shake} onChange={(e) => s.setShake(e.target.checked)} />
+          Camera shake
+        </label>
+        <label className="mt-2 flex items-center gap-2 font-display">
+          <input type="checkbox" checked={s.blind} onChange={(e) => s.setBlind(e.target.checked)} />
+          Blind placement on pass
+        </label>
+        <p className="mt-4 text-sm text-cream/70">Audio buses hook up with the juice pass. Sliders already remember themselves.</p>
+        <Link to="/" className="toy-shadow mt-6 inline-block rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display text-ink">
+          Back
+        </Link>
+      </div>
+    </main>
+  );
+}

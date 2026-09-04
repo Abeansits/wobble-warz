@@ -1,28 +1,30 @@
 import { useMemo } from "react";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
+import { getArena, terrainHeight, type ArenaId } from "@/game/data/arenas";
+import { useGame } from "@/store/gameStore";
 
-function height(x: number, z: number) {
-  return 0.12 + ((x + 30) / 60) * 1.6 + 0.28 * Math.sin(x * 0.14) * Math.cos(z * 0.18);
+function height(x: number, z: number, arena: ArenaId = "meadow") {
+  return terrainHeight(x, z, arena);
 }
 
 export function Terrain() {
+  const arenaId = useGame((s) => s.arena);
+  const arena = getArena(arenaId);
   const geo = useMemo(() => {
     const w = 64;
     const d = 44;
-    const segX = 48;
-    const segZ = 32;
-    const g = new THREE.PlaneGeometry(w, d, segX, segZ);
+    const g = new THREE.PlaneGeometry(w, d, 48, 32);
     g.rotateX(-Math.PI / 2);
     const pos = g.attributes.position;
     const colors = new Float32Array(pos.count * 3);
-    const grass = new THREE.Color("#4f8a4a");
-    const dirt = new THREE.Color("#8a6a3a");
+    const grass = new THREE.Color(arena.grass);
+    const dirt = new THREE.Color(arena.dirt);
     const tmp = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
-      const y = height(x, z);
+      const y = height(x, z, arenaId);
       pos.setY(i, y);
       const slope = Math.min(1, Math.abs(Math.sin(x * 0.14) * Math.cos(z * 0.18)) * 1.4);
       tmp.copy(grass).lerp(dirt, slope * 0.45);
@@ -33,7 +35,7 @@ export function Terrain() {
     g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     g.computeVertexNormals();
     return g;
-  }, []);
+  }, [arenaId, arena.grass, arena.dirt]);
 
   return (
     <mesh geometry={geo} receiveShadow raycast={() => {}}>

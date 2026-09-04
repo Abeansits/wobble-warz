@@ -15,4 +15,4 @@ screenshots/
 .DS_Store
 *.local
 .pglite/
-data/
+/data/
