@@ -37,6 +37,20 @@ export type Prize =
   | { kind: "credits"; amount: number }
   | { kind: "anomaly"; id: string; name: string };
 
+/** Capsule leak + burst. Decided with the prize, before the drop. */
+export const PRIZE_COLOR: Record<Prize["kind"], string> = {
+  powerup: "#c48a3a",
+  cosmetic: "#3a5f8a",
+  credits: "#efe0b4",
+  anomaly: "#d4a017",
+};
+
+export function prizeLabel(prize: Prize): string {
+  if (prize.kind === "credits") return `+${prize.amount} credits bounced back`;
+  if (prize.kind === "anomaly") return `ANOMALY — ${prize.name}`;
+  return prize.name;
+}
+
 export function rollPrize(pity: number): Prize {
   if (pity >= 19) {
     const a = ANOMALIES[Math.floor(Math.random() * ANOMALIES.length)];

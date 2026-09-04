@@ -1,19 +1,64 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { ROLL_BUNDLE_COST, ROLL_BUNDLE_COUNT, ROLL_COST, rollMany, rollPrize, type Prize } from "@/game/data/rolls";
+import { useEffect, useRef, useState } from "react";
+import {
+  ROLL_BUNDLE_COST,
+  ROLL_BUNDLE_COUNT,
+  ROLL_COST,
+  prizeLabel,
+  rollMany,
+  rollPrize,
+  type Prize,
+} from "@/game/data/rolls";
+import { getUnit } from "@/game/data/units";
 import { useProfiles } from "@/game/meta/profiles";
+import { PlinkoBoard } from "@/game/render/PlinkoBoard";
+import { UnitPreview } from "@/game/render/UnitPreview";
 
 export const Route = createFileRoute("/roll")({
   ssr: false,
   component: RollPage,
 });
 
-const RARITY: Record<Prize["kind"], string> = {
-  powerup: "#c48a3a",
-  cosmetic: "#3a5f8a",
-  credits: "#efe0b4",
-  anomaly: "#d4a017",
-};
+function LeverStrip({ onPull, disabled }: { onPull: () => void; disabled: boolean }) {
+  const start = useRef<number | null>(null);
+  const [y, setY] = useState(0);
+  const fired = useRef(false);
+  const reset = () => {
+    start.current = null;
+    fired.current = false;
+    setY(0);
+  };
+  return (
+    <div
+      className={`absolute right-3 top-12 flex h-52 w-14 flex-col items-center rounded-btn border-[3px] border-ink bg-parchment ${
+        disabled ? "opacity-60" : ""
+      }`}
+      onPointerDown={(e) => {
+        if (disabled) return;
+        start.current = e.clientY;
+        fired.current = false;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        if (start.current == null || disabled) return;
+        const d = Math.max(0, Math.min(140, e.clientY - start.current));
+        setY(d);
+        if (d > 90 && !fired.current) {
+          fired.current = true;
+          onPull();
+        }
+      }}
+      onPointerUp={reset}
+      onPointerCancel={reset}
+    >
+      <span className="mt-1 font-display text-[10px] tracking-wide text-ink">PULL</span>
+      <span
+        className="mt-2 h-9 w-9 rounded-full border-[3px] border-ink bg-crimson"
+        style={{ transform: `translateY(${y}px)` }}
+      />
+    </div>
+  );
+}
 
 function RollPage() {
   const profiles = useProfiles();
@@ -23,67 +68,84 @@ function RollPage() {
   const [prize, setPrize] = useState<Prize | null>(null);
   const [haul, setHaul] = useState<Prize[] | null>(null);
   const [note, setNote] = useState("");
+  const [dropNonce, setDropNonce] = useState(0);
+  const [cine, setCine] = useState(false);
+
   useEffect(() => {
     profiles.ensureDefaults();
     const s = useProfiles.getState();
     if (!who && s.p1) setWho(s.p1);
   }, [profiles, who]);
 
+  useEffect(() => {
+    if (!open || prize?.kind !== "anomaly") {
+      setCine(false);
+      return;
+    }
+    setCine(true);
+    const t = window.setTimeout(() => setCine(false), 2000);
+    return () => window.clearTimeout(t);
+  }, [open, prize]);
+
   const me = profiles.profiles.find((p) => p.id === who) ?? profiles.profiles[0];
-  const color = prize ? RARITY[prize.kind] : "#e09a2c";
+
+  const beginDrop = (next: Prize, extras: Prize[] | null) => {
+    setPrize(next);
+    setHaul(extras);
+    setOpen(false);
+    setDropping(true);
+    setNote("");
+    setDropNonce((n) => n + 1);
+  };
 
   const pull = () => {
     if (!me || dropping) return;
-    if (me.credits < ROLL_COST) {
+    const api = useProfiles.getState();
+    const current = api.byId(me.id);
+    if (!current) return;
+    if (current.credits < ROLL_COST) {
       setNote(`Need ${ROLL_COST} credits. Win a fight first.`);
       return;
     }
-    if (!profiles.spendCredits(me.id, ROLL_COST)) return;
-    const next = rollPrize(me.pity ?? 0);
-    setDropping(true);
-    setOpen(false);
-    setHaul(null);
-    setPrize(next);
-    setNote("");
-    window.setTimeout(() => {
-      setOpen(true);
-      useProfiles.getState().grantPrize(me.id, next);
-      setDropping(false);
-    }, 1300);
+    if (!api.spendCredits(me.id, ROLL_COST)) return;
+    const next = rollPrize(current.pity ?? 0);
+    api.grantPrize(me.id, next);
+    beginDrop(next, null);
   };
 
   const pullTen = () => {
     if (!me || dropping) return;
-    if (me.credits < ROLL_BUNDLE_COST) {
+    const api = useProfiles.getState();
+    const current = api.byId(me.id);
+    if (!current) return;
+    if (current.credits < ROLL_BUNDLE_COST) {
       setNote(`Need ${ROLL_BUNDLE_COST} credits for a 10-pull.`);
       return;
     }
-    if (!profiles.spendCredits(me.id, ROLL_BUNDLE_COST)) return;
-    const api = useProfiles.getState();
-    const prizes = rollMany(ROLL_BUNDLE_COUNT, api.byId(me.id)?.pity ?? 0);
+    if (!api.spendCredits(me.id, ROLL_BUNDLE_COST)) return;
+    const prizes = rollMany(ROLL_BUNDLE_COUNT, current.pity ?? 0);
     for (const next of prizes) api.grantPrize(me.id, next);
     const star = prizes.find((p) => p.kind === "anomaly") ?? prizes[prizes.length - 1] ?? null;
-    setHaul(prizes);
-    setPrize(star);
-    setOpen(true);
-    setDropping(false);
-    setNote("");
+    if (star) beginDrop(star, prizes);
   };
 
-  const label = useMemo(() => {
-    if (!prize) return "";
-    if (prize.kind === "credits") return `+${prize.amount} credits bounced back`;
-    if (prize.kind === "anomaly") return `ANOMALY — ${prize.name}`;
-    return prize.name;
-  }, [prize]);
+  const anomalyDef = (() => {
+    if (prize?.kind !== "anomaly") return null;
+    try {
+      return getUnit(prize.id);
+    } catch {
+      return null;
+    }
+  })();
 
   return (
     <main className="min-h-dvh bg-meadow-deep px-6 py-10 text-cream">
-      <div className="mx-auto max-w-xl">
+      <div className="mx-auto max-w-2xl">
         <p className="font-display text-sm text-cream/70">Gumball</p>
         <h1 className="font-display text-5xl">Roll</h1>
         <p className="mt-2 text-cream/80">
           {ROLL_COST} credits a pull, or {ROLL_BUNDLE_COST} for ten. Pity hands you an Anomaly on the 20th dry roll.
+          Rarity color leaks through the capsule — watch the bounce.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2">
@@ -101,33 +163,16 @@ function RollPage() {
           ))}
         </div>
 
-        <div className="toy-shadow relative mt-8 h-80 overflow-hidden rounded-card border-[3px] border-ink bg-[#3a2a1c]">
-          <div className="absolute inset-x-8 top-6 grid grid-cols-5 gap-y-8">
-            {Array.from({ length: 20 }).map((_, i) => (
-              <span key={i} className="mx-auto h-3 w-3 rounded-full bg-ochre" />
-            ))}
-          </div>
-          <div
-            className="absolute h-12 w-12 rounded-full border-[3px] border-ink"
-            style={{
-              background: color,
-              left: dropping ? "58%" : open ? "46%" : "46%",
-              top: dropping ? "68%" : open ? "70%" : "8%",
-              transform: open ? "scale(1.15)" : "scale(1)",
-              boxShadow: prize?.kind === "anomaly" && open ? "0 0 24px #d4a017" : "4px 4px 0 #1c1710",
-              transition: dropping
-                ? "left 1.2s ease-in-out, top 1.2s cubic-bezier(.2,1.4,.4,1)"
-                : "transform 180ms ease",
-            }}
-          />
-          <div className="absolute inset-x-8 bottom-3 h-10 rounded-btn border-[3px] border-ink bg-parchment" />
+        <div className="relative mt-8">
+          <PlinkoBoard prize={prize} dropNonce={dropNonce} onSettled={() => { setOpen(true); setDropping(false); }} />
+          <LeverStrip onPull={pull} disabled={dropping || !me} />
           {open && prize?.kind === "anomaly" && (
-            <img src="/assets/badge-new.png" alt="" className="pointer-events-none absolute right-4 top-4 h-16 w-16" />
+            <img src="/assets/badge-new.png" alt="" className="pointer-events-none absolute left-4 top-4 h-16 w-16" />
           )}
         </div>
 
         <p className="mt-4 font-display text-2xl">
-          {dropping ? "It's bouncing…" : open ? label : "Pull the lever."}
+          {dropping ? "It's bouncing…" : open && prize ? prizeLabel(prize) : "Drag the lever. Or smash the button."}
         </p>
         {note && <p className="mt-1 text-sm text-cream/80">{note}</p>}
         {me && (
@@ -166,6 +211,17 @@ function RollPage() {
           Back
         </Link>
       </div>
+
+      {cine && prize?.kind === "anomaly" && anomalyDef && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/70 px-4">
+          <div className="toy-shadow w-full max-w-md rounded-card border-[3px] border-ink bg-cream p-4 text-ink">
+            <p className="font-display text-sm text-ochre-hot">Anomaly</p>
+            <h2 className="font-display text-4xl">{prize.name}</h2>
+            <p className="mb-3 text-muted">{anomalyDef.blurb}</p>
+            <UnitPreview def={anomalyDef} cosmetic={me?.palette ?? null} hat={me?.hat ?? null} />
+          </div>
+        </div>
+      )}
     </main>
   );
 }

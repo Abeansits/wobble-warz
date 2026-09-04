@@ -177,7 +177,7 @@ export class JoltWorld {
     return handle;
   }
 
-  createStaticSphere(x: number, y: number, z: number, r: number) {
+  createStaticSphere(x: number, y: number, z: number, r: number, restitution = 0) {
     const Jolt = this.Jolt;
     const shape = new Jolt.SphereShape(r);
     const settings = new Jolt.BodyCreationSettings(
@@ -187,6 +187,8 @@ export class JoltWorld {
       Jolt.EMotionType_Static,
       LAYER_STATIC,
     );
+    settings.mRestitution = restitution;
+    settings.mFriction = 0.2;
     const body = this.bodyInterface.CreateBody(settings);
     Jolt.destroy(settings);
     this.bodyInterface.AddBody(body.GetID(), Jolt.EActivation_DontActivate);
@@ -214,7 +216,14 @@ export class JoltWorld {
     return body.GetID().GetIndexAndSequenceNumber();
   }
 
-  createDynamicSphere(x: number, y: number, z: number, r: number, mass: number) {
+  createDynamicSphere(
+    x: number,
+    y: number,
+    z: number,
+    r: number,
+    mass: number,
+    opts?: { restitution?: number; friction?: number },
+  ) {
     const Jolt = this.Jolt;
     const shape = new Jolt.SphereShape(r);
     const settings = new Jolt.BodyCreationSettings(
@@ -224,8 +233,8 @@ export class JoltWorld {
       Jolt.EMotionType_Dynamic,
       LAYER_MOVING,
     );
-    settings.mFriction = 0.4;
-    settings.mRestitution = 0.12;
+    settings.mFriction = opts?.friction ?? 0.4;
+    settings.mRestitution = opts?.restitution ?? 0.12;
     settings.mOverrideMassProperties = Jolt.EOverrideMassProperties_CalculateInertia;
     settings.mMassPropertiesOverride.mMass = Math.max(0.2, mass);
     const body = this.bodyInterface.CreateBody(settings);
