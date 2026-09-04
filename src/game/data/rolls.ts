@@ -1,3 +1,5 @@
+import { HATS } from "./hats";
+
 export const ROLL_COST = 200;
 export const ROLL_BUNDLE_COUNT = 10;
 export const ROLL_BUNDLE_COST = 1800;
@@ -24,11 +26,20 @@ export const ANOMALIES = [
   { id: "anomaly.bard", name: "Black Hole Bard", blurb: "Pulls the scrum inward." },
 ] as const;
 
-export const COSMETICS = [
-  { id: "hat.cone", name: "Traffic cone hat" },
-  { id: "hat.crown", name: "Tiny crown" },
+export const PALETTES = [
   { id: "pal.midnight", name: "Midnight steel" },
   { id: "pal.ghost", name: "Ghost fleet" },
+  { id: "pal.pumpkin", name: "Pumpkin patch" },
+  { id: "pal.bone", name: "Bone pile" },
+  { id: "pal.royal", name: "Royal" },
+  { id: "pal.rust", name: "Rust bucket" },
+  { id: "pal.moss", name: "Mossy" },
+  { id: "pal.ink", name: "Ink" },
+] as const;
+
+export const COSMETICS = [
+  ...HATS.map((h) => ({ id: h.id, name: h.name })),
+  ...PALETTES.map((p) => ({ id: p.id, name: p.name })),
 ] as const;
 
 export type Prize =

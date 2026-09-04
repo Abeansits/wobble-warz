@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { COSMETICS } from "@/game/data/rolls";
+import { HATS } from "@/game/data/hats";
+import { PALETTES } from "@/game/data/rolls";
 import { FACTION_META, type UnitDef } from "@/game/data/types";
 import { M2_FACTIONS, rosterFor } from "@/game/data/units";
 import { useProfiles, type Profile } from "@/game/meta/profiles";
@@ -127,26 +128,36 @@ function ArmoryPage() {
           <section className="toy-shadow mt-6 rounded-card border-[3px] border-ink bg-cream p-4 text-ink">
             <h2 className="font-display text-2xl">Equipped — {me.name}</h2>
             <p className="text-sm text-muted">Hats and palettes show on the turntable.</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {COSMETICS.map((c) => {
-                const owned = me.cosmetics?.includes(c.id);
-                const on = me.hat === c.id || me.palette === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    disabled={!owned}
-                    onClick={() => profiles.equip(me.id, c.id.startsWith("hat") ? "hat" : "palette", on ? null : c.id)}
-                    className={`rounded-btn border-[3px] border-ink px-3 py-2 font-display ${
-                      on ? "bg-ochre-hot" : owned ? "bg-parchment" : "bg-parchment/40 text-muted"
-                    }`}
-                  >
-                    {c.name}
-                    {!owned ? " (locked)" : ""}
-                  </button>
-                );
-              })}
-            </div>
+            {(
+              [
+                ["Hats", HATS.map((h) => ({ id: h.id, name: h.name, kind: "hat" as const }))],
+                ["Palettes", PALETTES.map((p) => ({ id: p.id, name: p.name, kind: "palette" as const }))],
+              ] as const
+            ).map(([label, items]) => (
+              <div key={label} className="mt-3">
+                <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {items.map((c) => {
+                    const owned = me.cosmetics?.includes(c.id);
+                    const on = me.hat === c.id || me.palette === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        disabled={!owned}
+                        onClick={() => profiles.equip(me.id, c.kind, on ? null : c.id)}
+                        className={`rounded-btn border-[3px] border-ink px-3 py-2 font-display ${
+                          on ? "bg-ochre-hot" : owned ? "bg-parchment" : "bg-parchment/40 text-muted"
+                        }`}
+                      >
+                        {c.name}
+                        {!owned ? " (locked)" : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </section>
         )}
 

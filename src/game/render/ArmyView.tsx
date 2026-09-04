@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { session } from "@/game/session";
+import { getHat, HAT_BRIM_Y } from "@/game/data/hats";
 import { getUnit } from "@/game/data/units";
 import type { WorldSnapshot } from "@/game/sim/World";
 import { useProfiles } from "@/game/meta/profiles";
@@ -252,35 +253,38 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
         b.color.push(color);
       }
       const worn = u.side === 0 ? hat0 : hat1;
-      if (worn?.startsWith("hat") && u.parts.head) {
+      const hat = def.body.kind === "humanoid" ? getHat(worn) : null;
+      if (hat && u.parts.head) {
         const src = u.parts.head;
-        const key = worn === "hat.crown" ? "crown" : "cone";
-        let b = bag.get(key);
-        if (!b) {
-          b = {
-            key,
-            shape: worn === "hat.crown" ? "box" : "capsule",
-            size: worn === "hat.crown" ? [0.16, 0.12, 0.16] : [0.08, 0.22, 0.08],
-            kind: "plain",
-            pos: [],
-            quat: [],
-            scale: [],
-            color: [],
-          };
-          bag.set(key, b);
-        }
+        let hx: number;
+        let hy: number;
+        let hz: number;
         if (tumbling) {
           _q.set(src.qx, src.qy, src.qz, src.qw);
-          _rel.set(0, 0.28 * def.body.scale, 0);
-          b.pos.push(src.x + _rel.x, src.y + _rel.y - sink, src.z + _rel.z);
+          hx = src.x;
+          hy = src.y;
+          hz = src.z;
         } else {
           _q.set(src.qx, src.qy, src.qz, src.qw).premultiply(_yawQ);
-          _rel.set(src.x - pivot.x, src.y - pivot.y + 0.28 * def.body.scale, src.z - pivot.z).applyQuaternion(_yawQ);
-          b.pos.push(pivot.x + _rel.x, pivot.y + _rel.y - sink, pivot.z + _rel.z);
+          _rel.set(src.x - pivot.x, src.y - pivot.y, src.z - pivot.z).applyQuaternion(_yawQ);
+          hx = pivot.x + _rel.x;
+          hy = pivot.y + _rel.y;
+          hz = pivot.z + _rel.z;
         }
-        b.quat.push(_q.x, _q.y, _q.z, _q.w);
-        b.scale.push(shrink);
-        b.color.push(worn === "hat.crown" ? "#d4a017" : "#c45a32");
+        for (const part of hat.parts) {
+          const key = `${part.shape}:${part.size.join("x")}:plain`;
+          let b = bag.get(key);
+          if (!b) {
+            b = { key, shape: part.shape, size: part.size, kind: "plain", pos: [], quat: [], scale: [], color: [] };
+            bag.set(key, b);
+          }
+          _off.set(part.offset[0], HAT_BRIM_Y + part.offset[1], part.offset[2]).multiplyScalar(scale);
+          _off.applyQuaternion(_q);
+          b.pos.push(hx + _off.x, hy + _off.y - sink, hz + _off.z);
+          b.quat.push(_q.x, _q.y, _q.z, _q.w);
+          b.scale.push(shrink);
+          b.color.push(part.color);
+        }
       }
       const head = u.parts.head;
       if (head && Number.isFinite(head.x) && def.body.kind === "humanoid") {

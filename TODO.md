@@ -22,7 +22,7 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 - [x] Particle cap 1200 + launch trails (team-colored) on launched units
 - [x] Hitscan tracer line + muzzle flash; freeze/heal/pumpkin splat emitters still thin
 - [x] Title demo: mixed Clubber / Lobber / Mammoth vs Squire / Archer / Deckhand
-- [ ] ~12 hats (cone + crown only); palettes now include pumpkin/bone/royal/rust/moss/ink
+- [x] ~12 hats (cone + crown only); palettes now include pumpkin/bone/royal/rust/moss/ink
 - [x] Armory: stats, gimmick, locked Anomalies, equipped cosmetics visible on the turntable
 
 ## Wave C — loop chrome

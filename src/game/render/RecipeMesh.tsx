@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import * as THREE from "three";
+import { getHat, HAT_BRIM_Y, type HatPart } from "@/game/data/hats";
 import type { MeshPart, UnitDef } from "@/game/data/types";
 import { COSMETIC_PALETTES, METAL, TEAM, WOOD } from "./palette";
 import { getRamp } from "./textures";
@@ -105,16 +106,16 @@ export function tokenColor(
 
 function skipRaycast() {}
 
-function PartGeom({ part }: { part: MeshPart }) {
+function PartGeom({ part }: { part: MeshPart | HatPart }) {
   if (part.shape === "sphere") {
-    return <sphereGeometry args={[Math.max(part.size[0], 0.07), 10, 8]} />;
+    return <sphereGeometry args={[Math.max(part.size[0], 0.04), 10, 8]} />;
   }
   if (part.shape === "capsule") {
-    return <capsuleGeometry args={[Math.max(part.size[0], 0.06), Math.max(part.size[1], 0.16), 3, 6]} />;
+    return <capsuleGeometry args={[Math.max(part.size[0], 0.03), Math.max(part.size[1], 0.08), 3, 6]} />;
   }
   return (
     <boxGeometry
-      args={[Math.max(part.size[0], 0.08), Math.max(part.size[1], 0.08), Math.max(part.size[2], 0.08)]}
+      args={[Math.max(part.size[0], 0.04), Math.max(part.size[1], 0.03), Math.max(part.size[2], 0.04)]}
     />
   );
 }
@@ -163,9 +164,7 @@ export function RecipeMesh({
   const yOff = align === "ground" ? -bounds.minY : align === "center" ? -(bounds.minY + bounds.maxY) * 0.5 : 0;
 
   const head = laid.find((p) => p.part.slot === "head");
-  const hatId = hat?.startsWith("hat") ? hat : null;
-  const hatPos = head && hatId ? ([head.pos[0], head.pos[1] + 0.28, head.pos[2]] as const) : null;
-  const hatColor = tint ?? (hatId === "hat.crown" ? "#d4a017" : "#c45a32");
+  const hatDef = def.body.kind === "humanoid" ? getHat(hat) : null;
 
   const mat = {
     gradientMap: getRamp(),
@@ -189,21 +188,23 @@ export function RecipeMesh({
           <meshToonMaterial color={p.color} {...mat} />
         </mesh>
       ))}
-      {hatPos && (
-        <mesh
-          position={hatPos}
-          castShadow={castShadow && !ghost}
-          frustumCulled={!ghost}
-          {...(ghost ? { raycast: skipRaycast } : {})}
-        >
-          {hatId === "hat.crown" ? (
-            <boxGeometry args={[0.16, 0.12, 0.16]} />
-          ) : (
-            <capsuleGeometry args={[0.08, 0.22, 3, 6]} />
-          )}
-          <meshToonMaterial color={hatColor} {...mat} />
-        </mesh>
-      )}
+      {head &&
+        hatDef?.parts.map((part, i) => (
+          <mesh
+            key={`hat-${hatDef.id}-${i}`}
+            position={[
+              head.pos[0] + part.offset[0],
+              head.pos[1] + HAT_BRIM_Y + part.offset[1],
+              head.pos[2] + part.offset[2],
+            ]}
+            castShadow={castShadow && !ghost}
+            frustumCulled={!ghost}
+            {...(ghost ? { raycast: skipRaycast } : {})}
+          >
+            <PartGeom part={part} />
+            <meshToonMaterial color={tint ?? part.color} {...mat} />
+          </mesh>
+        ))}
     </group>
   );
 }
