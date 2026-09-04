@@ -29,9 +29,7 @@ test("playwright-smoke wires the guard and clicks title → battle", () => {
   assert.match(src, /checkedOutputPath\(join\(screenshotsDir, "e2e-battle\.png"\)/);
   assert.match(src, /waitUntil: "commit"/);
   assert.doesNotMatch(src, /waitUntil:\s*["']networkidle["']/, "Vite HMR never reaches networkidle");
-  assert.match(src, /getByRole\("link", \{ name: \/\^Play\\b\/ \}\)/);
-  assert.match(src, /To the meadow/);
-  assert.match(src, /pathname\.replace\(\/\\\/\+\$\/, ""\) === "\/play"/);
+  assert.match(src, /getByRole\("link", \{ name: \/Play together\/ \}\)/);
   assert.match(src, /pathname\.replace\(\/\\\/\+\$\/, ""\) === "\/battle"/);
   assert.match(src, /getContext\("webgl2"\) \|\| c\.getContext\("webgl"\)/);
   assert.match(src, /} finally \{\s*await browser\?\.close\(\);/s);

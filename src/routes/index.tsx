@@ -1,17 +1,19 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { TitleToys } from "@/game/render/TitleToys";
+import { startHotseat } from "@/game/meta/hotseat";
 
 export const Route = createFileRoute("/")({ component: Home });
 
 const LINKS = [
-  { to: "/play" as const, label: "Play", blurb: "Hot-seat. Two profiles, one meadow." },
-  { to: "/ladder" as const, label: "Ladder", blurb: "Twenty preset armies. You plant, they march." },
+  { to: "/ladder" as const, label: "Play solo", blurb: "Twenty preset armies. You plant, they march." },
+  { to: "/battle" as const, label: "Play together", blurb: "Hot-seat. Two players, one meadow.", hotseat: true },
   { to: "/armory" as const, label: "Armory", blurb: "All 30 toys, stats and gimmicks." },
   { to: "/roll" as const, label: "Roll", blurb: "Spend 200 credits. Pity after 20 dry pulls." },
   { to: "/settings" as const, label: "Settings", blurb: "Volume, shake, blind placement." },
 ];
 
 function Home() {
+  const nav = useNavigate();
   return (
     <main className="relative min-h-dvh overflow-hidden bg-meadow-deep text-cream">
       <TitleToys />
@@ -40,8 +42,15 @@ function Home() {
         <nav className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {LINKS.map((l) => (
             <Link
-              key={l.to}
+              key={l.label}
               to={l.to}
+              onClick={(e) => {
+                if (!("hotseat" in l) || !l.hotseat) return;
+                if (!startHotseat().ok) {
+                  e.preventDefault();
+                  void nav({ to: "/play" });
+                }
+              }}
               className="toy-shadow rounded-card border-[3px] border-ink bg-cream p-4 text-ink transition-transform hover:scale-[1.02] active:scale-95"
             >
               <span className="font-display text-2xl">{l.label}</span>

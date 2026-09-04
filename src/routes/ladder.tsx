@@ -1,4 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { LADDER } from "@/game/data/ladder";
 import { useGame } from "@/store/gameStore";
 import { useProfiles } from "@/game/meta/profiles";
@@ -10,12 +11,17 @@ export const Route = createFileRoute("/ladder")({
 
 function LadderPage() {
   const nav = useNavigate();
+  const profiles = useProfiles();
   const progress = useProfiles((s) => s.profiles.find((p) => p.id === s.p1)?.ladderProgress ?? 0);
+
+  useEffect(() => {
+    profiles.ensureDefaults();
+  }, [profiles]);
 
   return (
     <main className="min-h-dvh bg-meadow-deep px-6 py-10 text-cream">
       <div className="mx-auto max-w-4xl">
-        <p className="font-display text-sm text-cream/70">Vs the toys</p>
+        <p className="font-display text-sm text-cream/70">Play solo</p>
         <h1 className="font-display text-5xl">Ladder</h1>
         <p className="mt-2 max-w-lg text-cream/80">
           Twenty preset armies. You plant yours, they march in from the red pad.

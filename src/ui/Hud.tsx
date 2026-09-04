@@ -276,12 +276,22 @@ export function Hud({ world }: { world: World }) {
   return (
     <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 text-ink md:p-4">
       <header className="pointer-events-auto flex flex-wrap items-start justify-between gap-3">
-        <Link
-          to="/"
-          className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-3 py-1 font-display text-lg"
-        >
-          Wobble Wars
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/"
+            className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-3 py-1 font-display text-lg"
+          >
+            Wobble Wars
+          </Link>
+          {phase === "setup" && !vsAI && (
+            <Link
+              to="/play"
+              className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-1 text-sm font-display"
+            >
+              Change players
+            </Link>
+          )}
+        </div>
         {phase === "setup" && (
           <div className="toy-shadow flex gap-1 rounded-btn border-[3px] border-ink bg-cream p-1">
             {ARENAS.map((a) => (

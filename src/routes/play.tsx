@@ -1,7 +1,7 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { startHotseat } from "@/game/meta/hotseat";
 import { useProfiles } from "@/game/meta/profiles";
-import { useGame } from "@/store/gameStore";
 
 export const Route = createFileRoute("/play")({
   ssr: false,
@@ -22,15 +22,11 @@ function PlayProfiles() {
   }, [profiles]);
 
   const start = () => {
-    if (!profiles.p1 || !profiles.p2) {
-      setNote("Pick someone for both seats.");
+    const result = startHotseat();
+    if (!result.ok) {
+      setNote(result.reason === "same" ? "P1 and P2 need different profiles." : "Pick someone for both seats.");
       return;
     }
-    if (profiles.p1 === profiles.p2) {
-      setNote("P1 and P2 need different profiles.");
-      return;
-    }
-    useGame.getState().resetMatch();
     nav({ to: "/battle" });
   };
 
@@ -43,6 +39,20 @@ function PlayProfiles() {
           Two local profiles on this computer. New ones start with 80 credits and 0 wins.
           Credits are the toy-money you earn after a fight.
         </p>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={start}
+            className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-6 py-3 font-display text-2xl text-ink"
+          >
+            To the meadow
+          </button>
+          <Link to="/" className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-4 py-3 font-display text-ink">
+            Back
+          </Link>
+        </div>
+        {note && <p className="mt-3 text-sm text-cream/85">{note}</p>}
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {([0, 1] as const).map((seat) => {
@@ -73,9 +83,9 @@ function PlayProfiles() {
           })}
         </div>
 
-        <section className="toy-shadow mt-6 rounded-card border-[3px] border-ink bg-cream p-4 text-ink">
-          <h2 className="font-display text-xl">Manage profiles</h2>
-          <p className="mb-3 text-sm text-muted">Keep at least two so both seats can be filled.</p>
+        <details className="toy-shadow mt-6 rounded-card border-[3px] border-ink bg-cream p-4 text-ink">
+          <summary className="cursor-pointer font-display text-xl">Manage profiles</summary>
+          <p className="mb-3 mt-2 text-sm text-muted">Keep at least two so both seats can be filled.</p>
           <ul className="flex flex-col gap-2">
             {profiles.profiles.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-3 rounded-btn border-[3px] border-ink bg-parchment px-3 py-2">
@@ -99,7 +109,6 @@ function PlayProfiles() {
               </li>
             ))}
           </ul>
-        </section>
 
         <form
           className="toy-shadow mt-6 flex flex-wrap items-end gap-2 rounded-card border-[3px] border-ink bg-cream p-4 text-ink"
@@ -168,21 +177,7 @@ function PlayProfiles() {
             />
           </label>
         </form>
-
-        {note && <p className="mt-3 text-sm text-cream/85">{note}</p>}
-
-        <div className="mt-6 flex gap-3">
-          <button
-            type="button"
-            onClick={start}
-            className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-6 py-3 font-display text-2xl text-ink"
-          >
-            To the meadow
-          </button>
-          <Link to="/" className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-4 py-3 font-display text-ink">
-            Back
-          </Link>
-        </div>
+        </details>
       </div>
     </main>
   );

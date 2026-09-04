@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Playwright smoke (spec §10.6 / TODO Wave D):
- * title loads → Play → To the meadow → /battle canvas has WebGL → no console errors.
+ * title loads → Play together → /battle canvas has WebGL → no console errors.
  *
  * Needs the app on 0.0.0.0:8080 (`npm run dev`). Screenshots land in screenshots/.
  */
@@ -109,7 +109,7 @@ export async function runSmoke({
     // `commit`, not `domcontentloaded`: the fonts stylesheet in <head> blocks DCL.
     await page.goto(`${origin}/`, { waitUntil: "commit", timeout: GOTO_TIMEOUT_MS });
     await page.getByRole("heading", { name: "Wobble Wars" }).waitFor({ timeout: GOTO_TIMEOUT_MS });
-    await page.getByRole("link", { name: /^Play\b/ }).waitFor({ timeout: GOTO_TIMEOUT_MS });
+    await page.getByRole("link", { name: /Play together/ }).waitFor({ timeout: GOTO_TIMEOUT_MS });
     await page.locator("canvas").waitFor({ timeout: GOTO_TIMEOUT_MS });
     await page.waitForFunction(() => {
       const c = document.querySelector("canvas");
@@ -118,13 +118,8 @@ export async function runSmoke({
     const titleCanvas = await page.locator("canvas").count();
     await snap(page, titlePng);
 
-    await page.getByRole("link", { name: /^Play\b/ }).click({ timeout: 10_000 });
+    await page.getByRole("link", { name: /Play together/ }).click({ timeout: 10_000 });
     // waitForURL can miss a navigation that already settled during click().
-    await page.waitForFunction(() => location.pathname.replace(/\/+$/, "") === "/play", null, {
-      timeout: GOTO_TIMEOUT_MS,
-    });
-    await page.getByRole("heading", { name: /Who's playing/ }).waitFor({ timeout: GOTO_TIMEOUT_MS });
-    await page.getByRole("button", { name: /To the meadow/i }).click();
     await page.waitForFunction(() => location.pathname.replace(/\/+$/, "") === "/battle", null, {
       timeout: GOTO_TIMEOUT_MS,
     });
