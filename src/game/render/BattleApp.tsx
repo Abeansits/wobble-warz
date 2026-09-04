@@ -13,6 +13,7 @@ import { BattleFx } from "./Fx";
 import { sfx, startMeadow, stopMeadow, duckMeadow } from "@/game/audio";
 import { useSettings } from "@/routes/settings";
 import { getArena } from "@/game/data/arenas";
+import { deployYaw } from "@/game/sim/facing";
 import { Hud } from "@/ui/Hud";
 
 function SetupInput({ world }: { world: World }) {
@@ -58,7 +59,7 @@ function SetupInput({ world }: { world: World }) {
     if (tooClose) return;
     busy.current = true;
     lastPlace.current = now;
-    const yaw = (side === 0 ? -Math.PI / 2 : Math.PI / 2) + st.yawOffset;
+    const yaw = deployYaw(side) + st.yawOffset;
     try {
       world.place({ defId: selected.id, x, z, yaw, side });
       addSpend(side, selected.cost);
@@ -226,14 +227,14 @@ export function BattleApp() {
             defId: "stoneage.clubber",
             x: -16,
             z: -6 + i * 2.2,
-            yaw: -Math.PI / 2,
+            yaw: deployYaw(0),
             side: 0,
           });
           world.place({
             defId: "medieval.squire",
             x: 16,
             z: -6 + i * 2.2,
-            yaw: Math.PI / 2,
+            yaw: deployYaw(1),
             side: 1,
           });
         }
@@ -258,6 +259,8 @@ export function BattleApp() {
       .then((w) => {
         if (!alive) return;
         booted = true;
+        w.clearUnits();
+        w.setArena(useGame.getState().arena);
         setWorld(w);
         setSnapshot(w.snapshot());
       })
@@ -371,10 +374,11 @@ function GhostPreview() {
   const ghost = useGame((s) => s.ghost);
   const selected = useGame((s) => s.selected);
   const side = useGame((s) => s.placingSide);
+  const yawOffset = useGame((s) => s.yawOffset);
   if (!ghost) return null;
   const ok = side === 0 ? ghost.x < -8 : ghost.x > 8;
   return (
-    <mesh position={[ghost.x, 1.1, ghost.z]} scale={selected.body.scale}>
+    <mesh position={[ghost.x, 1.1, ghost.z]} rotation={[0, deployYaw(side) + yawOffset, 0]} scale={selected.body.scale}>
       <capsuleGeometry args={[0.22, 0.7, 4, 8]} />
       <meshBasicMaterial color={ok ? (side === 0 ? "#3a5f8a" : "#b33a2b") : "#1c1710"} transparent opacity={0.35} />
     </mesh>

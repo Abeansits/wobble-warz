@@ -29,6 +29,7 @@ export type BuiltRagdoll = {
   orderedIds: BodyHandle[];
   rootBody: BodyHandle;
   pelvisSpring: InstanceType<JoltModule["Constraint"]>;
+  alive: boolean;
 };
 
 /**
@@ -365,14 +366,9 @@ export class JoltWorld {
       orderedIds,
       rootBody,
       pelvisSpring: constraint,
+      alive: true,
     };
     this.ownedRagdolls.push(built);
-
-    for (const p of positions) Jolt.destroy(p);
-    for (const p of constraintPos) Jolt.destroy(p);
-    Jolt.destroy(minusX);
-    Jolt.destroy(minusY);
-
     return built;
   }
 
@@ -404,14 +400,16 @@ export class JoltWorld {
   }
 
   destroyRagdoll(built: BuiltRagdoll) {
+    if (!built.alive) return;
+    built.alive = false;
     const Jolt = this.Jolt;
     try {
       this.system.RemoveConstraint(built.pelvisSpring);
     } catch {
-      /* */
+      /* RemoveConstraint Releases the constraint */
     }
     try {
-      Jolt.destroy(built.pelvisSpring);
+      Jolt.destroy(built.pose);
     } catch {
       /* */
     }
@@ -422,11 +420,6 @@ export class JoltWorld {
     }
     try {
       Jolt.destroy(built.ragdoll);
-    } catch {
-      /* */
-    }
-    try {
-      Jolt.destroy(built.pose);
     } catch {
       /* */
     }

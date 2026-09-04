@@ -2,6 +2,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { startMeadow, stopMeadow } from "@/game/audio";
+import { deployYaw } from "@/game/sim/facing";
 import { World, type WorldSnapshot } from "@/game/sim/World";
 import { ArmyView } from "./ArmyView";
 import { Clouds, SkyDome } from "./SkyBits";
@@ -14,14 +15,14 @@ function plant(world: World) {
       defId: "stoneage.clubber",
       x: -11,
       z: -4.5 + i * 2.8,
-      yaw: -Math.PI / 2,
+      yaw: deployYaw(0),
       side: 0,
     });
     world.place({
       defId: "medieval.squire",
       x: 11,
       z: -4.5 + i * 2.8,
-      yaw: Math.PI / 2,
+      yaw: deployYaw(1),
       side: 1,
     });
   }

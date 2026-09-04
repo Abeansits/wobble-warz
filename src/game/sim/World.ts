@@ -10,6 +10,7 @@ import {
 import { getUnit } from "@/game/data/units";
 import type { Placement, Side, UnitDef } from "@/game/data/types";
 import { retarget, steer } from "./ai";
+import { deployYaw } from "./facing";
 import { applyDamage, killUnit } from "./combat";
 import { ARENA_HALF_X, ARENA_HALF_Z, CORPSE_FADE, CORPSE_LIFE, FIXED_DT } from "./constants";
 import { EventRing, type SimEvent } from "./events";
@@ -44,6 +45,7 @@ export type UnitView = {
   flash: number;
   fade: number;
   scale: number;
+  yaw: number;
 };
 
 export type ProjectileView = {
@@ -100,6 +102,7 @@ export class World implements SimCtx {
   scratch: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
   bananaSide: 0 | 1 | null = null;
   stones: Tombstone[] = [];
+  layout: Placement[] = [];
   private reinforceAt: [number | null, number | null] = [null, null];
   private windAt: [number | null, number | null] = [null, null];
   private potatoAt = 0;
@@ -229,13 +232,27 @@ export class World implements SimCtx {
     this.time = 0;
     this.phase = "setup";
     this.winner = null;
+    this.countdown = 0;
     this.acc = 0;
     this.spent = [0, 0];
     this.hitStop = 0;
     this.slowmoT = 0;
     this.pendingWinner = null;
     this.bananaSide = null;
+    this.noDamageT = 0;
+    this.startingHp = [0, 0];
+    this.reinforceAt = [null, null];
+    this.windAt = [null, null];
+    this.potatoAt = 0;
+    this.potatoId = null;
     clearShots(this);
+  }
+
+  replay() {
+    const layout = this.layout.map((p) => ({ ...p }));
+    this.clearUnits();
+    for (const p of layout) this.place(p);
+    this.layout = layout;
   }
 
   removeLast(side?: 0 | 1) {
@@ -295,6 +312,9 @@ export class World implements SimCtx {
   }
 
   startCountdown(powerups: [string[], string[]] = [[], []]) {
+    this.layout = this.units
+      .filter((u) => !u.summoned)
+      .map((u) => ({ defId: u.def.id, x: u.x, z: u.z, yaw: u.yaw, side: u.side }));
     this.phase = "countdown";
     this.countdown = 3;
     this.startingHp = [0, 0];
@@ -374,7 +394,7 @@ export class World implements SimCtx {
                 defId: "haunted.skeleton",
                 x: x0,
                 z: -6 + i * 3,
-                yaw: side === 0 ? -Math.PI / 2 : Math.PI / 2,
+                yaw: deployYaw(side),
                 side,
               },
               { free: true, summoned: true },
@@ -620,6 +640,7 @@ export class World implements SimCtx {
         flash: u.flash,
         fade,
         scale: u.def.body.scale,
+        yaw: u.yaw,
       });
     }
     const hpPct: [number, number] = [

@@ -26,4 +26,4 @@ MVP loop is playable. This pass is spec art, lighting, and the units that still 
 
 ## 4. Check + ship
 - [x] Typecheck, sim tests, browser smoke
-- [ ] Push to git
+- [x] Push to git

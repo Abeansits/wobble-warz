@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { FACTION_META, type FactionId } from "@/game/data/types";
 import { ARENAS } from "@/game/data/arenas";
 import { POWERUPS } from "@/game/data/rolls";
@@ -8,6 +8,7 @@ import { M1_FACTIONS, getUnit, rosterFor } from "@/game/data/units";
 import type { World } from "@/game/sim/World";
 import { creditPayout, ladderPayout, useProfiles } from "@/game/meta/profiles";
 import { useGame, type Speed } from "@/store/gameStore";
+import { deployYaw } from "@/game/sim/facing";
 
 const SPEEDS: Speed[] = [0.25, 0.5, 1, 2];
 
@@ -172,20 +173,17 @@ export function Hud({ world }: { world: World }) {
   });
 
   const rematch = () => {
-    const stored = useGame.getState().placements;
-    const placed =
-      stored.length > 0
-        ? stored
-        : world.units.map((u) => ({
-            defId: u.def.id,
-            x: u.x,
-            z: u.z,
-            yaw: u.yaw,
-            side: u.side,
-          }));
     try {
-      world.clearUnits();
-      for (const p of placed) world.place(p);
+      if (world.layout.length === 0) {
+        const stored = useGame.getState().placements;
+        world.layout =
+          stored.length > 0
+            ? stored.map((p) => ({ ...p }))
+            : world.units
+                .filter((u) => !u.summoned)
+                .map((u) => ({ defId: u.def.id, x: u.x, z: u.z, yaw: deployYaw(u.side), side: u.side }));
+      }
+      world.replay();
       useGame.getState().setAwarded(false);
       useGame.getState().clearFeed();
       world.startCountdown(useGame.getState().powerups);
@@ -199,6 +197,17 @@ export function Hud({ world }: { world: World }) {
       setMessage("Rematch!");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Rematch failed.");
+    }
+  };
+
+  const clearField = () => {
+    try {
+      world.clearUnits();
+      resetSpend();
+      useGame.getState().setSnapshot(world.snapshot());
+      setMessage(placingSide === 0 ? "P1 — click the glowing blue pad." : "P2 — click the glowing red pad.");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Could not clear.");
     }
   };
 
@@ -436,7 +445,7 @@ export function Hud({ world }: { world: World }) {
             <>
               <button
                 type="button"
-                onClick={wipe}
+                onClick={clearField}
                 className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
               >
                 Clear
@@ -640,28 +649,19 @@ export function Hud({ world }: { world: World }) {
 }
 
 function PassCurtain({ onDone }: { onDone: () => void }) {
-  const [left, setLeft] = useState(3);
-  useEffect(() => {
-    const id = window.setInterval(() => setLeft((n) => n - 1), 1000);
-    return () => window.clearInterval(id);
-  }, []);
   return (
     <div className="pointer-events-auto absolute inset-0 z-20 flex flex-col items-center justify-center bg-ink/90 text-cream">
       <p className="font-display text-5xl">Pass to P2</p>
       <p className="mt-3 max-w-sm text-center text-lg text-cream/80">
         Look away. P1's army will be silhouettes only.
       </p>
-      {left > 0 ? (
-        <p className="mt-6 font-display text-6xl">{left}</p>
-      ) : (
-        <button
-          type="button"
-          onClick={onDone}
-          className="toy-shadow mt-6 rounded-btn border-[3px] border-ink bg-ochre-hot px-6 py-3 font-display text-2xl text-ink"
-        >
-          I'm P2
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onDone}
+        className="toy-shadow mt-6 rounded-btn border-[3px] border-ink bg-ochre-hot px-6 py-3 font-display text-2xl text-ink"
+      >
+        I'm P2
+      </button>
     </div>
   );
 }

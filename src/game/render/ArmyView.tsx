@@ -11,7 +11,9 @@ import { getCloth, getFace, getMetalTex, getRamp, getWood, type FaceMood } from 
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 const _q = new THREE.Quaternion();
+const _yawQ = new THREE.Quaternion();
 const _off = new THREE.Vector3();
+const _rel = new THREE.Vector3();
 const _m = new THREE.Matrix4();
 const _s = new THREE.Vector3();
 const _c = new THREE.Color();
@@ -93,6 +95,9 @@ type Batch = {
 function BatchMesh({ batch }: { batch: Batch }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const n = batch.color.length;
+  const capRef = useRef(Math.max(8, n));
+  if (n > capRef.current) capRef.current = Math.max(n, capRef.current * 2);
+  const cap = capRef.current;
   useLayoutEffect(() => {
     const mesh = ref.current;
     if (!mesh) return;
@@ -109,7 +114,14 @@ function BatchMesh({ batch }: { batch: Batch }) {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [batch, n]);
   return (
-    <instancedMesh ref={ref} args={[geom(batch.shape, batch.size), material(batch.kind), Math.max(n, 1)]} frustumCulled={false} castShadow={n < 80} />
+    <instancedMesh
+      key={cap}
+      ref={ref}
+      args={[geom(batch.shape, batch.size), material(batch.kind), cap]}
+      dispose={null}
+      frustumCulled={false}
+      castShadow={n < 80}
+    />
   );
 }
 
@@ -157,24 +169,62 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
       const fade = u.fade ?? 0;
       const sink = fade * 0.55;
       const shrink = (u.scale ?? def.body.scale) * (1 - fade * 0.85);
+      const clustered = def.body.kind !== "humanoid";
+      const tumbling = u.state === "dead" || u.state === "launched";
+      const pivot = u.parts.pelvis ?? u.root;
+      const anchor = clustered
+        ? tumbling
+          ? (u.parts.torso ?? u.parts.pelvis)
+          : Number.isFinite(u.root.x)
+            ? u.root
+            : (u.parts.pelvis ?? u.root)
+        : null;
+      const half = (u.yaw ?? 0) * 0.5;
+      _yawQ.set(0, Math.sin(half), 0, Math.cos(half));
+      const scale = u.scale ?? def.body.scale;
       for (const part of def.recipe.parts) {
         const boneName = part.parent ?? PARENT[part.slot] ?? part.slot;
-        const src = u.parts[boneName];
+        const src = clustered ? anchor : u.parts[boneName];
         if (!src || !Number.isFinite(src.x)) continue;
-        _q.set(src.qx, src.qy, src.qz, src.qw);
-        _off.set(part.offset[0], part.offset[1], part.offset[2]).multiplyScalar(def.body.scale);
-        if (PARENT[part.slot] || part.parent) _off.applyQuaternion(_q);
-        else _off.set(0, 0, 0);
-        const kind = u.flash > 0 ? "plain" : kindFor(part.color);
-        const color = u.flash > 0 ? "#ffffff" : tokenColor(part.color, u.defId, u.side, u.side === 0 ? pal0 : pal1);
+        _off.set(part.offset[0], part.offset[1], part.offset[2]).multiplyScalar(scale);
+        let px: number;
+        let py: number;
+        let pz: number;
+        if (tumbling) {
+          _q.set(src.qx, src.qy, src.qz, src.qw);
+          if (clustered || PARENT[part.slot] || part.parent) _off.applyQuaternion(_q);
+          else _off.set(0, 0, 0);
+          px = src.x + _off.x;
+          py = src.y + _off.y;
+          pz = src.z + _off.z;
+        } else if (clustered) {
+          _q.copy(_yawQ);
+          _off.applyQuaternion(_q);
+          px = src.x + _off.x;
+          py = src.y + _off.y;
+          pz = src.z + _off.z;
+        } else {
+          _q.set(src.qx, src.qy, src.qz, src.qw).premultiply(_yawQ);
+          _rel.set(src.x - pivot.x, src.y - pivot.y, src.z - pivot.z).applyQuaternion(_yawQ);
+          if (PARENT[part.slot] || part.parent) _off.applyQuaternion(_q);
+          else _off.set(0, 0, 0);
+          px = pivot.x + _rel.x + _off.x;
+          py = pivot.y + _rel.y + _off.y;
+          pz = pivot.z + _rel.z + _off.z;
+        }
+        const kind = kindFor(part.color);
+        const color =
+          u.flash > 0
+            ? "#e8c090"
+            : tokenColor(part.color, u.defId, u.side, u.side === 0 ? pal0 : pal1);
         const key = `${part.shape}:${part.size.join("x")}:${kind}`;
         let b = bag.get(key);
         if (!b) {
           b = { key, shape: part.shape, size: part.size, kind, pos: [], quat: [], scale: [], color: [] };
           bag.set(key, b);
         }
-        b.pos.push(src.x + _off.x, src.y + _off.y - sink, src.z + _off.z);
-        b.quat.push(src.qx, src.qy, src.qz, src.qw);
+        b.pos.push(px, py - sink, pz);
+        b.quat.push(_q.x, _q.y, _q.z, _q.w);
         b.scale.push(shrink);
         b.color.push(color);
       }
@@ -196,24 +246,41 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
           };
           bag.set(key, b);
         }
-        b.pos.push(src.x, src.y + 0.28 * def.body.scale, src.z);
-        b.quat.push(src.qx, src.qy, src.qz, src.qw);
+        if (tumbling) {
+          _q.set(src.qx, src.qy, src.qz, src.qw);
+          _rel.set(0, 0.28 * def.body.scale, 0);
+          b.pos.push(src.x + _rel.x, src.y + _rel.y - sink, src.z + _rel.z);
+        } else {
+          _q.set(src.qx, src.qy, src.qz, src.qw).premultiply(_yawQ);
+          _rel.set(src.x - pivot.x, src.y - pivot.y + 0.28 * def.body.scale, src.z - pivot.z).applyQuaternion(_yawQ);
+          b.pos.push(pivot.x + _rel.x, pivot.y + _rel.y - sink, pivot.z + _rel.z);
+        }
+        b.quat.push(_q.x, _q.y, _q.z, _q.w);
         b.scale.push(shrink);
         b.color.push(worn === "hat.crown" ? "#d4a017" : "#c45a32");
       }
       const head = u.parts.head;
       if (head && Number.isFinite(head.x) && def.body.kind === "humanoid") {
-        _q.set(head.qx, head.qy, head.qz, head.qw);
+        if (tumbling) {
+          _q.set(head.qx, head.qy, head.qz, head.qw);
+          _rel.set(head.x, head.y, head.z);
+        } else {
+          _q.set(head.qx, head.qy, head.qz, head.qw).premultiply(_yawQ);
+          _rel.set(head.x - pivot.x, head.y - pivot.y, head.z - pivot.z).applyQuaternion(_yawQ);
+          _rel.x += pivot.x;
+          _rel.y += pivot.y;
+          _rel.z += pivot.z;
+        }
         _off.set(0, 0.02, 0.23 * def.body.scale).applyQuaternion(_q);
         const mood: FaceMood = u.face === "angry" || u.face === "hurt" || u.face === "dead" ? u.face : "idle";
         faces.push({
-          x: head.x + _off.x,
-          y: head.y + _off.y - sink,
-          z: head.z + _off.z,
-          qx: head.qx,
-          qy: head.qy,
-          qz: head.qz,
-          qw: head.qw,
+          x: _rel.x + _off.x,
+          y: _rel.y + _off.y - sink,
+          z: _rel.z + _off.z,
+          qx: _q.x,
+          qy: _q.y,
+          qz: _q.z,
+          qw: _q.w,
           mood,
           s: def.body.scale * shrink,
         });
@@ -228,7 +295,7 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
         <BatchMesh key={b.key} batch={b} />
       ))}
       {faces.map((f, i) => (
-        <mesh key={`f${i}`} position={[f.x, f.y, f.z]} quaternion={[f.qx, f.qy, f.qz, f.qw]} scale={f.s} geometry={faceGeo} material={faceMaterial(f.mood)} />
+        <mesh key={`f${i}`} position={[f.x, f.y, f.z]} quaternion={[f.qx, f.qy, f.qz, f.qw]} scale={f.s} geometry={faceGeo} material={faceMaterial(f.mood)} dispose={null} />
       ))}
       {picks.map((p) => (
         <mesh

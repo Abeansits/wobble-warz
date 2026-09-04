@@ -1,3 +1,4 @@
+import { deployYaw } from "@/game/sim/facing";
 import type { Placement } from "./types";
 
 export type LadderLevel = {
@@ -34,7 +35,7 @@ export const LADDER: LadderLevel[] = [
 export function ladderArmy(level: LadderLevel, side: 0 | 1): Placement[] {
   const out: Placement[] = [];
   const x0 = side === 0 ? -22 : 22;
-  const yaw = side === 0 ? -Math.PI / 2 : Math.PI / 2;
+  const yaw = deployYaw(side);
   let i = 0;
   for (const pack of level.army) {
     for (let n = 0; n < pack.count; n++) {
