@@ -81,7 +81,7 @@ const HUMANOID: SkelLayout = {
   rootLift: 0.95,
   rootHalf: 0.42,
   rootRadius: 0.16,
-  springSlack: 0.12,
+  springSlack: 0.06,
   parts: [
     p("pelvis", -1, [0, 0.88, 0], [0, 0, 0], "capsule", [0.08, 0.13, 0], 0.28, "y", 0, 0, 0),
     p("torso", 0, [0, 1.22, 0], [0, 1.05, 0], "capsule", [0.15, 0.15, 0], 0.32, "y", 16, 22, 22),
@@ -99,7 +99,7 @@ const HUMANOID_LOD: SkelLayout = {
   rootLift: 0.95,
   rootHalf: 0.42,
   rootRadius: 0.16,
-  springSlack: 0.12,
+  springSlack: 0.06,
   parts: [
     p("pelvis", -1, [0, 1.05, 0], [0, 0, 0], "capsule", [0.18, 0.16, 0], 0.5, "y", 0, 0, 0),
     p("head", 0, [0, 1.54, 0], [0, 1.4, 0], "sphere", [0.15, 0, 0], 0.1, "y", 35, 28, 28),

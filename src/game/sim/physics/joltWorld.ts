@@ -53,10 +53,11 @@ export type BuiltRagdoll = {
 export type { PoseRequest };
 
 /** Weak motors: poses are suggestions so the ragdoll still wobbles. */
-const POSE_MOTOR_FREQ = 2.8;
-const POSE_MOTOR_DAMP = 1.15;
-const POSE_SWING_TORQUE = 9;
-const POSE_TWIST_TORQUE = 6;
+const POSE_MOTOR_FREQ = 3.4;
+const POSE_MOTOR_DAMP = 1.2;
+const POSE_SWING_TORQUE = 13;
+const POSE_TWIST_TORQUE = 8;
+const PLANT_SWING_TORQUE = 26;
 const LAUNCH_SPRING_FREQ = 1.15;
 const LAUNCH_MOTOR_TORQUE = 0.35;
 
@@ -464,6 +465,7 @@ export class JoltWorld {
       kind: layout.kind,
     };
     this.ownedRagdolls.push(built);
+    this.sleepUnit(built);
     return built;
   }
 
@@ -629,6 +631,61 @@ export class JoltWorld {
       /* */
     }
     this.Jolt.destroy(id);
+  }
+
+  setGravityFactor(handle: BodyHandle, g: number) {
+    if (!this.isAdded(handle)) return;
+    const id = this.wrapId(handle);
+    try {
+      this.bodyInterface.SetGravityFactor(id, g);
+    } catch {
+      /* */
+    }
+    this.Jolt.destroy(id);
+  }
+
+  setAngularVelocity(handle: BodyHandle, vx: number, vy: number, vz: number) {
+    if (!this.isAdded(handle)) return;
+    const id = this.wrapId(handle);
+    try {
+      this.bodyInterface.SetAngularVelocity(id, this.v(vx, vy, vz));
+    } catch {
+      /* */
+    }
+    this.Jolt.destroy(id);
+  }
+
+  /** Freeze spawn pose until GO — unstepped dynamics crumple on the first tick. */
+  sleepUnit(built: BuiltRagdoll) {
+    if (!built.alive) return;
+    for (const id of built.orderedIds) {
+      this.setGravityFactor(id, 0);
+      this.setLinearVelocity(id, 0, 0, 0);
+      this.setAngularVelocity(id, 0, 0, 0);
+      this.setActive(id, false);
+    }
+  }
+
+  wakeUnit(built: BuiltRagdoll, gravity = 0.85) {
+    if (!built.alive) return;
+    for (const id of built.orderedIds) {
+      this.setGravityFactor(id, gravity);
+      this.setLinearVelocity(id, 0, 0, 0);
+      this.setAngularVelocity(id, 0, 0, 0);
+      this.setActive(id, true);
+    }
+  }
+
+  beginPlant(built: BuiltRagdoll) {
+    if (!built.alive) return;
+    this.setSpringFreq(built, Math.max(18, built.springFreq * 1.6));
+    this.setMotorTorque(built, PLANT_SWING_TORQUE, false);
+  }
+
+  endPlant(built: BuiltRagdoll) {
+    if (!built.alive) return;
+    this.setSpringFreq(built, built.springFreq);
+    this.setMotorTorque(built, built.swingTorque, false);
   }
 
   freezeBody(handle: BodyHandle) {

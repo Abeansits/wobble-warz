@@ -135,6 +135,9 @@ export class World implements SimCtx {
   currSnap: WorldSnapshot | null = null;
   renderAlpha = 1;
   degraded = false;
+  private planted = false;
+  private plantT = 0;
+  private plantGravity = false;
   private corpseLifeSec = CORPSE_LIFE;
   private physSamples: number[] = [];
   private reinforceAt: [number | null, number | null] = [null, null];
@@ -298,6 +301,9 @@ export class World implements SimCtx {
     this.phase = "setup";
     this.winner = null;
     this.countdown = 0;
+    this.planted = false;
+    this.plantT = 0;
+    this.plantGravity = false;
     this.acc = 0;
     this.spent = [0, 0];
     this.hitStop = 0;
@@ -395,6 +401,9 @@ export class World implements SimCtx {
       .map((u) => ({ defId: u.def.id, x: u.x, z: u.z, yaw: u.yaw, side: u.side }));
     this.phase = "countdown";
     this.countdown = 3;
+    this.planted = false;
+    this.plantT = 0.45;
+    this.plantGravity = false;
     this.startingHp = [0, 0];
     this.applyPowerups(powerups);
     for (const u of this.units) {
@@ -504,6 +513,7 @@ export class World implements SimCtx {
   step(dt: number, speed: number, paused: boolean) {
     if (this.phase === "countdown") {
       this.countdown -= Math.min(dt, 0.1);
+      this.settleStance(Math.min(dt, 0.1));
       if (this.countdown > 0) return;
       this.countdown = 0;
       this.phase = "battle";
@@ -531,9 +541,75 @@ export class World implements SimCtx {
     }
   }
 
+  private wakePlanted() {
+    if (this.planted) return;
+    this.planted = true;
+    for (const u of this.units) {
+      if (u.gone || u.state === "dead") continue;
+      this.physics.wakeUnit(u.ragdoll, 0);
+      this.physics.beginPlant(u.ragdoll);
+      this.physics.drivePose(u.ragdoll, {
+        time: 0,
+        gait: "idle",
+        swingT: 0,
+        swingDur: 0.35,
+        phase: u.id * 0.73,
+        kind: u.def.body.kind,
+        charging: false,
+      });
+    }
+  }
+
+  /** Gravity off, motors on — hold spawn pose so GO doesn't crumple. */
+  private settleStance(dt: number) {
+    this.wakePlanted();
+    this.acc += dt;
+    let steps = 0;
+    while (this.acc >= FIXED_DT && steps < 4) {
+      for (const u of this.units) {
+        if (u.gone || u.state === "dead") continue;
+        this.physics.drivePose(u.ragdoll, {
+          time: 0,
+          gait: "idle",
+          swingT: 0,
+          swingDur: 0.35,
+          phase: u.id * 0.73,
+          kind: u.def.body.kind,
+          charging: false,
+        });
+        this.physics.moveKinematic(u.ragdoll.rootBody, u.x, u.y, u.z, u.yaw, FIXED_DT);
+      }
+      this.physics.step(FIXED_DT);
+      this.acc -= FIXED_DT;
+      steps++;
+    }
+    this.renderAlpha = 1;
+    this.prevSnap = this.currSnap;
+    this.currSnap = this.snapshot();
+    if (!this.prevSnap) this.prevSnap = this.currSnap;
+  }
+
   private fixedStep() {
     const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
     if (this.phase === "setup" || this.phase === "over" || this.phase === "countdown") return;
+    this.wakePlanted();
+    if (!this.plantGravity) {
+      this.plantGravity = true;
+      for (const u of this.units) {
+        if (u.gone || u.state === "dead") continue;
+        this.physics.wakeUnit(u.ragdoll, 0.85);
+        this.physics.beginPlant(u.ragdoll);
+      }
+    }
+    if (this.plantT > 0) {
+      this.plantT -= FIXED_DT;
+      if (this.plantT <= 0) {
+        for (const u of this.units) {
+          if (u.gone || u.state === "dead") continue;
+          this.physics.endPlant(u.ragdoll);
+        }
+      }
+    }
 
     this.time += FIXED_DT;
     this.noDamageT += FIXED_DT;

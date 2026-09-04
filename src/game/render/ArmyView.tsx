@@ -8,6 +8,7 @@ import { getUnit } from "@/game/data/units";
 import type { UnitView, WorldSnapshot } from "@/game/sim/World";
 import { useProfiles } from "@/game/meta/profiles";
 import { useGame } from "@/store/gameStore";
+import { rootLift } from "@/game/sim/physics/skeletons";
 import { posedSnapshot } from "./interp";
 import { COSMETIC_PALETTES, METAL, TEAM, WOOD } from "./palette";
 import { renderFrame, type TeamRing } from "./renderFrame";
@@ -240,7 +241,7 @@ function BatchMesh({ batch }: { batch: Batch }) {
       args={[geom(batch.shape, batch.size), material(batch.kind), cap]}
       dispose={null}
       frustumCulled={false}
-      castShadow={n < 80}
+      castShadow={n < 24}
     />
   );
 }
@@ -317,11 +318,16 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
       const fade = u.fade ?? 0;
       const sink = fade * 0.55;
       const shrink = (u.scale ?? def.body.scale) * (1 - fade * 0.85);
-      if (Number.isFinite(u.root.x)) {
+      if (Number.isFinite(u.root.x) || Number.isFinite((u.parts.pelvis ?? u.root).x)) {
         const hip = u.parts.pelvis ?? u.root;
+        const lift = rootLift(def.body.kind, u.scale ?? def.body.scale);
+        const gy =
+          u.state !== "dead" && Number.isFinite(u.root.y)
+            ? u.root.y - lift + 0.05
+            : (hip.y ?? 0.4) - 0.38 * (u.scale ?? def.body.scale);
         rings.push({
           x: hip.x,
-          y: u.root.y + 0.045,
+          y: gy,
           z: hip.z,
           side: u.side,
           s: ringScale(def.body.kind, shrink),
