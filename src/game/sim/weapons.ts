@@ -1,6 +1,7 @@
 import { applyDamage, damagePlank, plankForBody, smashPlanks, smashStones, unitForBody } from "./combat";
 import { FIXED_DT, SUMMON_CAP } from "./constants";
 import type { ShotFlavor } from "./events";
+import { FUSE_ARM, FUSE_DEFAULT, fuseBoom, fuseHitsUnit, tickFuse } from "./fuse";
 import type { Flying, SimCtx, UnitInternal } from "./unitTypes";
 
 function muzzleOf(sim: SimCtx, u: UnitInternal): [number, number, number] {
@@ -269,12 +270,14 @@ export function fireShot(sim: SimCtx, u: UnitInternal, target: UnitInternal) {
   const dz = target.z - u.z;
   const dist = Math.hypot(dx, dz) || 1;
   const y = u.y + 0.6 * u.def.body.scale;
+  const bounce = w.kind === "explosive" && w.fuseOnGround === false;
   const body = sim.physics.createDynamicSphere(
     u.x + (dx / dist) * 0.6,
     y,
     u.z + (dz / dist) * 0.6,
     w.kind === "explosive" ? 0.28 : 0.16,
     1.4,
+    bounce ? { restitution: 0.88, friction: 0.18 } : undefined,
   );
   const flight = dist / Math.max(4, w.speed);
   const vy = w.arc + 0.5 * 18 * flight * 0.35;
@@ -306,6 +309,9 @@ export function fireShot(sim: SimCtx, u: UnitInternal, target: UnitInternal) {
     life: 6,
     linger: ("linger" in w ? w.linger : undefined) ?? 0,
     explosive: w.kind === "explosive",
+    fuse: w.kind === "explosive" ? (w.fuse ?? FUSE_DEFAULT) : 0,
+    armed: w.kind === "explosive" ? FUSE_ARM : 0,
+    fuseOnGround: w.kind === "explosive" ? (w.fuseOnGround ?? true) : false,
     kind,
     hit: new Set(),
     slow: w.kind === "status" ? w.slow : undefined,
@@ -322,8 +328,20 @@ export function stepShots(sim: SimCtx) {
     const px = sim.scratch.x;
     const py = sim.scratch.y;
     const pz = sim.scratch.z;
-    let consumed = shot.life <= 0 || py < -2;
     const owner = sim.units.find((u) => u.id === shot.ownerId) ?? null;
+    if (shot.explosive) {
+      const ticked = tickFuse(shot, FIXED_DT);
+      shot.fuse = ticked.fuse;
+      shot.armed = ticked.armed;
+    }
+    const groundY = sim.groundY?.(px, pz) ?? 0;
+    let consumed = false;
+    if (shot.explosive && fuseBoom(shot, py, groundY)) {
+      explode(sim, px, pz, shot, owner);
+      consumed = true;
+    } else if (!shot.explosive) {
+      consumed = shot.life <= 0 || py < -2;
+    }
     if (!consumed) {
       for (const plank of sim.planks) {
         if (plank.gone) continue;
@@ -337,7 +355,12 @@ export function stepShots(sim: SimCtx) {
     }
     for (const o of sim.units) {
       if (consumed) break;
-      if (o.side === shot.side || o.state === "dead" || o.gone) continue;
+      if (o.state === "dead" || o.gone) continue;
+      if (shot.explosive) {
+        if (!fuseHitsUnit(shot, o)) continue;
+      } else if (o.side === shot.side) {
+        continue;
+      }
       if (shot.hit.has(o.id)) continue;
       const d = Math.hypot(o.x - px, o.z - pz);
       if (d < shot.radius + 0.55 * o.def.body.scale && Math.abs(o.y - py) < 1.6) {
@@ -371,6 +394,7 @@ export function stepShots(sim: SimCtx) {
 }
 
 export function explode(sim: SimCtx, x: number, z: number, shot: Flying, owner: UnitInternal | null) {
+  sim.events.push({ type: "splat", kind: "boom", x, y: 0.4, z });
   smashStones(sim, x, z, shot.knockback + 20);
   smashPlanks(sim, x, z, shot.knockback + 20);
   for (const o of sim.units) {

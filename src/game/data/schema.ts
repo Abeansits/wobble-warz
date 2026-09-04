@@ -96,6 +96,8 @@ const WeaponSchema = z.discriminatedUnion("kind", [
     radius: z.number().optional(),
     linger: z.number().optional(),
     minRange: z.number().optional(),
+    fuse: z.number().optional(),
+    fuseOnGround: z.boolean().optional(),
   }),
   z.object({ kind: z.literal("charge"), ...combat }),
   z.object({

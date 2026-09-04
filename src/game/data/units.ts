@@ -243,7 +243,7 @@ const RAW: Record<string, unknown> = {
     blurb: "Static siege. Needs space. Big boom.",
     cost: 700,
     body: { kind: "static", scale: 1.6, massMult: 3, hp: 350, speed: 0, springStiffness: 40, launchThreshold: 90 },
-    weapon: { kind: "explosive", damage: 80, knockback: 28, range: 22, cooldown: 4, speed: 13, arc: 6, radius: 3, minRange: 8 },
+    weapon: { kind: "explosive", damage: 80, knockback: 28, range: 22, cooldown: 4, speed: 13, arc: 6, radius: 3, minRange: 8, fuse: 3, fuseOnGround: true },
     ai: { targeting: "prefer:large" },
     recipe: {
       parts: [
@@ -332,7 +332,7 @@ Object.assign(RAW, {
     blurb: "Bouncing bombs. Friendly fire included.",
     cost: 180,
     body: { kind: "humanoid", scale: 1, massMult: 0.9, hp: 90, speed: 3.2, springStiffness: 14, launchThreshold: 34 },
-    weapon: { kind: "explosive", damage: 60, knockback: 22, range: 10, cooldown: 3, speed: 8, arc: 3.2, radius: 2.5 },
+    weapon: { kind: "explosive", damage: 60, knockback: 22, range: 10, cooldown: 3, speed: 8, arc: 3.2, radius: 2.5, fuse: 2, fuseOnGround: false },
     ai: { targeting: "prefer:large", keepAway: 5 },
     recipe: recipe(
       [{ slot: "hat", shape: "box", size: [0.16, 0.16, 0.16], offset: [0, 0.22, 0], color: "accent", parent: "head" }],
@@ -377,7 +377,7 @@ Object.assign(RAW, {
     blurb: "Static. Flat shot that bowls a line.",
     cost: 600,
     body: { kind: "static", scale: 1.3, massMult: 3, hp: 300, speed: 0, springStiffness: 30, launchThreshold: 90 },
-    weapon: { kind: "explosive", damage: 120, knockback: 28, range: 22, cooldown: 5, speed: 16, arc: 0.6, radius: 3, minRange: 6 },
+    weapon: { kind: "explosive", damage: 120, knockback: 28, range: 22, cooldown: 5, speed: 16, arc: 0.6, radius: 3, minRange: 6, fuse: 2.5, fuseOnGround: false },
     ai: { targeting: "prefer:large", keepAway: 0 },
     recipe: {
       parts: [
@@ -437,7 +437,7 @@ Object.assign(RAW, {
     blurb: "Short fuse. Don't stand next to him.",
     cost: 220,
     body: { kind: "humanoid", scale: 1, massMult: 0.9, hp: 90, speed: 3.3, springStiffness: 14, launchThreshold: 32 },
-    weapon: { kind: "explosive", damage: 70, knockback: 24, range: 9, cooldown: 2.5, speed: 7, arc: 2.6, radius: 3 },
+    weapon: { kind: "explosive", damage: 70, knockback: 24, range: 9, cooldown: 2.5, speed: 7, arc: 2.6, radius: 3, fuse: 2.5, fuseOnGround: true },
     ai: { targeting: "nearest", keepAway: 4 },
     recipe: recipe(
       [{ slot: "hat", shape: "box", size: [0.16, 0.16, 0.16], offset: [0, 0.22, 0], color: "accent", parent: "head" }],

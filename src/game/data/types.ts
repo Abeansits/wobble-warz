@@ -70,6 +70,10 @@ export type ProjectileWeapon = {
   radius?: number;
   linger?: number;
   minRange?: number;
+  /** Seconds until an explosive auto-detonates. */
+  fuse?: number;
+  /** Dynamite/boulders: boom on landing. Bouncing bombs leave this off. */
+  fuseOnGround?: boolean;
 };
 
 export type ChargeWeapon = {

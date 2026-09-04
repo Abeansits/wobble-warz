@@ -1,5 +1,5 @@
 export type ShotFlavor = "hitscan" | "projectile" | "status" | "explosive";
-export type SplatKind = "freeze" | "pumpkin" | "heal";
+export type SplatKind = "freeze" | "pumpkin" | "heal" | "boom";
 
 export type SimEvent =
   | { type: "spawn"; unitId: number; defId: string; side: 0 | 1 }

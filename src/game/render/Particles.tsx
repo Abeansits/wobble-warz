@@ -101,6 +101,10 @@ export function splat(kind: SplatKind, x: number, y: number, z: number) {
   } else if (kind === "pumpkin") {
     spawn(x, y, z, 36, "#c45a18", 4.2, "goo", 0.24);
     spawn(x, y, z, 14, "#d4a017", 2.6, "confetti", 0.16);
+  } else if (kind === "boom") {
+    spawn(x, y, z, 22, "#c45a18", 6.5, "smoke", 0.28);
+    spawn(x, y, z, 16, "#ffe6b8", 8, "spark", 0.18);
+    spawn(x, y, z, 1, "#f0d090", 0.05, "ring", 1.4);
   } else {
     spawn(x, y, z, 22, "#b6e06a", 1.8, "heal", 0.16);
     spawn(x, y, z, 10, "#efe0b4", 1.1, "star", 0.12);

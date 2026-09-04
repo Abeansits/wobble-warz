@@ -171,7 +171,10 @@ function SimLoop({ world }: { world: World }) {
                 burst(e.ox, e.oy, e.oz, 4, "#f0d090", 3);
               }
             }
-            if (e.type === "splat") splat(e.kind, e.x, e.y, e.z);
+            if (e.type === "splat") {
+              splat(e.kind, e.x, e.y, e.z);
+              if (e.kind === "boom") sfx("boom", 0.5, { x: e.x, y: e.y, z: e.z });
+            }
             if (e.type === "break") burst(e.x, e.y + 0.2, e.z, 12, "#6b4a28", 5);
             if (e.type === "victory") {
               sfx("win", 0.5);

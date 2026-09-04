@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { getUnit } from "@/game/data/units";
 import type { SimEvent } from "./events";
 import type { SimCtx, UnitInternal } from "./unitTypes";
-import { applyCheerSprings, emitShot, tickAura, tryAttack } from "./weapons";
+import type { Flying } from "./unitTypes";
+import { applyCheerSprings, emitShot, explode, stepShots, tickAura, tryAttack } from "./weapons";
 
 function stub(partial: Partial<UnitInternal> & { defId: string; id: number; side: 0 | 1 }): UnitInternal {
   const def = getUnit(partial.defId);
@@ -65,12 +66,17 @@ function simOf(units: UnitInternal[], events: SimEvent[]): SimCtx {
       setActive: () => {},
       beginLaunch: () => {},
       applySpringBoost: () => {},
+      removeBody: () => {},
     },
     noDamageT: 0,
     hitStop: 0,
     stones: [],
     planks: [],
     debris: [],
+    flying: [],
+    nextShot: 1,
+    scratch: { x: 0, y: 1, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 },
+    groundY: () => 0,
     arena: "meadow",
     rng: () => 0.5,
     time: 0,
@@ -79,6 +85,27 @@ function simOf(units: UnitInternal[], events: SimEvent[]): SimCtx {
       u.hp = 0;
     },
   } as unknown as SimCtx;
+}
+
+function bombShot(partial: Partial<Flying> = {}): Flying {
+  return {
+    id: 1,
+    body: 99,
+    ownerId: 1,
+    side: 0,
+    damage: 60,
+    knockback: 22,
+    radius: 2.5,
+    life: 6,
+    linger: 0,
+    explosive: true,
+    fuse: 2,
+    armed: 0,
+    fuseOnGround: false,
+    kind: "boom",
+    hit: new Set(),
+    ...partial,
+  };
 }
 
 describe("hitscan tracers", () => {
@@ -116,6 +143,71 @@ describe("splat emitters", () => {
     tickAura(simOf([shaman, pal], events), shaman);
     expect(events.some((e) => e.type === "splat" && e.kind === "heal")).toBe(true);
     expect(pal.hp).toBeGreaterThan(40);
+  });
+});
+
+describe("explosive fuse", () => {
+  it("explodes a miss when the fuse runs out instead of vanishing", () => {
+    const bomber = stub({ defId: "pirate.bomber", id: 1, side: 0, x: 0, z: 0 });
+    const foe = stub({ defId: "medieval.squire", id: 2, side: 1, x: 20, z: 0 });
+    const events: SimEvent[] = [];
+    const sim = simOf([bomber, foe], events);
+    let removed = false;
+    sim.flying = [bombShot({ fuse: 0.01, armed: 0 })];
+    sim.physics.getTransform = (_id, out) => {
+      out.x = 5;
+      out.y = 2;
+      out.z = 0;
+      out.qx = 0;
+      out.qy = 0;
+      out.qz = 0;
+      out.qw = 1;
+    };
+    sim.physics.removeBody = () => {
+      removed = true;
+    };
+    stepShots(sim);
+    expect(sim.flying).toHaveLength(0);
+    expect(removed).toBe(true);
+    expect(events.some((e) => e.type === "splat" && e.kind === "boom")).toBe(true);
+  });
+
+  it("cooks a friendly once armed, not while leaving the hand", () => {
+    const bomber = stub({ defId: "pirate.bomber", id: 1, side: 0, x: 0, z: 0 });
+    const pal = stub({ defId: "pirate.deckhand", id: 2, side: 0, x: 0.4, z: 0 });
+    const events: SimEvent[] = [];
+    const sim = simOf([bomber, pal], events);
+    sim.physics.getTransform = (_id, out) => {
+      out.x = 0.2;
+      out.y = 1;
+      out.z = 0;
+      out.qx = 0;
+      out.qy = 0;
+      out.qz = 0;
+      out.qw = 1;
+    };
+    sim.physics.removeBody = () => {};
+    sim.flying = [bombShot({ fuse: 1.5, armed: 0.2, ownerId: 1 })];
+    stepShots(sim);
+    expect(sim.flying).toHaveLength(1);
+    expect(pal.hp).toBe(pal.maxHp);
+
+    sim.flying[0].armed = 0;
+    stepShots(sim);
+    expect(sim.flying).toHaveLength(0);
+    expect(pal.hp).toBeLessThan(pal.maxHp);
+  });
+
+  it("blast hits both sides", () => {
+    const dan = stub({ defId: "frontier.dynamite", id: 1, side: 0, x: 0, z: 0 });
+    const pal = stub({ defId: "frontier.brawler", id: 2, side: 0, x: 1, z: 0 });
+    const foe = stub({ defId: "medieval.squire", id: 3, side: 1, x: 1.2, z: 0 });
+    const events: SimEvent[] = [];
+    const sim = simOf([dan, pal, foe], events);
+    explode(sim, 0.5, 0, bombShot({ radius: 3, damage: 70, knockback: 24, ownerId: 1 }), dan);
+    expect(pal.hp).toBeLessThan(pal.maxHp);
+    expect(foe.hp).toBeLessThan(foe.maxHp);
+    expect(events.some((e) => e.type === "splat" && e.kind === "boom")).toBe(true);
   });
 });
 
