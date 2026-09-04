@@ -2,7 +2,7 @@
 
 Playable hot-seat + ladder + roll exist. Spec v1.1 (`attachments/wobble-wars-spec.md`). Pillars: slapstick, first impression, fast loop, readable chaos. Auth/db/online/mobile stay out.
 
-Pass-screen 3s curtain stays **skipped** (player asked). Everything else below is still open.
+Pass-screen 3s curtain stays **skipped** (player asked). Waves A–D are checked.
 
 ## Wave A — the fight has to be funny (slapstick)
 
@@ -45,7 +45,7 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 - [x] Corpse freeze already exists; hard cap 80
 - [x] Zod `UnitDef`; `UnitDef.audio` keys; ban `Math.random` in `sim/`
 - [x] Tests: same-seed determinism 600 steps; every unit 1v1 30s no NaN; stalemate breaker
-- [x] `src/game/sim/balance.ts` equal-cost mirrors (vitest smoke 2 rounds); flag >65% still a follow-up printout
+- [x] `src/game/sim/balance.ts` equal-cost mirrors; `npm run balance` flags >65% win rate
 - [x] Spatial SFX (`PannerNode`); per-arena music loop; last-kill duck already sketched
 - [x] Playwright: title → battle canvas, no console errors
 
