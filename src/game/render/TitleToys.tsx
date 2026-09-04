@@ -1,8 +1,9 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
-import { setMixer, startMusic, stopMusic } from "@/game/audio";
+import { setListener, setMixer, sfx, startMusic, stopMusic } from "@/game/audio";
 import { deployYaw } from "@/game/sim/facing";
 import { World, type WorldSnapshot } from "@/game/sim/World";
+import { useSettings } from "@/routes/settings";
 import { ArmyView } from "./ArmyView";
 import { posedSnapshot } from "./interp";
 import { Clouds, SkyDome } from "./SkyBits";
@@ -35,6 +36,21 @@ function DemoLoop({ world, onSnap }: { world: World; onSnap: (s: WorldSnapshot) 
     last.current = now;
     if (world.phase !== "over") world.step(dt, 1, false);
     else plant(world);
+    for (const e of world.drainEvents()) {
+      if (e.type === "death") {
+        const u = world.units.find((n) => n.id === e.unitId);
+        sfx("yelp", 0.22, u ? { x: u.x, y: u.y, z: u.z } : undefined);
+      } else if (e.type === "launch") {
+        const u = world.units.find((n) => n.id === e.unitId);
+        if (u) sfx("yelp", 0.16, { x: u.x, y: u.y, z: u.z });
+      } else if (e.type === "hit") {
+        const v = world.units.find((n) => n.id === e.victimId);
+        sfx("hit", e.impulse > 18 ? 0.18 : 0.1, v ? { x: v.x, y: v.y, z: v.z } : undefined);
+      } else if (e.type === "swing") {
+        const u = world.units.find((n) => n.id === e.unitId);
+        if (u) sfx("swing", 0.1, { x: u.x, y: u.y, z: u.z });
+      }
+    }
     onSnap(world.phase === "setup" || !world.currSnap ? world.snapshot() : posedSnapshot(world));
   });
   return null;
@@ -43,8 +59,16 @@ function DemoLoop({ world, onSnap }: { world: World; onSnap: (s: WorldSnapshot) 
 function Rig() {
   useFrame(({ camera, clock }) => {
     const t = clock.elapsedTime * 0.12;
-    camera.position.set(Math.sin(t) * 28, 16, Math.cos(t) * 28);
-    camera.lookAt(0, 1.2, 0);
+    const x = Math.sin(t) * 15;
+    const y = 8.5;
+    const z = Math.cos(t) * 15;
+    camera.position.set(x, y, z);
+    camera.lookAt(0, 0.8, 0);
+    const fx = -x;
+    const fy = 0.8 - y;
+    const fz = -z;
+    const len = Math.hypot(fx, fy, fz) || 1;
+    setListener(x, y, z, fx / len, fy / len, fz / len);
   });
   return null;
 }
@@ -54,8 +78,9 @@ export function TitleToys() {
   const [snap, setSnap] = useState<WorldSnapshot | null>(null);
 
   useEffect(() => {
-    setMixer(0.7, 0.25, 0.8);
-    startMusic("menu", 0.25);
+    const s = useSettings.getState();
+    setMixer(s.master ?? 0.7, s.music ?? 0.6, s.sfx ?? 0.8);
+    startMusic("menu");
     let alive = true;
     const w = new World(44);
     void w.init().then(() => {
@@ -81,7 +106,7 @@ export function TitleToys() {
   return (
     <div className="pointer-events-none absolute inset-0">
       <Canvas
-        camera={{ position: [22, 16, 22], fov: 42 }}
+        camera={{ position: [12, 8.5, 12], fov: 42 }}
         dpr={[1, 1.25]}
         gl={{ antialias: true, alpha: true }}
         // R3F's wrapper defaults to pointer-events: auto and would eat title clicks.

@@ -5,14 +5,16 @@ import { session } from "@/game/session";
 import { UNIT_CAP, duplicatePlacement } from "@/game/setup";
 import { getHat, HAT_BRIM_Y } from "@/game/data/hats";
 import { getUnit } from "@/game/data/units";
-import type { WorldSnapshot } from "@/game/sim/World";
+import type { UnitView, WorldSnapshot } from "@/game/sim/World";
 import { useProfiles } from "@/game/meta/profiles";
 import { useGame } from "@/store/gameStore";
 import { posedSnapshot } from "./interp";
 import { COSMETIC_PALETTES, METAL, TEAM, WOOD } from "./palette";
-import { renderFrame } from "./renderFrame";
+import { renderFrame, type TeamRing } from "./renderFrame";
 import { useSettings } from "@/routes/settings";
 import { getCloth, getFace, getMetalTex, getRamp, getWood, type FaceMood } from "./textures";
+
+const EMPTY_UNITS: UnitView[] = [];
 
 function tryDuplicate(id: number) {
   const st = useGame.getState();
@@ -110,6 +112,76 @@ function material(kind: string) {
 }
 
 const faceGeo = new THREE.PlaneGeometry(0.28, 0.28);
+const ringGeo = new THREE.CircleGeometry(1, 20);
+ringGeo.rotateX(-Math.PI / 2);
+const ringMat0 = new THREE.MeshBasicMaterial({
+  color: TEAM[0],
+  transparent: true,
+  opacity: 0.7,
+  depthWrite: false,
+  polygonOffset: true,
+  polygonOffsetFactor: -2,
+  polygonOffsetUnits: -2,
+});
+const ringMat1 = new THREE.MeshBasicMaterial({
+  color: TEAM[1],
+  transparent: true,
+  opacity: 0.7,
+  depthWrite: false,
+  polygonOffset: true,
+  polygonOffsetFactor: -2,
+  polygonOffsetUnits: -2,
+});
+
+function ringScale(kind: string, scale: number) {
+  if (kind === "quadruped") return scale * 1.15;
+  if (kind === "vehicle") return scale * 1.25;
+  if (kind === "static") return scale * 0.95;
+  return scale * 0.52;
+}
+
+function writeRings(mesh: THREE.InstancedMesh | null, list: TeamRing[], side: 0 | 1) {
+  if (!mesh) return;
+  let n = 0;
+  const cap = mesh.instanceMatrix.count;
+  _q.identity();
+  for (const r of list) {
+    if (r.side !== side) continue;
+    if (n >= cap) break;
+    _off.set(r.x, r.y, r.z);
+    _s.set(r.s, 1, r.s);
+    _m.compose(_off, _q, _s);
+    mesh.setMatrixAt(n, _m);
+    n++;
+  }
+  mesh.count = n;
+  mesh.instanceMatrix.needsUpdate = true;
+}
+
+function TeamRings({ rings }: { rings: TeamRing[] }) {
+  const r0 = useRef<THREE.InstancedMesh>(null);
+  const r1 = useRef<THREE.InstancedMesh>(null);
+  const n = rings.length;
+  const capRef = useRef(Math.max(16, n));
+  if (n > capRef.current) capRef.current = Math.max(n, capRef.current * 2);
+  const cap = capRef.current;
+  useLayoutEffect(() => {
+    writeRings(r0.current, rings, 0);
+    writeRings(r1.current, rings, 1);
+  }, [rings, n, cap]);
+  useFrame(() => {
+    const live = renderFrame.rings;
+    writeRings(r0.current, live, 0);
+    writeRings(r1.current, live, 1);
+  });
+  return (
+    <group>
+      <instancedMesh key={`r0-${cap}`} ref={r0} args={[ringGeo, ringMat0, cap]} frustumCulled={false} dispose={null} />
+      <instancedMesh key={`r1-${cap}`} ref={r1} args={[ringGeo, ringMat1, cap]} frustumCulled={false} dispose={null} />
+    </group>
+  );
+}
+
 const faceMats = new Map<string, THREE.MeshBasicMaterial>();
 function faceMaterial(mood: FaceMood) {
   let m = faceMats.get(mood);
@@ -193,7 +265,7 @@ function shotMat(kind: string) {
 }
 
 export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
-  const units = snapshot?.units ?? [];
+  const units = snapshot?.units ?? EMPTY_UNITS;
   const shots = snapshot?.projectiles ?? [];
   const seat = useGame((s) => s.seat);
   const placingSide = useGame((s) => s.placingSide);
@@ -220,6 +292,7 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
     const bag = new Map<string, Batch>();
     const picks: { id: number; x: number; y: number; z: number; side: 0 | 1 }[] = [];
     const faces: { x: number; y: number; z: number; qx: number; qy: number; qz: number; qw: number; mood: FaceMood; s: number }[] = [];
+    const rings: TeamRing[] = [];
 
     for (const u of list) {
       const hidden = blind && u.side !== placingSide;
@@ -244,6 +317,16 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
       const fade = u.fade ?? 0;
       const sink = fade * 0.55;
       const shrink = (u.scale ?? def.body.scale) * (1 - fade * 0.85);
+      if (Number.isFinite(u.root.x)) {
+        const hip = u.parts.pelvis ?? u.root;
+        rings.push({
+          x: hip.x,
+          y: u.root.y + 0.045,
+          z: hip.z,
+          side: u.side,
+          s: ringScale(def.body.kind, shrink),
+        });
+      }
       const clustered = def.body.kind !== "humanoid";
       const tumbling = u.state === "dead" || u.state === "launched";
       const pivot = u.parts.pelvis ?? u.root;
@@ -371,10 +454,10 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
         });
       }
     }
-    return { batches: [...bag.values()], picks, faces };
+    return { batches: [...bag.values()], picks, faces, rings };
   }
 
-  const { batches, picks, faces } = useMemo(
+  const { batches, picks, faces, rings } = useMemo(
     () => layoutFromUnits(units, { blind, placingSide, hat0, hat1, pal0, pal1 }),
     [units, blind, placingSide, hat0, hat1, pal0, pal1],
   );
@@ -384,6 +467,7 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
     if (!world || (snapshot?.phase ?? "setup") === "setup") {
       renderFrame.snap = snapshot;
       renderFrame.batches = new Map();
+      renderFrame.rings = rings;
       return;
     }
     const posed = posedSnapshot(world);
@@ -397,10 +481,12 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
       pal1,
     });
     renderFrame.batches = new Map(laid.batches.map((b) => [b.key, b]));
+    renderFrame.rings = laid.rings;
   });
 
   return (
     <group>
+      <TeamRings rings={rings} />
       {batches.map((b) => (
         <BatchMesh key={b.key} batch={b} />
       ))}

@@ -4,12 +4,18 @@ import * as THREE from "three";
 import { useGame } from "@/store/gameStore";
 import { session } from "@/game/session";
 import { setListener } from "@/game/audio";
+import { fightFocus } from "./actionCam";
 
 const MIN_PITCH = THREE.MathUtils.degToRad(18);
 const MAX_PITCH = THREE.MathUtils.degToRad(80);
 const MIN_DIST = 8;
 const MAX_DIST = 55;
 const lookDir = new THREE.Vector3();
+const rightScratch = new THREE.Vector3();
+const fwdScratch = new THREE.Vector3();
+const desired = new THREE.Vector3();
+const followPos = new THREE.Vector3();
+const focusPts: { x: number; z: number }[] = [];
 
 export function CameraRig() {
   const { camera, gl } = useThree();
@@ -24,6 +30,7 @@ export function CameraRig() {
   const snapshot = useGame((s) => s.snapshot);
   const camBump = useGame((s) => s.camBump);
   const lastPhase = useRef(snapshot?.phase);
+  const autoTrack = useRef(true);
 
   useEffect(() => {
     if (!camBump) return;
@@ -37,10 +44,10 @@ export function CameraRig() {
     if (camBump.kind === "reset") {
       yaw.current = 0.2;
       pitch.current = 0.72;
-      dist.current = 32;
-      target.current.set(0, 1.2, 0);
+      autoTrack.current = true;
       useGame.getState().setFollowId(null);
     }
+    if (camBump.kind === "zoom") autoTrack.current = false;
   }, [camBump]);
 
   useEffect(() => {
@@ -76,15 +83,18 @@ export function CameraRig() {
       const dx = e.clientX - last.current.x;
       const dy = e.clientY - last.current.y;
       last.current = { x: e.clientX, y: e.clientY };
-      if (Math.hypot(dx, dy) > 2) useGame.getState().setFollowId(null);
+      if (Math.hypot(dx, dy) > 2) {
+        useGame.getState().setFollowId(null);
+        autoTrack.current = false;
+      }
       if (dragging.current === "orbit") {
         yaw.current -= dx * 0.007;
         pitch.current = THREE.MathUtils.clamp(pitch.current + dy * 0.005, MIN_PITCH, MAX_PITCH);
       } else {
-        const right = new THREE.Vector3(Math.cos(yaw.current), 0, -Math.sin(yaw.current));
-        const fwd = new THREE.Vector3(-Math.sin(yaw.current), 0, -Math.cos(yaw.current));
-        target.current.addScaledVector(right, -dx * 0.03);
-        target.current.addScaledVector(fwd, dy * 0.03);
+        rightScratch.set(Math.cos(yaw.current), 0, -Math.sin(yaw.current));
+        fwdScratch.set(-Math.sin(yaw.current), 0, -Math.cos(yaw.current));
+        target.current.addScaledVector(rightScratch, -dx * 0.03);
+        target.current.addScaledVector(fwdScratch, dy * 0.03);
         target.current.x = THREE.MathUtils.clamp(target.current.x, -28, 28);
         target.current.z = THREE.MathUtils.clamp(target.current.z, -18, 18);
       }
@@ -95,6 +105,7 @@ export function CameraRig() {
     const onWheel = (e: WheelEvent) => {
       dist.current = THREE.MathUtils.clamp(dist.current + e.deltaY * 0.025, MIN_DIST, MAX_DIST);
       useGame.getState().setFollowId(null);
+      autoTrack.current = false;
     };
     const onCtx = (e: Event) => e.preventDefault();
     el.addEventListener("pointerdown", onDown);
@@ -117,8 +128,7 @@ export function CameraRig() {
       if (e.code === "KeyR") {
         yaw.current = 0.2;
         pitch.current = 0.72;
-        dist.current = 32;
-        target.current.set(0, 1.2, 0);
+        autoTrack.current = true;
         useGame.getState().setFollowId(null);
       }
       if (e.code === "KeyC") {
@@ -135,6 +145,7 @@ export function CameraRig() {
         pitch.current = p.pitch;
         dist.current = p.dist;
         target.current.set(p.x, 1.2, p.z);
+        autoTrack.current = false;
         useGame.getState().setFollowId(null);
       }
     };
@@ -161,6 +172,7 @@ export function CameraRig() {
         pitch.current = 0.95;
         yaw.current = 0.15;
         target.current.set(0, 1.4, 0);
+        autoTrack.current = true;
       }
       if (phase === "battle" && lastPhase.current === "countdown") {
         dist.current = 34;
@@ -168,33 +180,77 @@ export function CameraRig() {
       }
       lastPhase.current = phase;
     }
-    if (session.world && session.world.slowmoT > 0) {
+    const k = keys.current;
+    rightScratch.set(Math.cos(yaw.current), 0, -Math.sin(yaw.current));
+    fwdScratch.set(-Math.sin(yaw.current), 0, -Math.cos(yaw.current));
+    const pan = 12 * dt;
+    let steered = false;
+    if (k.has("KeyW") || k.has("ArrowUp")) {
+      target.current.addScaledVector(fwdScratch, pan);
+      steered = true;
+    }
+    if (k.has("KeyS") || k.has("ArrowDown")) {
+      target.current.addScaledVector(fwdScratch, -pan);
+      steered = true;
+    }
+    if (k.has("KeyD") || k.has("ArrowRight")) {
+      target.current.addScaledVector(rightScratch, pan);
+      steered = true;
+    }
+    if (k.has("KeyA") || k.has("ArrowLeft")) {
+      target.current.addScaledVector(rightScratch, -pan);
+      steered = true;
+    }
+    if (k.has("KeyQ")) {
+      yaw.current -= 1.4 * dt;
+      steered = true;
+    }
+    if (k.has("KeyE")) {
+      yaw.current += 1.4 * dt;
+      steered = true;
+    }
+    if (k.has("KeyZ")) {
+      pitch.current = THREE.MathUtils.clamp(pitch.current + 1.1 * dt, MIN_PITCH, MAX_PITCH);
+      steered = true;
+    }
+    if (k.has("KeyX")) {
+      pitch.current = THREE.MathUtils.clamp(pitch.current - 1.1 * dt, MIN_PITCH, MAX_PITCH);
+      steered = true;
+    }
+    if (steered) autoTrack.current = false;
+
+    const world = session.world;
+    if (world && world.slowmoT > 0) {
       dist.current = THREE.MathUtils.lerp(dist.current, 16, 0.06);
     }
-    const k = keys.current;
-    const right = new THREE.Vector3(Math.cos(yaw.current), 0, -Math.sin(yaw.current));
-    const fwd = new THREE.Vector3(-Math.sin(yaw.current), 0, -Math.cos(yaw.current));
-    const pan = 12 * dt;
-    if (k.has("KeyW") || k.has("ArrowUp")) target.current.addScaledVector(fwd, pan);
-    if (k.has("KeyS") || k.has("ArrowDown")) target.current.addScaledVector(fwd, -pan);
-    if (k.has("KeyD") || k.has("ArrowRight")) target.current.addScaledVector(right, pan);
-    if (k.has("KeyA") || k.has("ArrowLeft")) target.current.addScaledVector(right, -pan);
-    if (k.has("KeyQ")) yaw.current -= 1.4 * dt;
-    if (k.has("KeyE")) yaw.current += 1.4 * dt;
-    if (k.has("KeyZ")) pitch.current = THREE.MathUtils.clamp(pitch.current + 1.1 * dt, MIN_PITCH, MAX_PITCH);
-    if (k.has("KeyX")) pitch.current = THREE.MathUtils.clamp(pitch.current - 1.1 * dt, MIN_PITCH, MAX_PITCH);
     if (followId != null && snapshot) {
       const u = snapshot.units.find((n) => n.id === followId);
       const p = u?.parts.torso ?? u?.root;
       if (p && Number.isFinite(p.x)) {
-        target.current.lerp(new THREE.Vector3(p.x, p.y + 0.4, p.z), 1 - Math.pow(0.002, dt));
+        followPos.set(p.x, p.y + 0.4, p.z);
+        target.current.lerp(followPos, 1 - Math.pow(0.002, dt));
       } else {
         useGame.getState().setFollowId(null);
       }
+    } else if (autoTrack.current && world && phase === "battle" && world.slowmoT <= 0) {
+      focusPts.length = 0;
+      for (const u of world.units) {
+        if (u.gone || u.state === "dead") continue;
+        focusPts.push({ x: u.x, z: u.z });
+      }
+      const focus = fightFocus(focusPts);
+      if (focus) {
+        const ease = 1 - Math.exp(-dt / 2.2);
+        const distEase = 1 - Math.exp(-dt / 1.8);
+        target.current.x += (focus.x - target.current.x) * ease;
+        target.current.z += (focus.z - target.current.z) * ease;
+        dist.current += (focus.dist - dist.current) * distEase;
+      }
     }
+    dist.current = THREE.MathUtils.clamp(dist.current, MIN_DIST, MAX_DIST);
 
     const cp = Math.cos(pitch.current);
-    const desired = new THREE.Vector3(
+    desired.set(
       target.current.x + Math.sin(yaw.current) * cp * dist.current,
       target.current.y + Math.sin(pitch.current) * dist.current,
       target.current.z + Math.cos(yaw.current) * cp * dist.current,
