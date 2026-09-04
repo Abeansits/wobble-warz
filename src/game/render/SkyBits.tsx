@@ -17,6 +17,7 @@ export function SkyDome({ sky }: { sky?: string }) {
 const CLOUDS = ["/assets/cloud-1.png", "/assets/cloud-2.png", "/assets/cloud-3.png", "/assets/cloud-4.png"];
 
 export function Clouds() {
+  const night = useGame((s) => getArena(s.arena).night);
   const maps = useMemo(
     () =>
       CLOUDS.map((src) => {
@@ -34,9 +35,20 @@ export function Clouds() {
         [10, 26, 32, 13, 2],
         [-32, 20, 14, 10, 3],
         [34, 23, 6, 11, 0],
+        [-8, 28, -36, 16, 2],
+        [40, 21, -18, 12, 1],
+        [-40, 25, 8, 13, 3],
       ] as [number, number, number, number, number][],
     [],
   );
+  if (night) {
+    return (
+      <mesh position={[-28, 34, -40]} raycast={() => {}}>
+        <sphereGeometry args={[4.2, 16, 12]} />
+        <meshBasicMaterial color="#e8eef8" />
+      </mesh>
+    );
+  }
   return (
     <group>
       {puffs.map(([x, y, z, s, i], n) => (

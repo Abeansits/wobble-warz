@@ -209,6 +209,12 @@ function SkyMood() {
 function Lights() {
   const shadows = useSettings((s) => s.shadows) ?? "high";
   const map = shadows === "low" ? 1024 : 2048;
+  const arena = getArena(useGame((s) => s.arena));
+  const hemiSky = arena.night ? "#7a90b8" : arena.id === "canyon" ? "#f0b070" : "#9ec4e8";
+  const hemiGnd = arena.night ? "#1a2218" : arena.id === "canyon" ? "#6a3a22" : "#3a5a32";
+  const sun = arena.night ? "#c8d4f0" : arena.id === "canyon" ? "#ffc080" : "#ffe6b8";
+  const sunPos: [number, number, number] = arena.night ? [8, 22, 18] : arena.id === "canyon" ? [28, 14, 8] : [18, 28, 10];
+  const sunI = arena.night ? 0.7 : arena.id === "canyon" ? 1.15 : 1.35;
   useFrame(({ gl, camera }) => {
     const w = window as unknown as {
       __draw?: number;
@@ -229,13 +235,13 @@ function Lights() {
       <SkyMood />
       <SkyDome />
       <Clouds />
-      <hemisphereLight args={["#9ec4e8", "#3a5a32", 0.75]} />
+      <hemisphereLight args={[hemiSky, hemiGnd, arena.night ? 0.5 : 0.75]} />
       <directionalLight
-        key={map}
+        key={`${map}-${arena.id}`}
         castShadow
-        position={[18, 28, 10]}
-        intensity={1.35}
-        color="#ffe6b8"
+        position={sunPos}
+        intensity={sunI}
+        color={sun}
         shadow-mapSize-width={map}
         shadow-mapSize-height={map}
         shadow-bias={-0.00035}

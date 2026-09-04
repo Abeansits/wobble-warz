@@ -13,6 +13,7 @@ import {
 } from "@/game/data/arenas";
 import { useGame } from "@/store/gameStore";
 import { getPropTex } from "./textures";
+import { Scenery } from "./Scenery";
 
 function height(x: number, z: number, arena: ArenaId = "meadow") {
   return terrainHeight(x, z, arena);
@@ -37,7 +38,9 @@ export function Terrain() {
       const y = height(x, z, arenaId);
       pos.setY(i, y);
       const slope = Math.min(1, Math.abs(Math.sin(x * 0.14) * Math.cos(z * 0.18)) * 1.4);
-      tmp.copy(grass).lerp(dirt, slope * 0.45);
+      const blotch = 0.5 + 0.5 * Math.sin(x * 0.41) * Math.cos(z * 0.37);
+      tmp.copy(grass).lerp(dirt, slope * 0.45 + blotch * 0.12);
+      if (arenaId === "meadow" && Math.abs(z) < 1.6) tmp.lerp(dirt, 0.42);
       if (arenaId === "graveyard" && Math.abs(x) < 6 && Math.abs(z) < 6) {
         tmp.lerp(new THREE.Color("#1a3a32"), 0.55);
       }
@@ -65,30 +68,14 @@ export function MeadowProps() {
   const planks =
     livePlanks ?? (arenaId === "canyon" ? BRIDGE_Z.flatMap((z) => bridgePlankLayout(z)) : []);
   const rocks = MEADOW_BOULDERS;
-  const flowers = useMemo(
-    () =>
-      Array.from({ length: 36 }, (_, i) => {
-        const x = ((i * 17) % 50) - 25;
-        const z = ((i * 13) % 34) - 17;
-        return [x, z, 0.12 + (i % 5) * 0.04, i % 3] as [number, number, number, number];
-      }),
-    [],
-  );
-  const bloom = ["#e8c84a", "#d45a6a", "#f0e6c8"] as const;
   return (
     <group>
+      <Scenery />
       {arenaId === "meadow" &&
         rocks.map(([x, y, z, r], i) => (
           <mesh key={`r${i}`} position={[x, y, z]} castShadow receiveShadow raycast={() => {}}>
             <sphereGeometry args={[r, 6, 5]} />
             <meshToonMaterial color={i % 2 ? "#7a6a52" : "#8d7a5c"} map={stone} />
-          </mesh>
-        ))}
-      {arenaId === "meadow" &&
-        flowers.map(([x, z, h, c], i) => (
-          <mesh key={`f${i}`} position={[x, height(x, z, "meadow") + h, z]} raycast={() => {}}>
-            <coneGeometry args={[0.08, h * 2, 5]} />
-            <meshToonMaterial color={bloom[c]} />
           </mesh>
         ))}
       {arenaId === "canyon" && (
