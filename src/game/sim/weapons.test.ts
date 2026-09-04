@@ -3,7 +3,7 @@ import { getUnit } from "@/game/data/units";
 import type { SimEvent } from "./events";
 import type { SimCtx, UnitInternal } from "./unitTypes";
 import type { Flying } from "./unitTypes";
-import { applyCheerSprings, emitShot, explode, stepShots, tickAura, tryAttack } from "./weapons";
+import { applyCheerSprings, emitShot, explode, shotKind, stepShots, tickAura, tryAttack } from "./weapons";
 
 function stub(partial: Partial<UnitInternal> & { defId: string; id: number; side: 0 | 1 }): UnitInternal {
   const def = getUnit(partial.defId);
@@ -109,6 +109,18 @@ function bombShot(partial: Partial<Flying> = {}): Flying {
     ...partial,
   };
 }
+
+describe("shotKind", () => {
+  it("maps every ranged def to a visible flavor", () => {
+    expect(shotKind("stoneage.rocklobber", "projectile")).toBe("rock");
+    expect(shotKind("stoneage.spearchucker", "projectile")).toBe("spear");
+    expect(shotKind("medieval.archer", "projectile")).toBe("arrow");
+    expect(shotKind("medieval.trebuchet", "explosive")).toBe("boom");
+    expect(shotKind("pirate.cannon", "explosive")).toBe("boom");
+    expect(shotKind("haunted.pumpkin", "status")).toBe("pumpkin");
+    expect(shotKind("anomaly.ice", "status")).toBe("ice");
+  });
+});
 
 describe("hitscan tracers", () => {
   it("emits origin and impact for a gunslinger shot", () => {

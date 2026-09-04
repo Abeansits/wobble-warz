@@ -246,28 +246,9 @@ function BatchMesh({ batch }: { batch: Batch }) {
   );
 }
 
-const shotGeo = new THREE.SphereGeometry(1, 8, 6);
-const SHOT_COLOR: Record<string, string> = {
-  rock: "#6b4a28",
-  spear: "#c9cdd3",
-  arrow: "#8a6a3a",
-  boom: "#c45a18",
-  pumpkin: "#c45a18",
-  ice: "#7ec8e0",
-};
-const shotMats = new Map<string, THREE.MeshBasicMaterial>();
-function shotMat(kind: string) {
-  let m = shotMats.get(kind);
-  if (!m) {
-    m = new THREE.MeshBasicMaterial({ color: SHOT_COLOR[kind] ?? "#6b4a28" });
-    shotMats.set(kind, m);
-  }
-  return m;
-}
 
 export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
   const units = snapshot?.units ?? EMPTY_UNITS;
-  const shots = snapshot?.projectiles ?? [];
   const seat = useGame((s) => s.seat);
   const placingSide = useGame((s) => s.placingSide);
   const hat0 = useProfiles((s) => s.profiles.find((p) => p.id === s.p1)?.hat);
@@ -535,11 +516,6 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       ))}
-      {shots.map((s, i) =>
-        Number.isFinite(s.x) ? (
-          <mesh key={`shot-${i}`} position={[s.x, s.y, s.z]} scale={s.r} geometry={shotGeo} material={shotMat(s.kind)} />
-        ) : null,
-      )}
     </group>
   );
 }

@@ -308,6 +308,23 @@ export class JoltWorld {
     this.Jolt.destroy(id);
   }
 
+  getVelocity(handle: BodyHandle, out: { x: number; y: number; z: number }) {
+    out.x = 0;
+    out.y = 0;
+    out.z = 0;
+    if (!this.isAdded(handle)) return;
+    try {
+      const id = this.wrapId(handle);
+      const vel = this.bodyInterface.GetLinearVelocity(id);
+      out.x = vel.GetX();
+      out.y = vel.GetY();
+      out.z = vel.GetZ();
+      this.Jolt.destroy(id);
+    } catch {
+      /* */
+    }
+  }
+
   createHumanoid(def: UnitDef, x: number, y: number, z: number, yaw: number, groupId: number, layer = LAYER_MOVING): BuiltRagdoll {
     return this.createUnit(def, x, y, z, yaw, groupId, layer);
   }

@@ -64,9 +64,13 @@ export type UnitView = {
 };
 
 export type ProjectileView = {
+  id: number;
   x: number;
   y: number;
   z: number;
+  vx: number;
+  vy: number;
+  vz: number;
   r: number;
   kind: "rock" | "spear" | "arrow" | "boom" | "pumpkin" | "ice";
 };
@@ -847,11 +851,17 @@ export class World implements SimCtx {
       projectiles: this.flying.map((s) => {
         const t: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
         this.physics.getTransform(s.body, t);
+        const vel = { x: 0, y: 0, z: 0 };
+        this.physics.getVelocity(s.body, vel);
         return {
+          id: s.id,
           x: t.x,
           y: t.y,
           z: t.z,
-          r: s.kind === "boom" ? 0.28 : s.kind === "pumpkin" ? 0.22 : 0.16,
+          vx: vel.x,
+          vy: vel.y,
+          vz: vel.z,
+          r: s.kind === "boom" ? 0.3 : s.kind === "rock" ? 0.34 : s.kind === "pumpkin" ? 0.26 : s.kind === "ice" ? 0.22 : 0.14,
           kind: s.kind,
         };
       }),

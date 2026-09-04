@@ -79,4 +79,22 @@ describe("interp", () => {
     expect(mid.units[0].parts.torso.x).toBeCloseTo(2);
     expect(mid.units[0].yaw).toBeCloseTo(0.5);
   });
+
+  it("lerps projectiles by id, not by array slot", () => {
+    const prev = snap({
+      units: [],
+      projectiles: [
+        { id: 2, x: 0, y: 1, z: 0, vx: 10, vy: 0, vz: 0, r: 0.2, kind: "arrow" },
+        { id: 9, x: 4, y: 1, z: 0, vx: 0, vy: 0, vz: 0, r: 0.3, kind: "rock" },
+      ],
+    });
+    const curr = snap({
+      units: [],
+      projectiles: [{ id: 9, x: 8, y: 1, z: 0, vx: 0, vy: 0, vz: 0, r: 0.3, kind: "rock" }],
+    });
+    const mid = interpolateSnapshot(prev, curr, 0.5);
+    expect(mid.projectiles).toHaveLength(1);
+    expect(mid.projectiles[0].id).toBe(9);
+    expect(mid.projectiles[0].x).toBeCloseTo(6);
+  });
 });

@@ -3,6 +3,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { SplatKind } from "@/game/sim/events";
 import { useGame } from "@/store/gameStore";
+import { renderFrame } from "./renderFrame";
 import { ATLAS, TILE_U, TILE_V, type ParticleKind } from "./particleAtlas";
 import { TEAM } from "./palette";
 
@@ -91,7 +92,7 @@ export function muzzleFlash(x: number, y: number, z: number) {
 export function addTracer(ox: number, oy: number, oz: number, tx: number, ty: number, tz: number, hex = "#fff3c0") {
   if (beams.length >= BEAM_MAX) beams.shift();
   _c.set(hex);
-  beams.push({ ox, oy, oz, tx, ty, tz, life: 0.16, max: 0.16, color: _c.clone() });
+  beams.push({ ox, oy, oz, tx, ty, tz, life: 0.28, max: 0.28, color: _c.clone() });
 }
 
 export function splat(kind: SplatKind, x: number, y: number, z: number) {
@@ -189,13 +190,20 @@ export function Particles() {
       return;
     }
     trailTick.current += dt;
-    if (trailTick.current > 0.045 && units) {
+    if (trailTick.current > 0.045) {
       trailTick.current = 0;
-      for (const u of units) {
-        if (u.state !== "launched") continue;
-        const src = u.parts.torso ?? u.root;
-        if (!Number.isFinite(src.x)) continue;
-        puff(src.x, src.y + 0.2, src.z, TEAM[u.side], "feather");
+      if (units) {
+        for (const u of units) {
+          if (u.state !== "launched") continue;
+          const src = u.parts.torso ?? u.root;
+          if (!Number.isFinite(src.x)) continue;
+          puff(src.x, src.y + 0.2, src.z, TEAM[u.side], "feather");
+        }
+      }
+      for (const s of renderFrame.snap?.projectiles ?? []) {
+        if (!Number.isFinite(s.x) || Math.hypot(s.vx, s.vy, s.vz) < 2) continue;
+        const hex = s.kind === "ice" ? "#c8f0ff" : s.kind === "pumpkin" ? "#e07020" : s.kind === "boom" ? "#c45a18" : s.kind === "arrow" ? "#ffe6b8" : s.kind === "spear" ? "#f4efe4" : "#d4b896";
+        puff(s.x, s.y, s.z, hex, s.kind === "boom" ? "smoke" : "spark");
       }
     }
     const uvAttr = mesh.current.geometry.getAttribute("instanceUvOffset") as THREE.InstancedBufferAttribute;
@@ -245,7 +253,7 @@ export function Particles() {
       dummy.position.copy(_mid);
       dummy.quaternion.copy(_quat);
       const fade = b.life / b.max;
-      dummy.scale.set(0.045 * fade, len, 0.045 * fade);
+      dummy.scale.set(0.07 * fade, len, 0.07 * fade);
       dummy.updateMatrix();
       beamMesh.current.setMatrixAt(bLive, dummy.matrix);
       beamMesh.current.setColorAt(bLive, b.color);

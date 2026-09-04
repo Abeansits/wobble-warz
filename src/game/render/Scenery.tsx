@@ -22,6 +22,43 @@ function plant(items: Scatter[], arena: ArenaId, yOff: number, lie = false) {
   };
 }
 
+function CactusArms({ items, arena }: { items: Scatter[]; arena: ArenaId }) {
+  const left = useRef<THREE.InstancedMesh>(null);
+  const right = useRef<THREE.InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const write = (mesh: THREE.InstancedMesh | null, side: 1 | -1) => {
+      if (!mesh) return;
+      for (let i = 0; i < items.length; i++) {
+        const p = items[i];
+        const y = terrainHeight(p.x, p.z, arena) + 0.85 * p.s;
+        const ox = Math.cos(p.yaw) * 0.28 * p.s * side;
+        const oz = Math.sin(p.yaw) * 0.28 * p.s * side;
+        dummy.position.set(p.x + ox, y, p.z + oz);
+        dummy.rotation.set(0, p.yaw, side * 1.05);
+        dummy.scale.set(p.s * 0.72, p.s * 0.48, p.s * 0.72);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    };
+    write(left.current, -1);
+    write(right.current, 1);
+  }, [items, arena]);
+  if (items.length === 0) return null;
+  return (
+    <group>
+      <instancedMesh ref={left} args={[undefined, undefined, items.length]} frustumCulled={false} raycast={() => {}}>
+        <capsuleGeometry args={[0.09, 0.42, 3, 6]} />
+        <meshToonMaterial color="#2e6a32" />
+      </instancedMesh>
+      <instancedMesh ref={right} args={[undefined, undefined, items.length]} frustumCulled={false} raycast={() => {}}>
+        <capsuleGeometry args={[0.09, 0.42, 3, 6]} />
+        <meshToonMaterial color="#348038" />
+      </instancedMesh>
+    </group>
+  );
+}
+
 function Instanced({
   items,
   arena,
@@ -76,6 +113,7 @@ export function Scenery() {
           <capsuleGeometry args={[0.12, 0.9, 3, 6]} />
           <meshToonMaterial color="#2e6a32" />
         </Instanced>
+        <CactusArms items={kit.cacti} arena={arenaId} />
         {kit.mesas.map((m, i) => (
           <mesh key={i} position={[m.x, 1.2 * m.s * 0.25, m.z]} rotation={[0, m.yaw, 0]} castShadow receiveShadow raycast={() => {}}>
             <boxGeometry args={[m.s, m.s * 0.55, m.s * 0.7]} />

@@ -5,6 +5,7 @@ import { getWorld, resetWorld } from "@/game/session";
 import type { World } from "@/game/sim/World";
 import { useGame } from "@/store/gameStore";
 import { ArmyView } from "./ArmyView";
+import { Shots } from "./Shots";
 import { CameraRig } from "./CameraRig";
 import { Clouds, SkyDome } from "./SkyBits";
 import { DeployPads, MeadowProps, Terrain } from "./Terrain";
@@ -165,8 +166,10 @@ function SimLoop({ world }: { world: World }) {
               if (shooter) sfx(shooter.def.audio.attack, 0.4, { x: e.ox, y: e.oy, z: e.oz });
               muzzleFlash(e.ox, e.oy, e.oz);
               if (e.flavor === "hitscan") {
-                addTracer(e.ox, e.oy, e.oz, e.tx, e.ty, e.tz, "#fff6c8");
-                burst(e.tx, e.ty, e.tz, 6, "#fff3c0", 4);
+                const id = shooter?.def.id ?? "";
+                const hex = id.includes("musket") ? "#e09a2c" : id.includes("sniper") || id.includes("longshot") ? "#fffef0" : "#ffe6b8";
+                addTracer(e.ox, e.oy, e.oz, e.tx, e.ty, e.tz, hex);
+                burst(e.tx, e.ty, e.tz, 8, hex, 5);
               } else {
                 burst(e.ox, e.oy, e.oz, 4, "#f0d090", 3);
               }
@@ -393,6 +396,7 @@ export function BattleApp() {
           <Terrain />
           <MeadowProps />
           <SnapshotBridge />
+          <Shots />
           <CameraRig />
           <SetupInput world={world} />
           <SimLoop world={world} />

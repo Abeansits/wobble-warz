@@ -105,4 +105,23 @@ describe("headless fight", () => {
     expect(world.snapshot().planks).toHaveLength(11);
     world.dispose();
   }, 30_000);
+
+  it("archer and rocklobber put distinct shots in the air", async () => {
+    const world = new World(4);
+    await world.init();
+    world.place({ defId: "medieval.archer", x: -6, z: -1, yaw: Math.PI / 2, side: 0 });
+    world.place({ defId: "stoneage.rocklobber", x: -6, z: 1, yaw: Math.PI / 2, side: 0 });
+    world.place({ defId: "medieval.squire", x: 6, z: 0, yaw: -Math.PI / 2, side: 1 });
+    world.startCountdown();
+    world.countdown = 0;
+    const seen = new Set<string>();
+    for (let i = 0; i < 240; i++) {
+      world.step(1 / 60, 1, false);
+      for (const s of world.flying) seen.add(s.kind);
+      if (seen.has("arrow") && seen.has("rock")) break;
+    }
+    expect(seen.has("arrow")).toBe(true);
+    expect(seen.has("rock")).toBe(true);
+    world.dispose();
+  }, 30_000);
 });

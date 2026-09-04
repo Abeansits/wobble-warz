@@ -65,10 +65,19 @@ export function interpolateSnapshot(prev: WorldSnapshot, curr: WorldSnapshot, al
     const p = prevById.get(u.id);
     return p ? lerpUnit(p, u, t) : u;
   });
-  const projectiles = curr.projectiles.map((s, i) => {
-    const p = prev.projectiles[i];
+  const prevShot = new Map(prev.projectiles.map((s) => [s.id, s]));
+  const projectiles = curr.projectiles.map((s) => {
+    const p = prevShot.get(s.id);
     if (!p) return s;
-    return { ...s, x: lerp(p.x, s.x, t), y: lerp(p.y, s.y, t), z: lerp(p.z, s.z, t) };
+    return {
+      ...s,
+      x: lerp(p.x, s.x, t),
+      y: lerp(p.y, s.y, t),
+      z: lerp(p.z, s.z, t),
+      vx: lerp(p.vx, s.vx, t),
+      vy: lerp(p.vy, s.vy, t),
+      vz: lerp(p.vz, s.vz, t),
+    };
   });
   return { ...curr, units, projectiles };
 }

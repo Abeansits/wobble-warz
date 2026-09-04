@@ -282,6 +282,15 @@ function shatterKb(victim: UnitInternal, knockback: number) {
   return victim.frozenT > 0 ? knockback * 1.5 : knockback;
 }
 
+export function shotKind(defId: string, weaponKind: string): Flying["kind"] {
+  if (weaponKind === "explosive") return "boom";
+  if (defId.includes("pumpkin")) return "pumpkin";
+  if (defId.includes("ice")) return "ice";
+  if (defId.includes("spear")) return "spear";
+  if (defId.includes("archer")) return "arrow";
+  return "rock";
+}
+
 export function fireShot(sim: SimCtx, u: UnitInternal, target: UnitInternal) {
   const w = u.def.weapon;
   if (w.kind !== "projectile" && w.kind !== "explosive" && w.kind !== "status") return;
@@ -290,29 +299,19 @@ export function fireShot(sim: SimCtx, u: UnitInternal, target: UnitInternal) {
   const dist = Math.hypot(dx, dz) || 1;
   const y = u.y + 0.6 * u.def.body.scale;
   const bounce = w.kind === "explosive" && w.fuseOnGround === false;
+  const kind = shotKind(u.def.id, w.kind);
+  const ball = kind === "boom" ? 0.28 : kind === "rock" ? 0.22 : kind === "pumpkin" ? 0.2 : 0.12;
   const body = sim.physics.createDynamicSphere(
     u.x + (dx / dist) * 0.6,
     y,
     u.z + (dz / dist) * 0.6,
-    w.kind === "explosive" ? 0.28 : 0.16,
-    1.4,
+    ball,
+    kind === "rock" ? 2.2 : 1.4,
     bounce ? { restitution: 0.88, friction: 0.18 } : undefined,
   );
   const flight = dist / Math.max(4, w.speed);
   const vy = w.arc + 0.5 * 18 * flight * 0.35;
   sim.physics.setLinearVelocity(body, (dx / dist) * w.speed, vy, (dz / dist) * w.speed);
-  const kind: Flying["kind"] =
-    w.kind === "explosive"
-      ? "boom"
-      : u.def.id.includes("pumpkin")
-        ? "pumpkin"
-        : u.def.id.includes("ice")
-          ? "ice"
-          : u.def.id.includes("spear")
-            ? "spear"
-            : u.def.id.includes("archer")
-              ? "arrow"
-              : "rock";
   if (sim.flying.length > 24) {
     const extra = sim.flying.shift();
     if (extra) sim.physics.removeBody(extra.body);

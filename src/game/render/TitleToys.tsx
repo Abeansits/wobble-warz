@@ -8,6 +8,7 @@ import { ArmyView } from "./ArmyView";
 import { posedSnapshot } from "./interp";
 import { Clouds, SkyDome } from "./SkyBits";
 import { MeadowProps, Terrain } from "./Terrain";
+import { Shots } from "./Shots";
 import { hitJuice } from "./hitJuice";
 
 const DEMO: { defId: string; x: number; z: number; side: 0 | 1 }[] = [
@@ -121,6 +122,7 @@ export function TitleToys() {
         <Terrain />
         <MeadowProps />
         <ArmyView snapshot={snap} />
+        <Shots />
         {world ? <DemoLoop world={world} onSnap={setSnap} /> : null}
         <Rig />
       </Canvas>
