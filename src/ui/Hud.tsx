@@ -167,7 +167,10 @@ export function Hud({ world }: { world: World }) {
               <button
                 key={a.id}
                 type="button"
-                onClick={() => setArena(a.id)}
+                onClick={() => {
+                  setArena(a.id);
+                  world.arena = a.id;
+                }}
                 className={`rounded-btn px-2 py-1 text-sm font-display ${arena === a.id ? "bg-ochre" : ""}`}
               >
                 {a.name.split(" ")[0]}
@@ -481,7 +484,13 @@ export function Hud({ world }: { world: World }) {
               <button type="button" className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-4 py-2 font-display" onClick={() => useGame.getState().setMenuOpen(false)}>
                 Resume
               </button>
-              <Link to="/" className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display text-center">
+              <Link
+                to="/"
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display text-center"
+                onClick={(e) => {
+                  if (phase !== "setup" && !window.confirm("Leave this fight?")) e.preventDefault();
+                }}
+              >
                 Quit to title
               </Link>
             </div>

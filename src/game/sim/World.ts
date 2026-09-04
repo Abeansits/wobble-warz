@@ -1,4 +1,6 @@
 import { getUnit } from "@/game/data/units";
+import type { ArenaId } from "@/game/data/arenas";
+import { terrainHeight } from "@/game/data/arenas";
 import type { Placement, Side, UnitDef } from "@/game/data/types";
 import { EventRing, type SimEvent } from "./events";
 import { mulberry32, type Rng } from "./rng";
@@ -125,6 +127,7 @@ export class World {
   private windAt: [number | null, number | null] = [null, null];
   private potatoAt = 0;
   private potatoId: number | null = null;
+  arena: ArenaId = "meadow";
   private nextShot = 1;
   private flying: Flying[] = [];
   private scratch: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
@@ -155,7 +158,7 @@ export class World {
   }
 
   groundY(x = 0, z = 0) {
-    return 0.4;
+    return terrainHeight(x, z, this.arena);
   }
 
   place(p: Placement): number {
@@ -563,6 +566,11 @@ export class World {
     u.charging = false;
     if (!staticUnit) {
       let speed = u.def.body.speed * (rush ? 1.5 : 1);
+      if (this.arena === "meadow" && u.def.weapon.kind === "charge" && dx * (u.side === 0 ? 1 : -1) > 0) {
+        speed *= 1.15;
+      }
+      if (this.arena === "canyon" && Math.abs(u.x) < 3.2) speed *= 0.72;
+      if (this.arena === "graveyard") speed *= 0.84;
       if (u.def.weapon.kind === "charge" && dist > 3) {
         speed *= 2.6;
         u.charging = true;

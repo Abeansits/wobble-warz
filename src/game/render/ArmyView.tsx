@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { session } from "@/game/session";
 import { getUnit } from "@/game/data/units";
 import type { WorldSnapshot } from "@/game/sim/World";
+import { useProfiles } from "@/game/meta/profiles";
 import { useGame } from "@/store/gameStore";
 import { METAL, TEAM, WOOD } from "./palette";
 import { getCloth, getFace, getMetalTex, getRamp, getWood, type FaceMood } from "./textures";
@@ -119,6 +120,8 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
   const shots = snapshot?.projectiles ?? [];
   const seat = useGame((s) => s.seat);
   const placingSide = useGame((s) => s.placingSide);
+  const hat0 = useProfiles((s) => s.profiles.find((p) => p.id === s.p1)?.hat);
+  const hat1 = useProfiles((s) => s.profiles.find((p) => p.id === s.p2)?.hat);
   const phase = snapshot?.phase ?? "setup";
   const blind = phase === "setup" && seat === "setupP2";
 
@@ -171,6 +174,29 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
         b.scale.push(shrink);
         b.color.push(color);
       }
+      const worn = u.side === 0 ? hat0 : hat1;
+      if (worn?.startsWith("hat") && u.parts.head) {
+        const src = u.parts.head;
+        const key = worn === "hat.crown" ? "crown" : "cone";
+        let b = bag.get(key);
+        if (!b) {
+          b = {
+            key,
+            shape: worn === "hat.crown" ? "box" : "capsule",
+            size: worn === "hat.crown" ? [0.16, 0.12, 0.16] : [0.08, 0.22, 0.08],
+            kind: "plain",
+            pos: [],
+            quat: [],
+            scale: [],
+            color: [],
+          };
+          bag.set(key, b);
+        }
+        b.pos.push(src.x, src.y + 0.28 * def.body.scale, src.z);
+        b.quat.push(src.qx, src.qy, src.qz, src.qw);
+        b.scale.push(shrink);
+        b.color.push(worn === "hat.crown" ? "#d4a017" : "#c45a32");
+      }
       const head = u.parts.head;
       if (head && Number.isFinite(head.x)) {
         _q.set(head.qx, head.qy, head.qz, head.qw);
@@ -190,7 +216,7 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
       }
     }
     return { batches: [...bag.values()], picks, faces };
-  }, [units, blind, placingSide]);
+  }, [units, blind, placingSide, hat0, hat1]);
 
   return (
     <group>

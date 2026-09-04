@@ -291,7 +291,7 @@ export function BattleApp() {
         }}
       >
         <Suspense fallback={null}>
-          <Lights />
+        <Lights />
           <Terrain />
           <MeadowProps />
           <SnapshotBridge />

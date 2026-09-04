@@ -20,6 +20,7 @@ export function CameraRig() {
   const followId = useGame((s) => s.followId);
   const snapshot = useGame((s) => s.snapshot);
   const camBump = useGame((s) => s.camBump);
+  const lastPhase = useRef(snapshot?.phase);
 
   useEffect(() => {
     if (!camBump) return;
@@ -134,6 +135,20 @@ export function CameraRig() {
   }, [gl]);
 
   useFrame((_, dt) => {
+    const phase = snapshot?.phase;
+    if (phase !== lastPhase.current) {
+      if (phase === "countdown") {
+        dist.current = 44;
+        pitch.current = 0.95;
+        yaw.current = 0.15;
+        target.current.set(0, 1.4, 0);
+      }
+      if (phase === "battle" && lastPhase.current === "countdown") {
+        dist.current = 34;
+        pitch.current = 0.7;
+      }
+      lastPhase.current = phase;
+    }
     const k = keys.current;
     const right = new THREE.Vector3(Math.cos(yaw.current), 0, -Math.sin(yaw.current));
     const fwd = new THREE.Vector3(-Math.sin(yaw.current), 0, -Math.cos(yaw.current));
