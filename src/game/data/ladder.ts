@@ -25,11 +25,11 @@ export const LADDER: LadderLevel[] = [
   { id: 13, name: "Ghosts", budget: 2750, blurb: "They walk through you.", army: [{ defId: "haunted.ghost", count: 6 }, { defId: "haunted.scarecrow", count: 2 }] },
   { id: 14, name: "King's men", budget: 2900, blurb: "A King and a court.", army: [{ defId: "medieval.king", count: 1 }, { defId: "medieval.squire", count: 8 }] },
   { id: 15, name: "Cannon row", budget: 3050, blurb: "Don't stand still.", army: [{ defId: "pirate.cannon", count: 2 }, { defId: "pirate.deckhand", count: 8 }] },
-  { id: 16, name: "Night hunt", budget: 3200, blurb: "Vampire leading bones.", army: [{ defId: "haunted.vampire", count: 1 }, { defId: "haunted.skeleton", count: 16 }] },
-  { id: 17, name: "Mammoth walk", budget: 3350, blurb: "Bowling practice.", army: [{ defId: "stoneage.mammoth", count: 1 }, { defId: "stoneage.clubber", count: 10 }] },
-  { id: 18, name: "Captain's table", budget: 3500, blurb: "Rally and shot.", army: [{ defId: "pirate.captain", count: 1 }, { defId: "pirate.musketeer", count: 4 }, { defId: "pirate.deckhand", count: 6 }] },
-  { id: 19, name: "Long rifles", budget: 3650, blurb: "You will get poked.", army: [{ defId: "frontier.rifleman", count: 6 }, { defId: "frontier.lasso", count: 4 }] },
-  { id: 20, name: "The Reaper", budget: 3800, blurb: "If it swings, duck.", army: [{ defId: "haunted.reaper", count: 1 }, { defId: "haunted.skeleton", count: 12 }, { defId: "haunted.ghost", count: 4 }] },
+  { id: 16, name: "Night hunt", budget: 3200, blurb: "Vampire, bones, and a freeze.", army: [{ defId: "haunted.vampire", count: 1 }, { defId: "haunted.skeleton", count: 16 }, { defId: "anomaly.ice", count: 1 }] },
+  { id: 17, name: "Mammoth walk", budget: 3350, blurb: "Bowling practice — plus a boulder.", army: [{ defId: "stoneage.mammoth", count: 1 }, { defId: "stoneage.clubber", count: 10 }, { defId: "anomaly.boulder", count: 1 }] },
+  { id: 18, name: "Captain's table", budget: 3500, blurb: "Rally, shot, and a cheer.", army: [{ defId: "pirate.captain", count: 1 }, { defId: "pirate.musketeer", count: 4 }, { defId: "pirate.deckhand", count: 6 }, { defId: "anomaly.cheer", count: 1 }] },
+  { id: 19, name: "Long rifles", budget: 3650, blurb: "You will get poked — and taxed.", army: [{ defId: "frontier.rifleman", count: 6 }, { defId: "frontier.lasso", count: 3 }, { defId: "anomaly.tax", count: 1 }] },
+  { id: 20, name: "The Reaper", budget: 3800, blurb: "If it swings, duck. Jelly too.", army: [{ defId: "haunted.reaper", count: 1 }, { defId: "haunted.skeleton", count: 12 }, { defId: "haunted.ghost", count: 3 }, { defId: "anomaly.jelly", count: 1 }] },
 ];
 
 export function ladderArmy(level: LadderLevel, side: 0 | 1): Placement[] {

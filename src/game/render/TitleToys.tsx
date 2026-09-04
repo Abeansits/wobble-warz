@@ -1,6 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
 import { startMeadow, stopMeadow } from "@/game/audio";
 import { deployYaw } from "@/game/sim/facing";
 import { World, type WorldSnapshot } from "@/game/sim/World";
@@ -8,23 +7,21 @@ import { ArmyView } from "./ArmyView";
 import { Clouds, SkyDome } from "./SkyBits";
 import { MeadowProps, Terrain } from "./Terrain";
 
+const DEMO: { defId: string; x: number; z: number; side: 0 | 1 }[] = [
+  { defId: "stoneage.clubber", x: -12, z: -6, side: 0 },
+  { defId: "stoneage.clubber", x: -13, z: -3, side: 0 },
+  { defId: "stoneage.rocklobber", x: -15, z: 0, side: 0 },
+  { defId: "stoneage.mammoth", x: -14, z: 4, side: 0 },
+  { defId: "medieval.squire", x: 12, z: -6, side: 1 },
+  { defId: "medieval.archer", x: 15, z: -2, side: 1 },
+  { defId: "medieval.squire", x: 12, z: 1, side: 1 },
+  { defId: "pirate.deckhand", x: 13, z: 5, side: 1 },
+];
+
 function plant(world: World) {
   world.clearUnits();
-  for (let i = 0; i < 4; i++) {
-    world.place({
-      defId: "stoneage.clubber",
-      x: -11,
-      z: -4.5 + i * 2.8,
-      yaw: deployYaw(0),
-      side: 0,
-    });
-    world.place({
-      defId: "medieval.squire",
-      x: 11,
-      z: -4.5 + i * 2.8,
-      yaw: deployYaw(1),
-      side: 1,
-    });
+  for (const p of DEMO) {
+    world.place({ defId: p.defId, x: p.x, z: p.z, yaw: deployYaw(p.side), side: p.side });
   }
   world.startCountdown();
 }

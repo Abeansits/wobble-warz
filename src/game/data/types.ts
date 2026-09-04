@@ -36,6 +36,7 @@ export type MeleeWeapon = {
   cooldown: number;
   swingSeconds: number;
   vsChargeMult?: number;
+  instakill?: boolean;
 };
 
 export type ProjectileWeapon = {
@@ -67,6 +68,7 @@ export type AuraWeapon = {
   cooldown: number;
   healPerSec?: number;
   damageBonus?: number;
+  speedBonus?: number;
   tauntRange?: number;
 };
 
@@ -109,7 +111,7 @@ export type SummonWeapon = {
 export type WeaponDef = MeleeWeapon | ProjectileWeapon | ChargeWeapon | AuraWeapon | HitscanWeapon | TetherWeapon | StatusWeapon | SummonWeapon;
 
 export type AbilityDef = {
-  kind: "heal-aura" | "damage-aura" | "taunt";
+  kind: "heal-aura" | "damage-aura" | "taunt" | "speed-aura";
   radius: number;
   amount: number;
 };

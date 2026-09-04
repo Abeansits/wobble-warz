@@ -1,4 +1,11 @@
 import type { UnitDef } from "@/game/data/types";
+import {
+  JOINT_COUNT,
+  eulerToQuat,
+  poseJoints,
+  type JointEuler,
+  type PoseRequest,
+} from "../poses";
 
 export type JoltModule = Awaited<ReturnType<(typeof import("jolt-physics"))["default"]>>;
 
@@ -29,8 +36,21 @@ export type BuiltRagdoll = {
   orderedIds: BodyHandle[];
   rootBody: BodyHandle;
   pelvisSpring: InstanceType<JoltModule["Constraint"]>;
+  springFreq: number;
+  swingTorque: number;
+  twistTorque: number;
   alive: boolean;
 };
+
+export type { PoseRequest };
+
+/** Weak motors: poses are suggestions so the ragdoll still wobbles. */
+const POSE_MOTOR_FREQ = 2.8;
+const POSE_MOTOR_DAMP = 1.15;
+const POSE_SWING_TORQUE = 9;
+const POSE_TWIST_TORQUE = 6;
+const LAUNCH_SPRING_FREQ = 1.15;
+const LAUNCH_MOTOR_TORQUE = 0.35;
 
 /**
  * Thin Jolt adapter. Temporary `new Jolt.*` objects are destroyed after use;
@@ -49,6 +69,7 @@ export class JoltWorld {
   private vec3!: InstanceType<JoltModule["Vec3"]>;
   private rvec3!: InstanceType<JoltModule["RVec3"]>;
   private quat!: InstanceType<JoltModule["Quat"]>;
+  private poseScratch: JointEuler[] = Array.from({ length: JOINT_COUNT }, () => ({ x: 0, y: 0, z: 0 }));
 
   async init() {
     const initJolt = (await import("jolt-physics")).default;
@@ -285,7 +306,7 @@ export class JoltWorld {
       part.mMotionType = Jolt.EMotionType_Dynamic;
       part.mObjectLayer = layer;
       part.mFriction = 0.7;
-      part.mRestitution = 0.02;
+      part.mRestitution = def.id === "anomaly.jelly" ? 0.9 : 0.02;
       part.mLinearDamping = 0.35;
       part.mAngularDamping = 0.85;
       part.mGravityFactor = 0.85;
@@ -307,14 +328,14 @@ export class JoltWorld {
         constraint.mNormalHalfConeAngle = deg(normalDeg[p]);
         constraint.mPlaneHalfConeAngle = deg(planeDeg[p]);
         constraint.mMaxFrictionTorque = 2.4;
-        constraint.mSwingMotorSettings.mSpringSettings.mFrequency = 6;
-        constraint.mSwingMotorSettings.mSpringSettings.mDamping = 1.4;
-        constraint.mSwingMotorSettings.mMinTorqueLimit = -28;
-        constraint.mSwingMotorSettings.mMaxTorqueLimit = 28;
-        constraint.mTwistMotorSettings.mSpringSettings.mFrequency = 6;
-        constraint.mTwistMotorSettings.mSpringSettings.mDamping = 1.4;
-        constraint.mTwistMotorSettings.mMinTorqueLimit = -20;
-        constraint.mTwistMotorSettings.mMaxTorqueLimit = 20;
+        constraint.mSwingMotorSettings.mSpringSettings.mFrequency = POSE_MOTOR_FREQ;
+        constraint.mSwingMotorSettings.mSpringSettings.mDamping = POSE_MOTOR_DAMP;
+        constraint.mSwingMotorSettings.mMinTorqueLimit = -POSE_SWING_TORQUE;
+        constraint.mSwingMotorSettings.mMaxTorqueLimit = POSE_SWING_TORQUE;
+        constraint.mTwistMotorSettings.mSpringSettings.mFrequency = POSE_MOTOR_FREQ;
+        constraint.mTwistMotorSettings.mSpringSettings.mDamping = POSE_MOTOR_DAMP;
+        constraint.mTwistMotorSettings.mMinTorqueLimit = -POSE_TWIST_TORQUE;
+        constraint.mTwistMotorSettings.mMaxTorqueLimit = POSE_TWIST_TORQUE;
         part.mToParent = constraint;
       }
     }
@@ -341,13 +362,14 @@ export class JoltWorld {
     const rootBody = this.createKinematicCapsule(x, y + 0.95 * s, z, 0.42 * s, 0.16 * s, layer);
     this.setRotation(rootBody, yaw);
 
+    const springFreq = Math.max(8, def.body.springStiffness * 0.7);
     const springSettings = new Jolt.DistanceConstraintSettings();
     springSettings.mSpace = Jolt.EConstraintSpace_WorldSpace;
     springSettings.mPoint1 = this.rv(x, y + 0.95 * s, z);
     springSettings.mPoint2 = this.rv(x, y + 0.95 * s, z);
     springSettings.mMinDistance = 0.02;
     springSettings.mMaxDistance = 0.12 * s;
-    springSettings.mLimitsSpringSettings.mFrequency = Math.max(8, def.body.springStiffness * 0.7);
+    springSettings.mLimitsSpringSettings.mFrequency = springFreq;
     springSettings.mLimitsSpringSettings.mDamping = 0.55;
 
     const rootId = this.wrapId(rootBody);
@@ -366,6 +388,9 @@ export class JoltWorld {
       orderedIds,
       rootBody,
       pelvisSpring: constraint,
+      springFreq,
+      swingTorque: POSE_SWING_TORQUE,
+      twistTorque: POSE_TWIST_TORQUE,
       alive: true,
     };
     this.ownedRagdolls.push(built);
@@ -406,8 +431,9 @@ export class JoltWorld {
     try {
       this.system.RemoveConstraint(built.pelvisSpring);
     } catch {
-      /* RemoveConstraint Releases the constraint */
+      /* RemoveConstraint Releases the constraint — do not Jolt.destroy it */
     }
+    // Pose before ragdoll: ragdoll dtor DestroyBodies; pose is independent.
     try {
       Jolt.destroy(built.pose);
     } catch {
@@ -581,11 +607,7 @@ export class JoltWorld {
     } catch {
       /* */
     }
-    try {
-      this.Jolt.destroy(constraint);
-    } catch {
-      /* */
-    }
+    // RemoveConstraint already Releases. Jolt.destroy here wasm-aborts (refcount).
   }
 
   raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number): { handle: BodyHandle; fraction: number } | null {
@@ -621,21 +643,76 @@ export class JoltWorld {
     }
   }
 
-  drivePose(built: BuiltRagdoll) {
+  drivePose(built: BuiltRagdoll, req?: PoseRequest) {
+    if (!built.alive) return;
+    if (req) this.writePose(built, poseJoints(req, this.poseScratch));
     built.ragdoll.DriveToPoseUsingMotors(built.pose);
   }
 
-  swingRightArm(built: BuiltRagdoll, amount: number) {
-    const joint = built.pose.GetJoint(4);
-    const half = amount * 0.5;
-    joint.mRotation.Set(Math.sin(half), 0, 0, Math.cos(half));
+  writePose(built: BuiltRagdoll, joints: JointEuler[]) {
+    const n = Math.min(built.pose.GetJointCount(), joints.length);
+    for (let i = 0; i < n; i++) {
+      const q = eulerToQuat(joints[i].x, joints[i].y, joints[i].z);
+      built.pose.GetJoint(i).mRotation.Set(q.qx, q.qy, q.qz, q.qw);
+    }
     built.pose.CalculateJointMatrices();
   }
 
-  resetArm(built: BuiltRagdoll) {
-    const joint = built.pose.GetJoint(4);
-    joint.mRotation.Set(0, 0, 0, 1);
-    built.pose.CalculateJointMatrices();
+  beginLaunch(built: BuiltRagdoll) {
+    if (!built.alive) return;
+    this.setSpringEnabled(built, false);
+    this.setSpringFreq(built, LAUNCH_SPRING_FREQ);
+    this.setMotorTorque(built, LAUNCH_MOTOR_TORQUE, true);
+  }
+
+  endLaunch(built: BuiltRagdoll) {
+    if (!built.alive) return;
+    this.setSpringFreq(built, built.springFreq);
+    this.setSpringEnabled(built, true);
+    this.setMotorTorque(built, built.swingTorque, false);
+  }
+
+  private setSpringEnabled(built: BuiltRagdoll, on: boolean) {
+    try {
+      built.pelvisSpring.SetEnabled(on);
+    } catch {
+      /* constraint already released */
+    }
+  }
+
+  private setSpringFreq(built: BuiltRagdoll, freq: number) {
+    try {
+      const d = this.Jolt.castObject(built.pelvisSpring, this.Jolt.DistanceConstraint);
+      const s = d.GetLimitsSpringSettings();
+      s.mFrequency = freq;
+      d.SetLimitsSpringSettings(s);
+    } catch {
+      /* */
+    }
+  }
+
+  private setMotorTorque(built: BuiltRagdoll, swingTorque: number, motorsOff: boolean) {
+    const Jolt = this.Jolt;
+    const twistScale = built.swingTorque > 0 ? built.twistTorque / built.swingTorque : 0.7;
+    const twistTorque = swingTorque * twistScale;
+    try {
+      const n = built.ragdoll.GetConstraintCount();
+      for (let i = 0; i < n; i++) {
+        const c = Jolt.castObject(built.ragdoll.GetConstraint(i), Jolt.SwingTwistConstraint);
+        const swing = c.GetSwingMotorSettings();
+        swing.mMinTorqueLimit = -swingTorque;
+        swing.mMaxTorqueLimit = swingTorque;
+        const twist = c.GetTwistMotorSettings();
+        twist.mMinTorqueLimit = -twistTorque;
+        twist.mMaxTorqueLimit = twistTorque;
+        if (motorsOff) {
+          c.SetSwingMotorState(Jolt.EMotorState_Off);
+          c.SetTwistMotorState(Jolt.EMotorState_Off);
+        }
+      }
+    } catch {
+      /* ragdoll already gone */
+    }
   }
 
   step(dt: number) {
@@ -649,13 +726,29 @@ export class JoltWorld {
   dispose() {
     const Jolt = this.Jolt;
     for (const r of this.ownedRagdolls) {
+      r.alive = false;
+      try {
+        this.system.RemoveConstraint(r.pelvisSpring);
+      } catch {
+        /* RemoveConstraint Releases — do not destroy */
+      }
+      try {
+        Jolt.destroy(r.pose);
+      } catch {
+        /* */
+      }
       try {
         r.ragdoll.RemoveFromPhysicsSystem();
       } catch {
         /* */
       }
       try {
-        Jolt.destroy(r.pose);
+        Jolt.destroy(r.ragdoll);
+      } catch {
+        /* */
+      }
+      try {
+        if (this.isAdded(r.rootBody)) this.removeBody(r.rootBody);
       } catch {
         /* */
       }

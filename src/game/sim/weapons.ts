@@ -50,7 +50,7 @@ export function tryAttack(sim: SimCtx, u: UnitInternal) {
       const hit = sim.physics.raycast(u.x, u.y + 0.4, u.z, (dx / len) * range, 0.1, (dz / len) * range);
       const victim = hit ? unitForBody(sim, hit.handle) : target;
       const who = victim && victim.side !== u.side ? victim : target;
-      applyDamage(sim, who, w.damage, w.knockback, u);
+      applyDamage(sim, who, w.damage, shatterKb(who, w.knockback), u);
       u.cooldown = w.cooldown;
       u.state = "attack";
       u.face = "angry";
@@ -69,7 +69,7 @@ export function tryAttack(sim: SimCtx, u: UnitInternal) {
         5,
       );
       sim.tethers.push({ constraint: spring, attackerId: u.id, victimId: target.id, until: sim.time + 1.5 });
-      applyDamage(sim, target, w.damage, w.knockback * 0.4, u);
+      applyDamage(sim, target, w.damage, shatterKb(target, w.knockback * 0.4), u);
       u.cooldown = w.cooldown;
       u.state = "attack";
       u.face = "angry";
@@ -151,14 +151,15 @@ export function resolveMelee(sim: SimCtx, u: UnitInternal) {
     u.swingHits.add(o.id);
     let dmg = w.damage;
     if (w.kind === "melee-reach" && w.vsChargeMult && o.charging) dmg *= w.vsChargeMult;
-    applyDamage(sim, o, dmg, w.knockback, u);
+    if (w.kind !== "aura" && (w.instakill || u.def.id === "haunted.reaper")) dmg = Math.max(dmg, o.hp);
+    applyDamage(sim, o, dmg, shatterKb(o, w.knockback), u);
   }
 }
 
 export function resolveCharge(sim: SimCtx, u: UnitInternal, target: UnitInternal) {
   if (u.cooldown > 0) return;
   u.cooldown = u.def.weapon.cooldown;
-  applyDamage(sim, target, u.def.weapon.damage, u.def.weapon.knockback, u);
+  applyDamage(sim, target, u.def.weapon.damage, shatterKb(target, u.def.weapon.knockback), u);
 }
 
 export function tickChargeContacts(sim: SimCtx, u: UnitInternal) {
@@ -175,7 +176,7 @@ export function tickChargeContacts(sim: SimCtx, u: UnitInternal) {
     if (d > w.range + 0.4 * o.def.body.scale) continue;
     u.chargeHits.add(o.id);
     const scale = Math.min(2.2, speed / 3);
-    applyDamage(sim, o, w.damage * scale, w.knockback * scale, u);
+    applyDamage(sim, o, w.damage * scale, shatterKb(o, w.knockback * scale), u);
   }
 }
 
@@ -191,7 +192,12 @@ export function tickAura(sim: SimCtx, u: UnitInternal) {
         }
       }
     }
+    // speed-aura is applied in steer; spring stiffness cannot change at runtime.
   }
+}
+
+function shatterKb(victim: UnitInternal, knockback: number) {
+  return victim.frozenT > 0 ? knockback * 1.5 : knockback;
 }
 
 export function fireShot(sim: SimCtx, u: UnitInternal, target: UnitInternal) {
@@ -265,7 +271,7 @@ export function stepShots(sim: SimCtx) {
           consumed = true;
           break;
         }
-        applyDamage(sim, o, shot.damage, shot.knockback, owner);
+        applyDamage(sim, o, shot.damage, shatterKb(o, shot.knockback), owner);
         if (shot.freeze) {
           o.frozenT = Math.max(o.frozenT, shot.freeze);
           o.state = "stunned";
@@ -293,7 +299,7 @@ export function explode(sim: SimCtx, x: number, z: number, shot: Flying, owner: 
     const d = Math.hypot(o.x - x, o.z - z);
     if (d > shot.radius + 1.2) continue;
     const falloff = Math.max(0.25, 1 - d / (shot.radius + 1.2));
-    applyDamage(sim, o, shot.damage * falloff, shot.knockback * falloff, owner);
+    applyDamage(sim, o, shot.damage * falloff, shatterKb(o, shot.knockback * falloff), owner);
   }
 }
 

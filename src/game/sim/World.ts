@@ -17,6 +17,7 @@ import { EventRing, type SimEvent } from "./events";
 import { LAYER_PHASE, JoltWorld, type BodyHandle, type TransformSnap } from "./physics/joltWorld";
 import { mulberry32, type Rng } from "./rng";
 import type { Flying, PlaceOpts, SimCtx, Tombstone, TetherLink, UnitInternal } from "./unitTypes";
+import { poseGait } from "./poses";
 import {
   clearShots,
   resolveMelee,
@@ -511,6 +512,7 @@ export class World implements SimCtx {
           u.x = this.scratch.x;
           u.z = this.scratch.z;
           u.y = this.groundY(u.x, u.z) + 0.95 * u.def.body.scale;
+          this.physics.endLaunch(u.ragdoll);
           this.physics.setActive(u.ragdoll.rootBody, true);
           this.physics.setPosition(u.ragdoll.rootBody, u.x, u.y, u.z);
         }
@@ -534,22 +536,22 @@ export class World implements SimCtx {
         tickChargeContacts(this, u);
       }
 
+      const swingDur = "swingSeconds" in u.def.weapon ? u.def.weapon.swingSeconds : 0.35;
       if (u.swingT > 0) {
         u.swingT -= FIXED_DT;
-        const dur = "swingSeconds" in u.def.weapon ? u.def.weapon.swingSeconds : 0.35;
-        const t = 1 - u.swingT / dur;
-        const ang = Math.sin(t * Math.PI) * 1.4;
-        this.physics.swingRightArm(u.ragdoll, ang);
+        const t = 1 - u.swingT / swingDur;
         if (t > 0.25 && t < 0.7) resolveMelee(this, u);
-        if (u.swingT <= 0) {
-          this.physics.resetArm(u.ragdoll);
-          u.swingHits.clear();
-        }
-      } else {
-        this.physics.resetArm(u.ragdoll);
+        if (u.swingT <= 0) u.swingHits.clear();
       }
 
-      this.physics.drivePose(u.ragdoll);
+      this.physics.drivePose(u.ragdoll, {
+        time: this.time,
+        gait: poseGait(u),
+        swingT: u.swingT,
+        swingDur,
+        phase: u.id * 0.73,
+        hurtT: u.hurtT,
+      });
       this.physics.moveKinematic(u.ragdoll.rootBody, u.x, u.y, u.z, u.yaw, FIXED_DT);
 
       if (Math.abs(u.x) > ARENA_HALF_X + 4 || Math.abs(u.z) > ARENA_HALF_Z + 4) {

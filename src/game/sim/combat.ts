@@ -74,6 +74,7 @@ export function applyDamage(
     victim.state = "launched";
     victim.launchT = 1.4;
     sim.physics.setActive(victim.ragdoll.rootBody, false);
+    sim.physics.beginLaunch(victim.ragdoll);
     sim.events.push({ type: "launch", unitId: victim.id });
   }
   if (victim.def.id === "anomaly.mirror" && attacker && attacker.id !== victim.id) {

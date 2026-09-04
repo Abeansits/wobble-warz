@@ -1,3 +1,4 @@
+import { unitForBody } from "./combat";
 import { ARENA_HALF_X, ARENA_HALF_Z, FIXED_DT } from "./constants";
 import { lookYaw } from "./facing";
 import type { SimCtx, UnitInternal } from "./unitTypes";
@@ -55,8 +56,14 @@ export function steer(sim: SimCtx, u: UnitInternal, rush: boolean) {
 
   let sepX = 0;
   let sepZ = 0;
+  let cheerBonus = 0;
   for (const o of sim.units) {
-    if (o.id === u.id || o.state === "dead" || o.gone || o.side !== u.side) continue;
+    if (o.state === "dead" || o.gone || o.side !== u.side) continue;
+    const aura = o.def.abilities?.find((a) => a.kind === "speed-aura");
+    if (aura && Math.hypot(o.x - u.x, o.z - u.z) <= aura.radius) {
+      cheerBonus = Math.max(cheerBonus, aura.amount);
+    }
+    if (o.id === u.id) continue;
     const ox = u.x - o.x;
     const oz = u.z - o.z;
     const d2 = ox * ox + oz * oz;
@@ -73,6 +80,7 @@ export function steer(sim: SimCtx, u: UnitInternal, rush: boolean) {
   if (!staticUnit) {
     let speed = u.def.body.speed * (rush ? 1.5 : 1);
     if (u.slowT > 0) speed *= 0.6;
+    if (cheerBonus > 0) speed *= 1 + cheerBonus;
     if (sim.arena === "meadow" && u.def.weapon.kind === "charge" && dx * (u.side === 0 ? 1 : -1) > 0) {
       speed *= 1.2;
     }
@@ -91,15 +99,52 @@ export function steer(sim: SimCtx, u: UnitInternal, rush: boolean) {
     const tooClose = keep > 0 && dist < keep;
     const wantClose = dist > range * 0.85 && !tooClose;
     if (tooClose) {
-      u.x -= (dx * 0.7 - sepX * 0.2) * speed * FIXED_DT;
-      u.z -= (dz * 0.7 - sepZ * 0.2) * speed * FIXED_DT;
+      const heading = avoidObstacles(sim, u, -dx, -dz);
+      u.x += (heading.dx * 0.7 + sepX * 0.2) * speed * FIXED_DT;
+      u.z += (heading.dz * 0.7 + sepZ * 0.2) * speed * FIXED_DT;
     } else if (wantClose) {
-      u.x += (dx * 0.85 + sepX * 0.25) * speed * FIXED_DT;
-      u.z += (dz * 0.85 + sepZ * 0.25) * speed * FIXED_DT;
+      const heading = avoidObstacles(sim, u, dx, dz);
+      u.x += (heading.dx * 0.85 + sepX * 0.25) * speed * FIXED_DT;
+      u.z += (heading.dz * 0.85 + sepZ * 0.25) * speed * FIXED_DT;
     }
   }
   u.yaw = lookYaw(dx, dz);
   u.y = sim.groundY(u.x, u.z) + 0.95 * u.def.body.scale;
   u.x = Math.max(-ARENA_HALF_X + 1, Math.min(ARENA_HALF_X - 1, u.x));
   u.z = Math.max(-ARENA_HALF_Z + 1, Math.min(ARENA_HALF_Z - 1, u.z));
+}
+
+/** One short feeler + a ground-height sample. No navmesh. */
+function avoidObstacles(sim: SimCtx, u: UnitInternal, dx: number, dz: number) {
+  const look = 1.7;
+  const hereY = sim.groundY(u.x, u.z);
+  const aheadY = sim.groundY(u.x + dx * look, u.z + dz * look);
+  let ax = dx;
+  let az = dz;
+  if (hereY - aheadY > 0.55) {
+    const lx = -dz;
+    const lz = dx;
+    const leftDrop = hereY - sim.groundY(u.x + lx * look, u.z + lz * look);
+    const rightDrop = hereY - sim.groundY(u.x - lx * look, u.z - lz * look);
+    const side = leftDrop <= rightDrop ? 1 : -1;
+    ax = dx * 0.25 + lx * side;
+    az = dz * 0.25 + lz * side;
+    const n = Math.hypot(ax, az) || 1;
+    ax /= n;
+    az /= n;
+  }
+  const start = 0.55 * u.def.body.scale;
+  const feel = 1.6;
+  const hit = sim.physics.raycast(u.x + ax * start, u.y + 0.4, u.z + az * start, ax * feel, 0.06, az * feel);
+  if (hit && hit.fraction < 0.92 && !unitForBody(sim, hit.handle)) {
+    const lx = -az;
+    const lz = ax;
+    const side = (u.id & 1) === 0 ? 1 : -1;
+    ax = ax * 0.2 + lx * side;
+    az = az * 0.2 + lz * side;
+    const n = Math.hypot(ax, az) || 1;
+    ax /= n;
+    az /= n;
+  }
+  return { dx: ax, dz: az };
 }

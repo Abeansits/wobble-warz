@@ -601,7 +601,7 @@ Object.assign(UNITS, {
     blurb: "If the scythe lands, they're gone.",
     cost: 1500,
     body: { kind: "humanoid", scale: 1.5, massMult: 1.6, hp: 400, speed: 1.7, springStiffness: 18, launchThreshold: 50 },
-    weapon: { kind: "melee-reach", damage: 999, knockback: 8, range: 2.6, cooldown: 2.5, swingSeconds: 0.7 },
+    weapon: { kind: "melee-reach", damage: 999, knockback: 8, range: 2.6, cooldown: 2.5, swingSeconds: 0.7, instakill: true },
     ai: { targeting: "nearest" },
     recipe: recipe(
       [
@@ -684,11 +684,11 @@ Object.assign(UNITS, {
     id: "anomaly.cheer",
     faction: "anomaly",
     name: "The Cheerleader",
-    blurb: "Allies nearby hit a little harder.",
+    blurb: "Allies nearby run faster. Fragile.",
     cost: 350,
     body: { kind: "humanoid", scale: 0.95, massMult: 0.7, hp: 80, speed: 3.6, springStiffness: 14, launchThreshold: 26 },
-    weapon: { kind: "aura", damage: 8, knockback: 4, range: 1.4, cooldown: 1.2, damageBonus: 0.15 },
-    abilities: [{ kind: "damage-aura", radius: 6, amount: 0.15 }],
+    weapon: { kind: "aura", damage: 8, knockback: 4, range: 1.4, cooldown: 1.2, speedBonus: 0.15 },
+    abilities: [{ kind: "speed-aura", radius: 6, amount: 0.15 }],
     ai: { targeting: "nearest", keepAway: 6 },
     recipe: recipe(),
     palette: { primary: "#f0a0c0", secondary: "#fff4e0", accent: "#d4a017", skin: "#e6c2a0" },

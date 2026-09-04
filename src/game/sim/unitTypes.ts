@@ -27,6 +27,7 @@ export type UnitInternal = {
   ragdoll: BuiltRagdoll;
   cooldown: number;
   swingT: number;
+  /** >0 while airborne; at 0 World resnaps root to pelvis xz and restores the spring. */
   launchT: number;
   stunT: number;
   hurtT: number;

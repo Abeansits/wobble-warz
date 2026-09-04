@@ -12,9 +12,11 @@ import { Particles, burst } from "./Particles";
 import { BattleFx } from "./Fx";
 import { sfx, startMeadow, stopMeadow, duckMeadow } from "@/game/audio";
 import { useSettings } from "@/routes/settings";
-import { getArena } from "@/game/data/arenas";
+import { getArena, terrainHeight } from "@/game/data/arenas";
 import { deployYaw } from "@/game/sim/facing";
 import { Hud } from "@/ui/Hud";
+import { TEAM } from "./palette";
+import { RecipeMesh } from "./RecipeMesh";
 
 function SetupInput({ world }: { world: World }) {
   const selected = useGame((s) => s.selected);
@@ -375,13 +377,22 @@ function GhostPreview() {
   const selected = useGame((s) => s.selected);
   const side = useGame((s) => s.placingSide);
   const yawOffset = useGame((s) => s.yawOffset);
+  const arena = useGame((s) => s.arena);
   if (!ghost) return null;
   const ok = side === 0 ? ghost.x < -8 : ghost.x > 8;
+  const yaw = deployYaw(side) + yawOffset;
+  const y = terrainHeight(ghost.x, ghost.z, arena) + 0.04;
   return (
-    <mesh position={[ghost.x, 1.1, ghost.z]} rotation={[0, deployYaw(side) + yawOffset, 0]} scale={selected.body.scale}>
-      <capsuleGeometry args={[0.22, 0.7, 4, 8]} />
-      <meshBasicMaterial color={ok ? (side === 0 ? "#3a5f8a" : "#b33a2b") : "#1c1710"} transparent opacity={0.35} />
-    </mesh>
+    <group key={selected.id} position={[ghost.x, y, ghost.z]} rotation={[0, yaw, 0]}>
+      <RecipeMesh
+        def={selected}
+        scale={selected.body.scale}
+        tint={ok ? TEAM[side] : "#1c1710"}
+        opacity={ok ? 0.42 : 0.28}
+        align="ground"
+        ghost
+      />
+    </group>
   );
 }
 

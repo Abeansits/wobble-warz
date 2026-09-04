@@ -1,4 +1,6 @@
 export const ROLL_COST = 200;
+export const ROLL_BUNDLE_COUNT = 10;
+export const ROLL_BUNDLE_COST = 1800;
 
 export const POWERUPS = [
   { id: "pockets", name: "Deep Pockets", blurb: "+15% budget this fight.", rarity: "common" },
@@ -55,4 +57,15 @@ export function rollPrize(pity: number): Prize {
   }
   const p = POWERUPS[Math.floor(Math.random() * POWERUPS.length)];
   return { kind: "powerup", id: p.id, name: p.name };
+}
+
+export function rollMany(count: number, startPity: number): Prize[] {
+  const out: Prize[] = [];
+  let pity = startPity;
+  for (let i = 0; i < count; i++) {
+    const prize = rollPrize(pity);
+    out.push(prize);
+    pity = prize.kind === "anomaly" ? 0 : pity + 1;
+  }
+  return out;
 }

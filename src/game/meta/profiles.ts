@@ -24,6 +24,8 @@ export type Profile = {
   hat: string | null;
   palette: string | null;
   ladderProgress: number;
+  dailyBonusDate?: string;
+  newAnomalies?: string[];
 };
 
 type ProfileStore = {
@@ -43,6 +45,8 @@ type ProfileStore = {
   saveArmy: (id: string, name: string, units: Placement[]) => void;
   equip: (id: string, kind: "hat" | "palette", value: string | null) => void;
   byId: (id: string) => Profile | undefined;
+  claimDailyBonus: (id: string) => number;
+  clearNewAnomaly: (id: string, anomalyId: string) => void;
 };
 
 const COLORS = ["#3a5f8a", "#b33a2b", "#c48a3a", "#2e5a2c", "#6b3a7a", "#2a6f6a"];
@@ -64,7 +68,18 @@ function fresh(name: string, color: string): Profile {
     hat: null,
     palette: null,
     ladderProgress: 0,
+    dailyBonusDate: "",
+    newAnomalies: [],
   };
+}
+
+export const DAILY_BATTLE_BONUS = 50;
+
+export function localDateKey(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export const useProfiles = create<ProfileStore>()(
@@ -135,11 +150,15 @@ export const useProfiles = create<ProfileStore>()(
               anomalies: [...(p.anomalies ?? [])],
               cosmetics: [...(p.cosmetics ?? [])],
               powerups: { ...(p.powerups ?? {}) },
+              newAnomalies: [...(p.newAnomalies ?? [])],
             };
             if (prize.kind === "credits") next.credits += prize.amount ?? 0;
             if (prize.kind === "anomaly" && prize.id) {
               if (next.anomalies.includes(prize.id)) next.credits += 400;
-              else next.anomalies.push(prize.id);
+              else {
+                next.anomalies.push(prize.id);
+                if (!next.newAnomalies.includes(prize.id)) next.newAnomalies.push(prize.id);
+              }
             }
             if (prize.kind === "cosmetic" && prize.id) {
               if (next.cosmetics.includes(prize.id)) next.credits += 60;
@@ -178,6 +197,24 @@ export const useProfiles = create<ProfileStore>()(
           profiles: s.profiles.map((p) => (p.id === id ? { ...p, [kind]: value } : p)),
         })),
       byId: (id) => get().profiles.find((p) => p.id === id),
+      claimDailyBonus: (id) => {
+        const p = get().profiles.find((x) => x.id === id);
+        if (!p) return 0;
+        const today = localDateKey();
+        if (p.dailyBonusDate === today) return 0;
+        set((s) => ({
+          profiles: s.profiles.map((x) => (x.id === id ? { ...x, dailyBonusDate: today } : x)),
+        }));
+        return DAILY_BATTLE_BONUS;
+      },
+      clearNewAnomaly: (id, anomalyId) =>
+        set((s) => ({
+          profiles: s.profiles.map((p) =>
+            p.id === id
+              ? { ...p, newAnomalies: (p.newAnomalies ?? []).filter((x) => x !== anomalyId) }
+              : p,
+          ),
+        })),
     }),
     {
       name: "wobble-wars-profiles",

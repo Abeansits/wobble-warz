@@ -1,14 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FACTION_META, type FactionId } from "@/game/data/types";
 import { ARENAS } from "@/game/data/arenas";
-import { POWERUPS } from "@/game/data/rolls";
+import { POWERUPS, ROLL_COST } from "@/game/data/rolls";
 import { LADDER, ladderArmy } from "@/game/data/ladder";
 import { M1_FACTIONS, getUnit, rosterFor } from "@/game/data/units";
 import type { World } from "@/game/sim/World";
-import { creditPayout, ladderPayout, useProfiles } from "@/game/meta/profiles";
+import { creditPayout, DAILY_BATTLE_BONUS, ladderPayout, localDateKey, useProfiles } from "@/game/meta/profiles";
 import { useGame, type Speed } from "@/store/gameStore";
 import { deployYaw } from "@/game/sim/facing";
+import { useSettings } from "@/routes/settings";
 
 const SPEEDS: Speed[] = [0.25, 0.5, 1, 2];
 
@@ -43,6 +44,7 @@ export function Hud({ world }: { world: World }) {
   const p1id = useProfiles((s) => s.p1);
   const p2id = useProfiles((s) => s.p2);
   const plist = useProfiles((s) => s.profiles);
+  const blind = useSettings((s) => s.blind);
 
   useEffect(() => {
     try {
@@ -60,6 +62,12 @@ export function Hud({ world }: { world: World }) {
   const p2 = plist.find((p) => p.id === p2id);
   const phase = snapshot?.phase ?? "setup";
   const cards = rosterFor(faction);
+  const meProfile = placingSide === 0 ? p1 : p2;
+  const newAnomalies = meProfile?.newAnomalies ?? [];
+
+  useEffect(() => {
+    if (menuOpen) setPaused(true);
+  }, [menuOpen, setPaused]);
 
   useEffect(() => {
     if (phase === "countdown") setMessage("Don't blink.");
@@ -223,6 +231,36 @@ export function Hud({ world }: { world: World }) {
     }
   };
 
+  const restartOrRematch = () => {
+    useGame.getState().setMenuOpen(false);
+    if (phase === "setup" && world.layout.length === 0) {
+      clearField();
+      return;
+    }
+    rematch();
+  };
+
+  const surrender = () => {
+    const st = useGame.getState();
+    const loser: 0 | 1 = st.vsAI || st.seat !== "setupP2" ? 0 : 1;
+    const winner: 0 | 1 = loser === 0 ? 1 : 0;
+    for (const u of world.units) {
+      if (u.side !== loser || u.state === "dead" || u.gone) continue;
+      try {
+        world.kill(u, null);
+      } catch {
+        /* */
+      }
+    }
+    world.phase = "over";
+    world.winner = winner;
+    st.setMenuOpen(false);
+    st.setPaused(false);
+    st.setSeat("results");
+    st.setSnapshot(world.snapshot());
+    setMessage("Surrendered.");
+  };
+
   return (
     <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 text-ink md:p-4">
       <header className="pointer-events-auto flex flex-wrap items-start justify-between gap-3">
@@ -291,6 +329,14 @@ export function Hud({ world }: { world: World }) {
             {snapshot?.units.length ?? 0} on the field
             {p1 && p2 ? ` · ${p1.credits} / ${p2.credits}¢` : ""}
           </p>
+          <PowerupRow
+            powerups={powerups}
+            placingSide={placingSide}
+            phase={phase}
+            blind={blind}
+            p1Name={p1?.name ?? "P1"}
+            p2Name={p2?.name ?? "P2"}
+          />
           {phase !== "setup" && snapshot && (
             <div className="mt-1 flex h-2 overflow-hidden rounded-btn border-[2px] border-ink">
               <span className="bg-steel" style={{ width: `${Math.max(4, (snapshot.counts[0] / Math.max(1, snapshot.counts[0] + snapshot.counts[1])) * 100)}%` }} />
@@ -333,6 +379,9 @@ export function Hud({ world }: { world: World }) {
                     }}
                   />
                   {FACTION_META[id].name}
+                  {id === "anomaly" && newAnomalies.length > 0 && (
+                    <span className="rounded-btn bg-ochre-hot px-1 text-xs font-display">NEW</span>
+                  )}
                 </button>
               );
             })}
@@ -345,15 +394,29 @@ export function Hud({ world }: { world: World }) {
             })
             .map((u) => {
             const on = selected.id === u.id;
+            const isNew = u.faction === "anomaly" && newAnomalies.includes(u.id);
             return (
               <button
                 key={u.id}
                 type="button"
-                onClick={() => setSelected(u)}
-                className={`toy-shadow w-[200px] rounded-card border-[3px] border-ink px-3 py-2 text-left ${
+                onClick={() => {
+                  setSelected(u);
+                  if (isNew) {
+                    const who = placingSide === 0 ? p1id : p2id;
+                    if (who) useProfiles.getState().clearNewAnomaly(who, u.id);
+                  }
+                }}
+                className={`toy-shadow relative w-[200px] rounded-card border-[3px] border-ink px-3 py-2 text-left ${
                   on ? "bg-ochre-hot" : "bg-parchment"
                 }`}
               >
+                {isNew && (
+                  <img
+                    src="/assets/badge-new.png"
+                    alt="NEW"
+                    className="pointer-events-none absolute -right-2 -top-2 h-10 w-10"
+                  />
+                )}
                 <div className="mb-1 flex h-8 overflow-hidden rounded-btn border-[2px] border-ink">
                   <span className="w-1/2" style={{ background: u.palette.primary }} />
                   <span className="w-1/4" style={{ background: u.palette.skin }} />
@@ -623,9 +686,39 @@ export function Hud({ world }: { world: World }) {
           <div className="toy-shadow w-full max-w-sm rounded-card border-[3px] border-ink bg-cream p-5 text-ink">
             <h2 className="font-display text-3xl">Paused</h2>
             <div className="mt-4 flex flex-col gap-2">
-              <button type="button" className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-4 py-2 font-display" onClick={() => useGame.getState().setMenuOpen(false)}>
+              <button
+                type="button"
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-4 py-2 font-display"
+                onClick={() => {
+                  useGame.getState().setMenuOpen(false);
+                  useGame.getState().setPaused(false);
+                }}
+              >
                 Resume
               </button>
+              <button
+                type="button"
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display"
+                onClick={restartOrRematch}
+              >
+                {phase === "setup" && world.layout.length === 0 ? "Restart" : "Rematch"}
+              </button>
+              <button
+                type="button"
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display"
+                onClick={surrender}
+              >
+                Surrender
+              </button>
+              <Link
+                to="/settings"
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display text-center"
+                onClick={(e) => {
+                  if (phase !== "setup" && !window.confirm("Leave this fight?")) e.preventDefault();
+                }}
+              >
+                Settings
+              </Link>
               <Link
                 to="/"
                 className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-4 py-2 font-display text-center"
@@ -666,6 +759,74 @@ function PassCurtain({ onDone }: { onDone: () => void }) {
   );
 }
 
+function PowerupRow({
+  powerups,
+  placingSide,
+  phase,
+  blind,
+  p1Name,
+  p2Name,
+}: {
+  powerups: [string[], string[]];
+  placingSide: 0 | 1;
+  phase: string;
+  blind: boolean;
+  p1Name: string;
+  p2Name: string;
+}) {
+  if (powerups[0].length === 0 && powerups[1].length === 0) return null;
+  const names = [p1Name, p2Name];
+  return (
+    <div className="mt-1 flex flex-col gap-0.5 text-xs">
+      {([0, 1] as const).map((side) => {
+        const ids = powerups[side];
+        if (ids.length === 0) return null;
+        const mine = phase === "setup" ? side === placingSide : true;
+        const hide = blind && !mine;
+        if (hide) {
+          return (
+            <p key={side} className="text-muted">
+              {names[side]} is using {ids.length} powerup{ids.length === 1 ? "" : "s"}
+            </p>
+          );
+        }
+        return (
+          <p key={side} className="text-muted">
+            {names[side]}:{" "}
+            {ids
+              .map((id) => POWERUPS.find((p) => p.id === id)?.name ?? id)
+              .join(", ")}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function CreditCount({ value }: { value: number }) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const reduce =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || value <= 0) {
+      setShown(value);
+      return;
+    }
+    const start = performance.now();
+    const dur = 900;
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - (1 - t) * (1 - t);
+      setShown(Math.round(value * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <p className="mt-1 font-display text-ochre-hot">+{shown} credits</p>;
+}
+
 function ResultsCard({
   world,
   onRematch,
@@ -683,6 +844,7 @@ function ResultsCard({
   const p1id = useProfiles((s) => s.p1);
   const p2id = useProfiles((s) => s.p2);
   const plist = useProfiles((s) => s.profiles);
+  const [daily, setDaily] = useState({ p1: 0, p2: 0 });
   const hotseat = creditPayout(snapshot?.winner ?? "draw", stats.spent[snapshot?.winner === 0 ? 1 : 0] ?? 0, stats.mvpSide);
   const firstLadder = vsAI && ladderLevel != null && (plist.find((p) => p.id === p1id)?.ladderProgress ?? 0) < ladderLevel;
   const pay = vsAI && ladderLevel != null
@@ -692,9 +854,12 @@ function ResultsCard({
   useEffect(() => {
     if (awarded || !snapshot || snapshot.phase !== "over") return;
     const api = useProfiles.getState();
-    api.addCredits(api.p1, pay.p1);
+    const d1 = api.claimDailyBonus(api.p1);
+    const d2 = vsAI ? 0 : api.claimDailyBonus(api.p2);
+    setDaily({ p1: d1, p2: d2 });
+    api.addCredits(api.p1, pay.p1 + d1);
     if (!vsAI) {
-      api.addCredits(api.p2, pay.p2);
+      api.addCredits(api.p2, pay.p2 + d2);
       api.recordBattle(api.p1, snapshot.winner === 0);
       api.recordBattle(api.p2, snapshot.winner === 1);
     } else {
@@ -706,6 +871,13 @@ function ResultsCard({
 
   const p1 = plist.find((p) => p.id === p1id);
   const p2 = plist.find((p) => p.id === p2id);
+  const today = localDateKey();
+  const peekDaily = (date: string | undefined) => (date === today ? 0 : DAILY_BATTLE_BONUS);
+  const p1Shown = pay.p1 + (awarded ? daily.p1 : peekDaily(p1?.dailyBonusDate));
+  const p2Shown = pay.p2 + (awarded ? daily.p2 : vsAI ? 0 : peekDaily(p2?.dailyBonusDate));
+  const p1Bank = (p1?.credits ?? 0) + (awarded ? 0 : p1Shown);
+  const p2Bank = vsAI ? 0 : (p2?.credits ?? 0) + (awarded ? 0 : p2Shown);
+  const canRoll = p1Bank >= ROLL_COST || p2Bank >= ROLL_COST;
   const title =
     snapshot?.winner === "draw" ? "DRAW" : snapshot?.winner === 0 ? `${p1?.name ?? "P1"} WINS` : `${p2?.name ?? "P2"} WINS`;
 
@@ -719,14 +891,16 @@ function ResultsCard({
             <p>Spent {stats.spent[0]}</p>
             <p>Lost {stats.lost[0]}</p>
             <p>Damage {Math.round(stats.damage[0])}</p>
-            <p className="mt-1 font-display text-ochre-hot">+{pay.p1} credits</p>
+            <CreditCount value={p1Shown} />
+            {p1Shown > pay.p1 && <p className="text-xs text-muted">includes daily +{p1Shown - pay.p1}</p>}
           </div>
           <div className="rounded-card border-[3px] border-ink bg-parchment p-3">
             <p className="font-display text-xl">{p2?.name ?? "P2"}</p>
             <p>Spent {stats.spent[1]}</p>
             <p>Lost {stats.lost[1]}</p>
             <p>Damage {Math.round(stats.damage[1])}</p>
-            <p className="mt-1 font-display text-ochre-hot">+{pay.p2} credits</p>
+            <CreditCount value={p2Shown} />
+            {p2Shown > pay.p2 && <p className="text-xs text-muted">includes daily +{p2Shown - pay.p2}</p>}
           </div>
         </div>
         <p className="mt-3 text-sm text-muted">
@@ -749,13 +923,15 @@ function ResultsCard({
           >
             New armies
           </button>
-          <Link
-            to="/roll"
-            onPointerDown={(e) => e.stopPropagation()}
-            className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display"
-          >
-            Roll
-          </Link>
+          {canRoll && (
+            <Link
+              to="/roll"
+              onPointerDown={(e) => e.stopPropagation()}
+              className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display"
+            >
+              Roll
+            </Link>
+          )}
           <Link
             to="/"
             onPointerDown={(e) => e.stopPropagation()}

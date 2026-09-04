@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ROLL_COST, rollPrize, type Prize } from "@/game/data/rolls";
+import { ROLL_BUNDLE_COST, ROLL_BUNDLE_COUNT, ROLL_COST, rollMany, rollPrize, type Prize } from "@/game/data/rolls";
 import { useProfiles } from "@/game/meta/profiles";
 
 export const Route = createFileRoute("/roll")({
@@ -21,6 +21,7 @@ function RollPage() {
   const [dropping, setDropping] = useState(false);
   const [open, setOpen] = useState(false);
   const [prize, setPrize] = useState<Prize | null>(null);
+  const [haul, setHaul] = useState<Prize[] | null>(null);
   const [note, setNote] = useState("");
   useEffect(() => {
     profiles.ensureDefaults();
@@ -41,6 +42,7 @@ function RollPage() {
     const next = rollPrize(me.pity ?? 0);
     setDropping(true);
     setOpen(false);
+    setHaul(null);
     setPrize(next);
     setNote("");
     window.setTimeout(() => {
@@ -48,6 +50,24 @@ function RollPage() {
       useProfiles.getState().grantPrize(me.id, next);
       setDropping(false);
     }, 1300);
+  };
+
+  const pullTen = () => {
+    if (!me || dropping) return;
+    if (me.credits < ROLL_BUNDLE_COST) {
+      setNote(`Need ${ROLL_BUNDLE_COST} credits for a 10-pull.`);
+      return;
+    }
+    if (!profiles.spendCredits(me.id, ROLL_BUNDLE_COST)) return;
+    const api = useProfiles.getState();
+    const prizes = rollMany(ROLL_BUNDLE_COUNT, api.byId(me.id)?.pity ?? 0);
+    for (const next of prizes) api.grantPrize(me.id, next);
+    const star = prizes.find((p) => p.kind === "anomaly") ?? prizes[prizes.length - 1] ?? null;
+    setHaul(prizes);
+    setPrize(star);
+    setOpen(true);
+    setDropping(false);
+    setNote("");
   };
 
   const label = useMemo(() => {
@@ -63,7 +83,7 @@ function RollPage() {
         <p className="font-display text-sm text-cream/70">Gumball</p>
         <h1 className="font-display text-5xl">Roll</h1>
         <p className="mt-2 text-cream/80">
-          {ROLL_COST} credits a pull. Pity hands you an Anomaly on the 20th dry roll.
+          {ROLL_COST} credits a pull, or {ROLL_BUNDLE_COST} for ten. Pity hands you an Anomaly on the 20th dry roll.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2">
@@ -116,6 +136,16 @@ function RollPage() {
           </p>
         )}
 
+        {haul && open && (
+          <ul className="mt-3 grid grid-cols-2 gap-1 text-sm text-cream/90">
+            {haul.map((p, i) => (
+              <li key={`${p.kind}-${i}`} className={p.kind === "anomaly" ? "font-display text-ochre-hot" : ""}>
+                {p.kind === "credits" ? `+${p.amount} credits` : p.name}
+              </li>
+            ))}
+          </ul>
+        )}
+
         <button
           type="button"
           onClick={pull}
@@ -123,6 +153,14 @@ function RollPage() {
           className="toy-shadow mt-6 rounded-btn border-[3px] border-ink bg-ochre-hot px-6 py-3 font-display text-2xl text-ink active:scale-95 disabled:opacity-60"
         >
           Pull lever
+        </button>
+        <button
+          type="button"
+          onClick={pullTen}
+          disabled={dropping}
+          className="toy-shadow ml-3 mt-6 rounded-btn border-[3px] border-ink bg-parchment px-4 py-3 font-display text-xl text-ink active:scale-95 disabled:opacity-60"
+        >
+          10-pull · {ROLL_BUNDLE_COST}
         </button>
         <Link to="/" className="toy-shadow ml-3 inline-block rounded-btn border-[3px] border-ink bg-cream px-4 py-2 font-display text-ink">
           Back
