@@ -80,7 +80,13 @@ export function TitleToys() {
 
   return (
     <div className="pointer-events-none absolute inset-0">
-      <Canvas camera={{ position: [22, 16, 22], fov: 42 }} dpr={[1, 1.25]} gl={{ antialias: true, alpha: true }}>
+      <Canvas
+        camera={{ position: [22, 16, 22], fov: 42 }}
+        dpr={[1, 1.25]}
+        gl={{ antialias: true, alpha: true }}
+        // R3F's wrapper defaults to pointer-events: auto and would eat title clicks.
+        style={{ pointerEvents: "none" }}
+      >
         <SkyDome sky="#8ec6e8" />
         <Clouds />
         <fog attach="fog" args={["#9fd0ee", 40, 110]} />

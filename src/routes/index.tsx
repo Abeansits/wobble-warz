@@ -15,7 +15,7 @@ function Home() {
   return (
     <main className="relative min-h-dvh overflow-hidden bg-meadow-deep text-cream">
       <TitleToys />
-      <div className="relative mx-auto flex min-h-dvh max-w-5xl flex-col justify-between px-6 py-10">
+      <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col justify-between px-6 py-10">
         <header className="flex items-start justify-between gap-4">
           <p className="rounded-btn border-[3px] border-ink bg-cream px-3 py-1 font-display text-ink toy-shadow">
             Playable

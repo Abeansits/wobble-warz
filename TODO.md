@@ -47,7 +47,7 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 - [x] Tests: same-seed determinism 600 steps; every unit 1v1 30s no NaN; stalemate breaker
 - [x] `src/game/sim/balance.ts` equal-cost mirrors (vitest smoke 2 rounds); flag >65% still a follow-up printout
 - [x] Spatial SFX (`PannerNode`); per-arena music loop; last-kill duck already sketched
-- [ ] Playwright: title → battle canvas, no console errors
+- [x] Playwright: title → battle canvas, no console errors
 
 ## Done (don't redo)
 
