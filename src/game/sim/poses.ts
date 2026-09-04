@@ -5,8 +5,10 @@ export const JOINT_ARML = 3;
 export const JOINT_ARMR = 4;
 export const JOINT_LEGS = 5;
 export const JOINT_COUNT = 6;
+export const JOINT_EXTRA = 6;
 
 export type PoseGait = "idle" | "run" | "stun";
+export type PoseKind = "humanoid" | "quadruped" | "vehicle" | "static";
 
 export type PoseRequest = {
   time: number;
@@ -15,6 +17,9 @@ export type PoseRequest = {
   swingDur: number;
   phase: number;
   hurtT?: number;
+  kind?: PoseKind;
+  charging?: boolean;
+  jointCount?: number;
 };
 
 export type JointEuler = { x: number; y: number; z: number };
@@ -63,10 +68,14 @@ function zero(j: JointEuler) {
  * ang = sin((1 - swingT/dur) * π) * 1.4 on the right arm.
  */
 export function poseJoints(req: PoseRequest, out: JointEuler[]): JointEuler[] {
-  while (out.length < JOINT_COUNT) out.push({ x: 0, y: 0, z: 0 });
-  for (let i = 0; i < JOINT_COUNT; i++) zero(out[i]);
+  const n = Math.max(JOINT_COUNT, req.jointCount ?? (req.kind === "quadruped" || req.kind === "vehicle" ? 7 : 6));
+  while (out.length < n) out.push({ x: 0, y: 0, z: 0 });
+  for (let i = 0; i < n; i++) zero(out[i]);
 
   const t = req.time + req.phase;
+  if (req.kind === "quadruped") return poseQuad(req, out, t, n);
+  if (req.kind === "vehicle") return poseVehicle(req, out, t, n);
+  if (req.kind === "static") return poseStatic(req, out, t);
 
   if (req.gait === "run") {
     const a = Math.sin(t * 8.4);
@@ -110,5 +119,48 @@ export function poseJoints(req: PoseRequest, out: JointEuler[]): JointEuler[] {
     out[JOINT_ARML].x -= ang * 0.12;
   }
 
+  return out;
+}
+
+function poseQuad(req: PoseRequest, out: JointEuler[], t: number, n: number): JointEuler[] {
+  const rate = req.charging ? 10.2 : req.gait === "run" ? 7.2 : 2.4;
+  const amp = req.gait === "stun" ? 0.08 : req.gait === "run" ? 0.48 : 0.12;
+  const a = Math.sin(t * rate);
+  // Trot: FL+BR vs FR+BL.
+  out[JOINT_ARML].x = a * amp;
+  out[JOINT_ARMR].x = -a * amp;
+  out[JOINT_LEGS].x = -a * amp;
+  if (n > JOINT_EXTRA) out[JOINT_EXTRA].x = a * amp;
+  out[JOINT_TORSO].x = Math.abs(a) * (req.gait === "run" ? 0.08 : 0.03);
+  out[JOINT_HEAD].x = a * 0.14;
+  if (req.gait === "stun") {
+    out[JOINT_TORSO].x = 0.22;
+    out[JOINT_HEAD].x = 0.28;
+  }
+  if (req.hurtT && req.hurtT > 0) out[JOINT_TORSO].x += 0.12;
+  return out;
+}
+
+function poseVehicle(req: PoseRequest, out: JointEuler[], t: number, n: number): JointEuler[] {
+  const spin = req.gait === "run" || req.charging ? t * (req.charging ? 9 : 5.5) : t * 0.4;
+  out[JOINT_ARML].x = spin;
+  out[JOINT_ARMR].x = spin;
+  out[JOINT_LEGS].x = spin;
+  if (n > JOINT_EXTRA) out[JOINT_EXTRA].x = spin;
+  out[JOINT_TORSO].z = Math.sin(t * 3.4) * (req.gait === "run" ? 0.05 : 0.02);
+  out[JOINT_HEAD].x = req.gait === "stun" ? 0.18 : Math.sin(t * 2.1) * 0.04;
+  if (req.hurtT && req.hurtT > 0) out[JOINT_TORSO].x += 0.1;
+  return out;
+}
+
+function poseStatic(req: PoseRequest, out: JointEuler[], t: number): JointEuler[] {
+  out[JOINT_TORSO].x = Math.sin(t * 1.1) * 0.03;
+  out[JOINT_HEAD].x = Math.sin(t * 1.1 + 0.4) * 0.02;
+  if (req.swingT > 0 && req.swingDur > 0) {
+    const u = Math.max(0, Math.min(1, 1 - req.swingT / req.swingDur));
+    out[JOINT_TORSO].x = -Math.sin(u * Math.PI) * 0.5;
+    out[JOINT_HEAD].x = -Math.sin(u * Math.PI) * 0.2;
+  }
+  if (req.hurtT && req.hurtT > 0) out[JOINT_TORSO].x += 0.08;
   return out;
 }

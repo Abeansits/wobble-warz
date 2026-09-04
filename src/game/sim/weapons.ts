@@ -103,6 +103,7 @@ export function tryAttack(sim: SimCtx, u: UnitInternal) {
       u.cooldown = w.cooldown;
       u.state = "attack";
       u.face = "angry";
+      if (u.def.body.kind === "static") u.swingT = 0.32;
       sim.events.push({ type: "shot", unitId: u.id });
     }
     return;

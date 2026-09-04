@@ -12,7 +12,27 @@ export type FactionId = (typeof FACTIONS)[number];
 export type TargetRule = "nearest" | "prefer:large" | "prefer:ranged" | "prefer:weakest";
 
 export type PartShape = "box" | "capsule" | "sphere";
-export type PartSlot = "pelvis" | "torso" | "head" | "armL" | "armR" | "legs" | "weapon" | "scarf" | "hat" | "belt" | "shield" | "extra";
+export type PartSlot =
+  | "pelvis"
+  | "torso"
+  | "head"
+  | "armL"
+  | "armR"
+  | "legs"
+  | "weapon"
+  | "scarf"
+  | "hat"
+  | "belt"
+  | "shield"
+  | "extra"
+  | "legFL"
+  | "legFR"
+  | "legBL"
+  | "legBR"
+  | "wheelFL"
+  | "wheelFR"
+  | "wheelBL"
+  | "wheelBR";
 export type ColorToken = "primary" | "secondary" | "accent" | "skin" | "team" | "wood" | "metal";
 
 export type MeshPart = {

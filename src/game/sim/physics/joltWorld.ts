@@ -1,4 +1,5 @@
 import type { UnitDef } from "@/game/data/types";
+import { yawOffset } from "../facing";
 import {
   JOINT_COUNT,
   eulerToQuat,
@@ -6,6 +7,13 @@ import {
   type JointEuler,
   type PoseRequest,
 } from "../poses";
+import {
+  BONE_ALIASES,
+  skeletonLayout,
+  type SkelLayout,
+  type SkelPart,
+  type TwistAxis,
+} from "./skeletons";
 
 export type JoltModule = Awaited<ReturnType<(typeof import("jolt-physics"))["default"]>>;
 
@@ -25,14 +33,13 @@ export type TransformSnap = {
   qw: number;
 };
 
-const PART_NAMES = ["pelvis", "torso", "head", "armL", "armR", "legs"] as const;
-export type RagdollPartName = (typeof PART_NAMES)[number];
+export type RagdollPartName = string;
 
 export type BuiltRagdoll = {
   ragdoll: InstanceType<JoltModule["Ragdoll"]>;
   settings: InstanceType<JoltModule["RagdollSettings"]>;
   pose: InstanceType<JoltModule["SkeletonPose"]>;
-  bodyIds: Record<RagdollPartName, BodyHandle>;
+  bodyIds: Record<string, BodyHandle>;
   orderedIds: BodyHandle[];
   rootBody: BodyHandle;
   pelvisSpring: InstanceType<JoltModule["Constraint"]>;
@@ -40,6 +47,7 @@ export type BuiltRagdoll = {
   swingTorque: number;
   twistTorque: number;
   alive: boolean;
+  kind: UnitDef["body"]["kind"];
 };
 
 export type { PoseRequest };
@@ -69,7 +77,7 @@ export class JoltWorld {
   private vec3!: InstanceType<JoltModule["Vec3"]>;
   private rvec3!: InstanceType<JoltModule["RVec3"]>;
   private quat!: InstanceType<JoltModule["Quat"]>;
-  private poseScratch: JointEuler[] = Array.from({ length: JOINT_COUNT }, () => ({ x: 0, y: 0, z: 0 }));
+  private poseScratch: JointEuler[] = Array.from({ length: JOINT_COUNT + 2 }, () => ({ x: 0, y: 0, z: 0 }));
 
   async init() {
     const initJolt = (await import("jolt-physics")).default;
@@ -236,73 +244,87 @@ export class JoltWorld {
   }
 
   createHumanoid(def: UnitDef, x: number, y: number, z: number, yaw: number, groupId: number, layer = LAYER_MOVING): BuiltRagdoll {
+    return this.createUnit(def, x, y, z, yaw, groupId, layer);
+  }
+
+  createUnit(def: UnitDef, x: number, y: number, z: number, yaw: number, groupId: number, layer = LAYER_MOVING): BuiltRagdoll {
+    const layout = skeletonLayout(def.body.kind);
+    return this.createFromLayout(def, layout, x, y, z, yaw, groupId, layer);
+  }
+
+  private createFromLayout(
+    def: UnitDef,
+    layout: SkelLayout,
+    x: number,
+    y: number,
+    z: number,
+    yaw: number,
+    groupId: number,
+    layer: number,
+  ): BuiltRagdoll {
     const Jolt = this.Jolt;
     const s = def.body.scale;
     const mass = 12 * def.body.massMult * s * s * s;
+    const parts = layout.parts;
 
     const skeleton = new Jolt.Skeleton();
-    const strs = ["pelvis", "torso", "head", "armL", "armR", "legs"].map(
-      (n) => new Jolt.JPHString(n, n.length),
-    );
-    const pelvis = skeleton.AddJoint(strs[0], -1);
-    const torso = skeleton.AddJoint(strs[1], pelvis);
-    skeleton.AddJoint(strs[2], torso);
-    skeleton.AddJoint(strs[3], torso);
-    skeleton.AddJoint(strs[4], torso);
-    skeleton.AddJoint(strs[5], pelvis);
+    const strs = parts.map((part) => new Jolt.JPHString(part.name, part.name.length));
+    for (let i = 0; i < parts.length; i++) skeleton.AddJoint(strs[i], parts[i].parent);
     for (const n of strs) Jolt.destroy(n);
 
     const ident = Jolt.Quat.prototype.sIdentity();
-
-    // Capsules are Y-up. Keep every part identity so they stand, not lie on a side.
-    const shapes = [
-      new Jolt.CapsuleShape(0.08 * s, 0.13 * s),
-      new Jolt.CapsuleShape(0.15 * s, 0.15 * s),
-      new Jolt.SphereShape(0.15 * s),
-      new Jolt.CapsuleShape(0.15 * s, 0.05 * s),
-      new Jolt.CapsuleShape(0.15 * s, 0.05 * s),
-      new Jolt.CapsuleShape(0.22 * s, 0.11 * s),
-    ];
-
-    const positions = [
-      new Jolt.RVec3(x, y + 0.88 * s, z),
-      new Jolt.RVec3(x, y + 1.22 * s, z),
-      new Jolt.RVec3(x, y + 1.54 * s, z),
-      new Jolt.RVec3(x - 0.28 * s, y + 1.22 * s, z),
-      new Jolt.RVec3(x + 0.28 * s, y + 1.22 * s, z),
-      new Jolt.RVec3(x, y + 0.42 * s, z),
-    ];
-
-    const rotations = [ident, ident, ident, ident, ident, ident];
-
-    const constraintPos = [
-      new Jolt.RVec3(0, 0, 0),
-      new Jolt.RVec3(x, y + 1.05 * s, z),
-      new Jolt.RVec3(x, y + 1.4 * s, z),
-      new Jolt.RVec3(x - 0.16 * s, y + 1.34 * s, z),
-      new Jolt.RVec3(x + 0.16 * s, y + 1.34 * s, z),
-      new Jolt.RVec3(x, y + 0.68 * s, z),
-    ];
-
     const axisY = Jolt.Vec3.prototype.sAxisY();
     const axisX = Jolt.Vec3.prototype.sAxisX();
     const axisZ = Jolt.Vec3.prototype.sAxisZ();
     const minusX = new Jolt.Vec3(-1, 0, 0);
     const minusY = new Jolt.Vec3(0, -1, 0);
-    const twist = [axisY, axisY, axisY, minusX, axisX, minusY];
-    const twistDeg = [0, 16, 35, 35, 35, 20];
-    const normalDeg = [0, 22, 28, 55, 55, 28];
-    const planeDeg = [0, 22, 28, 40, 40, 28];
+    const twistVec = (a: TwistAxis) =>
+      a === "x" ? axisX : a === "-x" ? minusX : a === "-y" ? minusY : a === "z" ? axisZ : axisY;
+
+    const shapes = parts.map((part) => this.makeSkelShape(part, s));
+    const positions = parts.map((part) => {
+      const lx = part.pos[0] * s;
+      const ly = part.pos[1] * s;
+      const lz = part.pos[2] * s;
+      if (layout.orient) {
+        const o = yawOffset(lx, lz, yaw);
+        return new Jolt.RVec3(x + o.x, y + ly, z + o.z);
+      }
+      return new Jolt.RVec3(x + lx, y + ly, z + lz);
+    });
+    const rotations = parts.map((part) => {
+      if (layout.orient && part.orient) {
+        const half = yaw * 0.5;
+        return new Jolt.Quat(0, Math.sin(half), 0, Math.cos(half));
+      }
+      return ident;
+    });
+    const constraintPos = parts.map((part) => {
+      const lx = part.joint[0] * s;
+      const ly = part.joint[1] * s;
+      const lz = part.joint[2] * s;
+      if (layout.orient) {
+        const o = yawOffset(lx, lz, yaw);
+        return new Jolt.RVec3(x + o.x, y + ly, z + o.z);
+      }
+      return new Jolt.RVec3(x + lx, y + ly, z + lz);
+    });
+
+    const motorFreq = layout.kind === "static" ? 6.2 : POSE_MOTOR_FREQ;
+    const swingTorque = layout.kind === "static" ? 22 : layout.kind === "vehicle" ? 12 : POSE_SWING_TORQUE;
+    const twistTorque = layout.kind === "static" ? 14 : layout.kind === "vehicle" ? 8 : POSE_TWIST_TORQUE;
+    const friction = layout.kind === "static" ? 8 : 2.4;
 
     const settings = new Jolt.RagdollSettings();
     settings.mSkeleton = skeleton;
     settings.mParts.resize(skeleton.GetJointCount());
 
-    for (let p = 0; p < skeleton.GetJointCount(); p++) {
-      const part = settings.mParts.at(p);
-      part.SetShape(shapes[p]);
-      part.mPosition = positions[p];
-      part.mRotation = rotations[p];
+    for (let i = 0; i < skeleton.GetJointCount(); i++) {
+      const spec = parts[i];
+      const part = settings.mParts.at(i);
+      part.SetShape(shapes[i]);
+      part.mPosition = positions[i];
+      part.mRotation = rotations[i];
       part.mMotionType = Jolt.EMotionType_Dynamic;
       part.mObjectLayer = layer;
       part.mFriction = 0.7;
@@ -311,31 +333,31 @@ export class JoltWorld {
       part.mAngularDamping = 0.85;
       part.mGravityFactor = 0.85;
       part.mOverrideMassProperties = Jolt.EOverrideMassProperties_CalculateInertia;
-      const partMass = p === 0 ? mass * 0.28 : p === 1 ? mass * 0.32 : mass * 0.1;
-      part.mMassPropertiesOverride.mMass = Math.max(0.5, partMass);
+      part.mMassPropertiesOverride.mMass = Math.max(0.5, mass * spec.massFrac);
 
-      if (p > 0) {
+      if (i > 0) {
         const constraint = new Jolt.SwingTwistConstraintSettings();
-        constraint.mPosition1 = constraintPos[p];
-        constraint.mPosition2 = constraintPos[p];
-        constraint.mTwistAxis1 = twist[p];
-        constraint.mTwistAxis2 = twist[p];
+        constraint.mPosition1 = constraintPos[i];
+        constraint.mPosition2 = constraintPos[i];
+        const axis = twistVec(spec.twist);
+        constraint.mTwistAxis1 = axis;
+        constraint.mTwistAxis2 = axis;
         constraint.mPlaneAxis1 = axisZ;
         constraint.mPlaneAxis2 = axisZ;
         const deg = (d: number) => (d * Math.PI) / 180;
-        constraint.mTwistMinAngle = -deg(twistDeg[p]);
-        constraint.mTwistMaxAngle = deg(twistDeg[p]);
-        constraint.mNormalHalfConeAngle = deg(normalDeg[p]);
-        constraint.mPlaneHalfConeAngle = deg(planeDeg[p]);
-        constraint.mMaxFrictionTorque = 2.4;
-        constraint.mSwingMotorSettings.mSpringSettings.mFrequency = POSE_MOTOR_FREQ;
+        constraint.mTwistMinAngle = -deg(spec.twistDeg);
+        constraint.mTwistMaxAngle = deg(spec.twistDeg);
+        constraint.mNormalHalfConeAngle = deg(spec.normalDeg);
+        constraint.mPlaneHalfConeAngle = deg(spec.planeDeg);
+        constraint.mMaxFrictionTorque = friction;
+        constraint.mSwingMotorSettings.mSpringSettings.mFrequency = motorFreq;
         constraint.mSwingMotorSettings.mSpringSettings.mDamping = POSE_MOTOR_DAMP;
-        constraint.mSwingMotorSettings.mMinTorqueLimit = -POSE_SWING_TORQUE;
-        constraint.mSwingMotorSettings.mMaxTorqueLimit = POSE_SWING_TORQUE;
-        constraint.mTwistMotorSettings.mSpringSettings.mFrequency = POSE_MOTOR_FREQ;
+        constraint.mSwingMotorSettings.mMinTorqueLimit = -swingTorque;
+        constraint.mSwingMotorSettings.mMaxTorqueLimit = swingTorque;
+        constraint.mTwistMotorSettings.mSpringSettings.mFrequency = motorFreq;
         constraint.mTwistMotorSettings.mSpringSettings.mDamping = POSE_MOTOR_DAMP;
-        constraint.mTwistMotorSettings.mMinTorqueLimit = -POSE_TWIST_TORQUE;
-        constraint.mTwistMotorSettings.mMaxTorqueLimit = POSE_TWIST_TORQUE;
+        constraint.mTwistMotorSettings.mMinTorqueLimit = -twistTorque;
+        constraint.mTwistMotorSettings.mMaxTorqueLimit = twistTorque;
         part.mToParent = constraint;
       }
     }
@@ -352,23 +374,26 @@ export class JoltWorld {
     pose.CalculateJointMatrices();
 
     const orderedIds: BodyHandle[] = [];
-    const bodyIds = {} as Record<RagdollPartName, BodyHandle>;
+    const bodyIds: Record<string, BodyHandle> = {};
     for (let i = 0; i < ragdoll.GetBodyCount(); i++) {
       const id = ragdoll.GetBodyID(i).GetIndexAndSequenceNumber();
       orderedIds.push(id);
-      bodyIds[PART_NAMES[i]] = id;
+      const name = parts[i]?.name ?? `part${i}`;
+      bodyIds[name] = id;
+      for (const alias of BONE_ALIASES[name] ?? []) bodyIds[alias] = id;
     }
 
-    const rootBody = this.createKinematicCapsule(x, y + 0.95 * s, z, 0.42 * s, 0.16 * s, layer);
+    const lift = layout.rootLift * s;
+    const rootBody = this.createKinematicCapsule(x, y + lift, z, layout.rootHalf * s, layout.rootRadius * s, layer);
     this.setRotation(rootBody, yaw);
 
     const springFreq = Math.max(8, def.body.springStiffness * 0.7);
     const springSettings = new Jolt.DistanceConstraintSettings();
     springSettings.mSpace = Jolt.EConstraintSpace_WorldSpace;
-    springSettings.mPoint1 = this.rv(x, y + 0.95 * s, z);
-    springSettings.mPoint2 = this.rv(x, y + 0.95 * s, z);
+    springSettings.mPoint1 = this.rv(x, y + lift, z);
+    springSettings.mPoint2 = this.rv(x, y + lift, z);
     springSettings.mMinDistance = 0.02;
-    springSettings.mMaxDistance = 0.12 * s;
+    springSettings.mMaxDistance = layout.springSlack * s;
     springSettings.mLimitsSpringSettings.mFrequency = springFreq;
     springSettings.mLimitsSpringSettings.mDamping = 0.55;
 
@@ -389,12 +414,25 @@ export class JoltWorld {
       rootBody,
       pelvisSpring: constraint,
       springFreq,
-      swingTorque: POSE_SWING_TORQUE,
-      twistTorque: POSE_TWIST_TORQUE,
+      swingTorque,
+      twistTorque,
       alive: true,
+      kind: layout.kind,
     };
     this.ownedRagdolls.push(built);
     return built;
+  }
+
+  private makeSkelShape(part: SkelPart, s: number) {
+    const Jolt = this.Jolt;
+    if (part.shape === "sphere") return new Jolt.SphereShape(Math.max(0.04, part.size[0] * s));
+    if (part.shape === "box") {
+      const half = new Jolt.Vec3(Math.max(0.04, part.size[0] * s), Math.max(0.04, part.size[1] * s), Math.max(0.04, part.size[2] * s));
+      const shape = new Jolt.BoxShape(half, 0.04);
+      Jolt.destroy(half);
+      return shape;
+    }
+    return new Jolt.CapsuleShape(Math.max(0.04, part.size[0] * s), Math.max(0.04, part.size[1] * s));
   }
 
   setPosition(handle: BodyHandle, x: number, y: number, z: number, activate = true) {
@@ -645,7 +683,10 @@ export class JoltWorld {
 
   drivePose(built: BuiltRagdoll, req?: PoseRequest) {
     if (!built.alive) return;
-    if (req) this.writePose(built, poseJoints(req, this.poseScratch));
+    if (req) {
+      const filled = { ...req, kind: req.kind ?? built.kind, jointCount: req.jointCount ?? built.pose.GetJointCount() };
+      this.writePose(built, poseJoints(filled, this.poseScratch));
+    }
     built.ragdoll.DriveToPoseUsingMotors(built.pose);
   }
 

@@ -9,3 +9,10 @@ export function deployYaw(side: Side): number {
 export function lookYaw(dx: number, dz: number): number {
   return Math.atan2(dx, dz);
 }
+
+/** Rotate a +Z-forward local XZ offset by yaw. */
+export function yawOffset(lx: number, lz: number, yaw: number): { x: number; z: number } {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  return { x: lx * c + lz * s, z: -lx * s + lz * c };
+}

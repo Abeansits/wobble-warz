@@ -1,3 +1,4 @@
+import { spillRiders } from "./mounts";
 import type { SimCtx, UnitInternal } from "./unitTypes";
 
 export function applyDamage(
@@ -76,6 +77,7 @@ export function applyDamage(
     sim.physics.setActive(victim.ragdoll.rootBody, false);
     sim.physics.beginLaunch(victim.ragdoll);
     sim.events.push({ type: "launch", unitId: victim.id });
+    spillRiders(sim, victim);
   }
   if (victim.def.id === "anomaly.mirror" && attacker && attacker.id !== victim.id) {
     applyDamage(sim, attacker, dealt * 0.35, knockback * 0.4, null);
@@ -89,6 +91,7 @@ export function killUnit(sim: SimCtx, u: UnitInternal, killerId: number | null) 
   u.hp = 0;
   u.deadT = 0;
   u.charging = false;
+  spillRiders(sim, u);
   try {
     sim.physics.applyImpulse(u.ragdoll.bodyIds.torso, (sim.rng() - 0.5) * 8, 10, (sim.rng() - 0.5) * 8);
   } catch {

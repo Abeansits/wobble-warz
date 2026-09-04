@@ -1,6 +1,7 @@
 import { unitForBody } from "./combat";
 import { ARENA_HALF_X, ARENA_HALF_Z, FIXED_DT } from "./constants";
 import { lookYaw } from "./facing";
+import { rootLift } from "./physics/skeletons";
 import type { SimCtx, UnitInternal } from "./unitTypes";
 
 export function retarget(sim: SimCtx, u: UnitInternal) {
@@ -47,6 +48,10 @@ export function retarget(sim: SimCtx, u: UnitInternal) {
 export function steer(sim: SimCtx, u: UnitInternal, rush: boolean) {
   if (u.frozenT > 0) return;
   const target = sim.units.find((o) => o.id === u.targetId && o.state !== "dead" && !o.gone);
+  if (u.mounted) {
+    if (target) u.yaw = lookYaw(target.x - u.x, target.z - u.z);
+    return;
+  }
   if (!target) return;
   let dx = target.x - u.x;
   let dz = target.z - u.z;
@@ -109,7 +114,7 @@ export function steer(sim: SimCtx, u: UnitInternal, rush: boolean) {
     }
   }
   u.yaw = lookYaw(dx, dz);
-  u.y = sim.groundY(u.x, u.z) + 0.95 * u.def.body.scale;
+  u.y = sim.groundY(u.x, u.z) + rootLift(u.def.body.kind, u.def.body.scale);
   u.x = Math.max(-ARENA_HALF_X + 1, Math.min(ARENA_HALF_X - 1, u.x));
   u.z = Math.max(-ARENA_HALF_Z + 1, Math.min(ARENA_HALF_Z - 1, u.z));
 }

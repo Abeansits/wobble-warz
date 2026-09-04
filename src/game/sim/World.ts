@@ -18,6 +18,7 @@ import { LAYER_PHASE, JoltWorld, type BodyHandle, type TransformSnap } from "./p
 import { mulberry32, type Rng } from "./rng";
 import type { Flying, PlaceOpts, SimCtx, Tombstone, TetherLink, UnitInternal } from "./unitTypes";
 import { poseGait } from "./poses";
+import { dropMountSpring, rootLift, spawnCoachRiders, syncMounts } from "./mounts";
 import {
   clearShots,
   resolveMelee,
@@ -124,7 +125,7 @@ export class World implements SimCtx {
     this.buildArena();
     for (const u of this.units) {
       if (u.state === "dead" || u.gone) continue;
-      u.y = this.groundY(u.x, u.z) + 0.95 * u.def.body.scale;
+      u.y = this.groundY(u.x, u.z) + rootLift(u.def.body.kind, u.def.body.scale);
       this.physics.setPosition(u.ragdoll.rootBody, u.x, u.y, u.z);
     }
   }
@@ -168,7 +169,7 @@ export class World implements SimCtx {
     const def: UnitDef = opts.def ?? getUnit(p.defId);
     const y = this.groundY(p.x, p.z) + 0.05;
     const layer = def.id === "haunted.ghost" ? LAYER_PHASE : undefined;
-    const built = this.physics.createHumanoid(def, p.x, y, p.z, p.yaw, this.nextId, layer);
+    const built = this.physics.createUnit(def, p.x, y, p.z, p.yaw, this.nextId, layer);
     const unit: UnitInternal = {
       id: this.nextId++,
       def,
@@ -178,7 +179,7 @@ export class World implements SimCtx {
       state: "idle",
       face: "idle",
       x: p.x,
-      y: y + 0.95 * def.body.scale,
+      y: y + rootLift(def.body.kind, def.body.scale),
       z: p.z,
       yaw: p.yaw,
       ragdoll: built,
@@ -201,10 +202,13 @@ export class World implements SimCtx {
       summoned: opts.summoned ?? false,
       gone: false,
       frozenCorpse: false,
+      mounted: opts.mounted ?? false,
+      mountId: null,
     };
     this.units.push(unit);
     if (!opts.free) this.spent[p.side] += def.cost;
     this.events.push({ type: "spawn", unitId: unit.id, defId: def.id, side: p.side });
+    if (def.id === "frontier.stagecoach" && !opts.mounted) spawnCoachRiders(this, unit);
     return unit.id;
   }
 
@@ -218,6 +222,7 @@ export class World implements SimCtx {
 
   clearUnits() {
     for (const u of this.units) {
+      dropMountSpring(this, u);
       try {
         this.physics.destroyRagdoll(u.ragdoll);
       } catch {
@@ -259,16 +264,22 @@ export class World implements SimCtx {
   removeLast(side?: 0 | 1) {
     const idx =
       side == null
-        ? this.units.length - 1
+        ? [...this.units]
+            .map((u, i) => ({ u, i }))
+            .reverse()
+            .find((x) => !x.u.mounted && !x.u.summoned)?.i
         : [...this.units]
             .map((u, i) => ({ u, i }))
             .reverse()
-            .find((x) => x.u.side === side)?.i;
+            .find((x) => x.u.side === side && !x.u.mounted && !x.u.summoned)?.i;
     if (idx == null || idx < 0) return null;
     return this.removeAt(idx);
   }
 
-  removeById(id: number) {
+  removeById(id: number): UnitInternal | null {
+    const unit = this.units.find((u) => u.id === id);
+    if (!unit) return null;
+    if (unit.mounted && unit.mountId != null) return this.removeById(unit.mountId);
     const idx = this.units.findIndex((u) => u.id === id);
     if (idx < 0) return null;
     return this.removeAt(idx);
@@ -276,13 +287,19 @@ export class World implements SimCtx {
 
   private removeAt(idx: number) {
     const u = this.units[idx];
+    const riderIds = this.units.filter((o) => o.mountId === u.id).map((o) => o.id);
+    dropMountSpring(this, u);
     try {
       this.physics.destroyRagdoll(u.ragdoll);
     } catch {
       this.physics.removeBody(u.ragdoll.rootBody);
     }
     this.units.splice(idx, 1);
-    this.spent[u.side] = Math.max(0, this.spent[u.side] - u.def.cost);
+    if (!u.mounted && !u.summoned) this.spent[u.side] = Math.max(0, this.spent[u.side] - u.def.cost);
+    for (const rid of riderIds) {
+      const i = this.units.findIndex((o) => o.id === rid);
+      if (i >= 0) this.removeAt(i);
+    }
     return u;
   }
 
@@ -293,6 +310,7 @@ export class World implements SimCtx {
         keep.push(u);
         continue;
       }
+      dropMountSpring(this, u);
       try {
         this.physics.destroyRagdoll(u.ragdoll);
       } catch {
@@ -314,7 +332,7 @@ export class World implements SimCtx {
 
   startCountdown(powerups: [string[], string[]] = [[], []]) {
     this.layout = this.units
-      .filter((u) => !u.summoned)
+      .filter((u) => !u.summoned && !u.mounted)
       .map((u) => ({ defId: u.def.id, x: u.x, z: u.z, yaw: u.yaw, side: u.side }));
     this.phase = "countdown";
     this.countdown = 3;
@@ -338,7 +356,7 @@ export class World implements SimCtx {
     }
     for (const side of [0, 1] as const) {
       if (!(chosen[side] ?? []).includes("giant")) continue;
-      const pool = this.units.filter((u) => u.side === side && u.state !== "dead" && !u.summoned);
+      const pool = this.units.filter((u) => u.side === side && u.state !== "dead" && !u.summoned && !u.mounted);
       const pick = pool[Math.floor(this.rng() * pool.length)];
       if (pick) {
         const p: Placement = { defId: pick.def.id, x: pick.x, z: pick.z, yaw: pick.yaw, side: pick.side };
@@ -467,6 +485,7 @@ export class World implements SimCtx {
     }
     const rush = this.noDamageT > 15;
     const stepIndex = Math.floor(this.time / FIXED_DT);
+    syncMounts(this);
 
     for (const u of this.units) {
       if (u.gone) continue;
@@ -511,7 +530,7 @@ export class World implements SimCtx {
           this.physics.getTransform(u.ragdoll.bodyIds.pelvis, this.scratch);
           u.x = this.scratch.x;
           u.z = this.scratch.z;
-          u.y = this.groundY(u.x, u.z) + 0.95 * u.def.body.scale;
+          u.y = this.groundY(u.x, u.z) + rootLift(u.def.body.kind, u.def.body.scale);
           this.physics.endLaunch(u.ragdoll);
           this.physics.setActive(u.ragdoll.rootBody, true);
           this.physics.setPosition(u.ragdoll.rootBody, u.x, u.y, u.z);
@@ -551,6 +570,8 @@ export class World implements SimCtx {
         swingDur,
         phase: u.id * 0.73,
         hurtT: u.hurtT,
+        kind: u.def.body.kind,
+        charging: u.charging,
       });
       this.physics.moveKinematic(u.ragdoll.rootBody, u.x, u.y, u.z, u.yaw, FIXED_DT);
 

@@ -184,13 +184,20 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
       const scale = u.scale ?? def.body.scale;
       for (const part of def.recipe.parts) {
         const boneName = part.parent ?? PARENT[part.slot] ?? part.slot;
-        const src = clustered ? anchor : u.parts[boneName];
+        const ownBone = clustered ? u.parts[part.slot] : undefined;
+        const bound = ownBone && Number.isFinite(ownBone.x) ? ownBone : null;
+        const src = clustered ? (bound ?? anchor) : u.parts[boneName];
         if (!src || !Number.isFinite(src.x)) continue;
         _off.set(part.offset[0], part.offset[1], part.offset[2]).multiplyScalar(scale);
         let px: number;
         let py: number;
         let pz: number;
-        if (tumbling) {
+        if (bound) {
+          _q.set(src.qx, src.qy, src.qz, src.qw);
+          px = src.x;
+          py = src.y;
+          pz = src.z;
+        } else if (tumbling) {
           _q.set(src.qx, src.qy, src.qz, src.qw);
           if (clustered || PARENT[part.slot] || part.parent) _off.applyQuaternion(_q);
           else _off.set(0, 0, 0);

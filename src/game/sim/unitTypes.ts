@@ -45,6 +45,10 @@ export type UnitInternal = {
   summoned: boolean;
   gone: boolean;
   frozenCorpse: boolean;
+  mounted: boolean;
+  mountId: number | null;
+  mountSeat?: { x: number; z: number };
+  mountSpring?: ReturnType<JoltWorld["createDistanceSpring"]>;
 };
 
 export type Flying = {
@@ -83,6 +87,7 @@ export type Tombstone = {
 export type PlaceOpts = {
   free?: boolean;
   summoned?: boolean;
+  mounted?: boolean;
   def?: UnitDef;
 };
 

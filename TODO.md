@@ -8,8 +8,8 @@ Pass-screen 3s curtain stays **skipped** (player asked). Everything else below i
 
 - [x] Pose table: idle sway, run cycle, attack swing into `DriveToPoseUsingMotors` (weak motors)
 - [x] Launch feel: spring/motors off in flight; root re-snaps to pelvis on land
-- [ ] Real beast/vehicle skeletons (mammoth 4 legs, coach wheels, cannon/catapult static) — visuals already clustered, physics is still a scaled humanoid
-- [ ] Stagecoach: two gunslingers ride it and spill out alive when it flips
+- [x] Real beast/vehicle skeletons (mammoth 4 legs, coach wheels, cannon/catapult static) — visuals already clustered, physics is still a scaled humanoid
+- [x] Stagecoach: two gunslingers ride it and spill out alive when it flips
 - [x] Gimmicks: Knight armor, Reaper instakill, Mirror reflect, Tax steal, Jelly restitution 0.9, Ice freeze-shatter knockback, Cheer speed aura (spring still skipped)
 - [x] Obstacle-avoidance raycast so units don't eat boulders/trenches
 - [x] Launch motion trails (cosmetic, team-colored)

@@ -47,7 +47,7 @@ describe("applyDamage", () => {
       y: 1,
       z: 0,
       yaw: 0,
-      ragdoll: { bodyIds: { torso: 1, pelvis: 2, head: 3, armL: 4, armR: 5, legs: 6 }, orderedIds: [2, 1, 3, 4, 5, 6] } as UnitInternal["ragdoll"],
+      ragdoll: { bodyIds: { torso: 1, pelvis: 2, head: 3, armL: 4, armR: 5, legs: 6 }, orderedIds: [2, 1, 3, 4, 5, 6] } as unknown as UnitInternal["ragdoll"],
       cooldown: 0,
       swingT: 0,
       launchT: 0,
@@ -67,6 +67,8 @@ describe("applyDamage", () => {
       summoned: false,
       gone: false,
       frozenCorpse: false,
+      mounted: false,
+      mountId: null,
     };
   }
 
