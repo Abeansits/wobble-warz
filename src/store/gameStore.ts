@@ -1,0 +1,117 @@
+import { create } from "zustand";
+import type { FactionId, Placement, UnitDef } from "@/game/data/types";
+import { M1_ROSTER } from "@/game/data/units";
+import type { WorldSnapshot } from "@/game/sim/World";
+
+export type Speed = 0 | 0.25 | 0.5 | 1 | 2;
+export type SeatPhase = "setupP1" | "pass" | "setupP2" | "fight" | "results";
+
+type GameStore = {
+  selected: UnitDef;
+  faction: FactionId;
+  placingSide: 0 | 1;
+  seat: SeatPhase;
+  budget: number;
+  spent: [number, number];
+  speed: Speed;
+  paused: boolean;
+  snapshot: WorldSnapshot | null;
+  message: string;
+  followId: number | null;
+  placements: Placement[];
+  undo: Placement[];
+  yawOffset: number;
+  killFeed: string[];
+  awarded: boolean;
+  camBump: { id: number; kind: "yaw" | "pitch" | "zoom" | "reset"; value: number } | null;
+  setSelected: (u: UnitDef) => void;
+  setFaction: (f: FactionId) => void;
+  setSeat: (seat: SeatPhase) => void;
+  setPlacingSide: (s: 0 | 1) => void;
+  setSnapshot: (s: WorldSnapshot | null) => void;
+  setSpeed: (s: Speed) => void;
+  setPaused: (p: boolean) => void;
+  setMessage: (m: string) => void;
+  setFollowId: (id: number | null) => void;
+  setBudget: (n: number) => void;
+  addSpend: (side: 0 | 1, cost: number) => void;
+  resetSpend: () => void;
+  pushPlace: (p: Placement) => void;
+  popPlace: () => Placement | null;
+  setYawOffset: (n: number) => void;
+  pushKill: (line: string) => void;
+  clearFeed: () => void;
+  setAwarded: (v: boolean) => void;
+  bumpCam: (kind: "yaw" | "pitch" | "zoom" | "reset", value?: number) => void;
+  resetMatch: () => void;
+};
+
+export const useGame = create<GameStore>((set, get) => ({
+  selected: M1_ROSTER[0],
+  faction: "stoneage",
+  placingSide: 0,
+  seat: "setupP1",
+  budget: 3000,
+  spent: [0, 0],
+  speed: 1,
+  paused: false,
+  snapshot: null,
+  message: "P1 — click the glowing blue pad.",
+  followId: null,
+  placements: [],
+  undo: [],
+  yawOffset: 0,
+  killFeed: [],
+  awarded: false,
+  camBump: null,
+  setSelected: (selected) => set({ selected, faction: selected.faction }),
+  setFaction: (faction) => {
+    const first = M1_ROSTER.find((u) => u.faction === faction) ?? get().selected;
+    set({ faction, selected: first });
+  },
+  setSeat: (seat) => set({ seat }),
+  setPlacingSide: (placingSide) => set({ placingSide }),
+  setSnapshot: (snapshot) => set({ snapshot }),
+  setSpeed: (speed) => set({ speed, paused: speed === 0 }),
+  setPaused: (paused) => set({ paused }),
+  setMessage: (message) => set({ message }),
+  setFollowId: (followId) => set({ followId }),
+  setBudget: (budget) => set({ budget }),
+  addSpend: (side, cost) =>
+    set((s) => {
+      const spent: [number, number] = [...s.spent];
+      spent[side] += cost;
+      return { spent };
+    }),
+  resetSpend: () => set({ spent: [0, 0], placements: [], undo: [] }),
+  pushPlace: (p) => set((s) => ({ placements: [...s.placements, p], undo: [] })),
+  popPlace: () => {
+    const list = get().placements;
+    if (!list.length) return null;
+    const last = list[list.length - 1];
+    set({ placements: list.slice(0, -1), undo: [...get().undo, last] });
+    return last;
+  },
+  setYawOffset: (yawOffset) => set({ yawOffset }),
+  pushKill: (line) =>
+    set((s) => ({ killFeed: [line, ...s.killFeed].slice(0, 6) })),
+  clearFeed: () => set({ killFeed: [], awarded: false }),
+  setAwarded: (awarded) => set({ awarded }),
+  bumpCam: (kind, value = 0) =>
+    set((s) => ({ camBump: { id: (s.camBump?.id ?? 0) + 1, kind, value } })),
+  resetMatch: () =>
+    set({
+      seat: "setupP1",
+      placingSide: 0,
+      spent: [0, 0],
+      placements: [],
+      undo: [],
+      yawOffset: 0,
+      killFeed: [],
+      awarded: false,
+      paused: false,
+      speed: 1,
+      message: "P1 — click the glowing blue pad.",
+      followId: null,
+    }),
+}));

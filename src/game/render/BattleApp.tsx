@@ -1,0 +1,318 @@
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Suspense, useEffect, useRef, useState } from "react";
+import * as THREE from "three";
+import { getWorld, resetWorld } from "@/game/session";
+import type { World } from "@/game/sim/World";
+import { useGame } from "@/store/gameStore";
+import { ArmyView } from "./ArmyView";
+import { CameraRig } from "./CameraRig";
+import { DeployPads, MeadowProps, Terrain } from "./Terrain";
+import { Hud } from "@/ui/Hud";
+
+function SetupInput({ world }: { world: World }) {
+  const selected = useGame((s) => s.selected);
+  const budget = useGame((s) => s.budget);
+  const addSpend = useGame((s) => s.addSpend);
+  const setMessage = useGame((s) => s.setMessage);
+  const lastPlace = useRef(0);
+  const busy = useRef(false);
+  const dragging = useRef(false);
+  const handler = useRef<(x: number, z: number, brush: boolean) => void>(() => {});
+
+  handler.current = (x: number, z: number, brush: boolean) => {
+    if (busy.current) return;
+    const now = performance.now();
+    if (!brush && now - lastPlace.current < 220) return;
+    const st = useGame.getState();
+    if (st.snapshot?.phase && st.snapshot.phase !== "setup") return;
+    if (st.seat !== "setupP1" && st.seat !== "setupP2") return;
+    const side: 0 | 1 = st.placingSide;
+    if (side === 0 && x > -8) {
+      setMessage("P1 deploys on the blue side.");
+      return;
+    }
+    if (side === 1 && x < 8) {
+      setMessage("P2 deploys on the red side.");
+      return;
+    }
+    if (Math.abs(z) > 18) return;
+    if (st.spent[side] + selected.cost > st.budget) {
+      setMessage("Over budget.");
+      return;
+    }
+    if (world.units.filter((u) => u.side === side).length >= 60) {
+      setMessage("Unit cap (60) reached.");
+      return;
+    }
+    const tooClose = world.units.some((u) => {
+      const dx = u.x - x;
+      const dz = u.z - z;
+      return dx * dx + dz * dz < (brush ? 1.05 * 1.05 : 0.7 * 0.7);
+    });
+    if (tooClose) return;
+    busy.current = true;
+    lastPlace.current = now;
+    const yaw = (side === 0 ? -Math.PI / 2 : Math.PI / 2) + st.yawOffset;
+    try {
+      world.place({ defId: selected.id, x, z, yaw, side });
+      addSpend(side, selected.cost);
+      st.pushPlace({ defId: selected.id, x, z, yaw, side });
+      useGame.getState().setSnapshot(world.snapshot());
+      setMessage(`${selected.name} planted for P${side + 1}.`);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not plant that unit.");
+    } finally {
+      busy.current = false;
+    }
+  };
+
+  return (
+    <DeploymentZones
+      onPlace={(x, z) => handler.current(x, z, false)}
+      onBrush={(x, z) => handler.current(x, z, true)}
+      dragging={dragging}
+    />
+  );
+}
+
+function SimLoop({ world }: { world: World }) {
+  const speedRef = useRef(useGame.getState().speed);
+  const pausedRef = useRef(useGame.getState().paused);
+  const setSnapshot = useGame((s) => s.setSnapshot);
+  const last = useRef(performance.now());
+
+  useEffect(() =>
+    useGame.subscribe((s) => {
+      speedRef.current = s.speed;
+      pausedRef.current = s.paused;
+    }),
+  []);
+
+  useEffect(() => {
+    let raf = 0;
+    let alive = true;
+    const tick = (now: number) => {
+      if (!alive) return;
+      const dt = Math.min(0.05, (now - last.current) / 1000);
+      last.current = now;
+      try {
+        if (world.phase !== "setup") {
+          world.step(dt, speedRef.current, pausedRef.current || speedRef.current === 0);
+          setSnapshot(world.snapshot());
+          const ev = world.drainEvents();
+          for (const e of ev) {
+            if (e.type === "death") {
+              const victim = world.units.find((u) => u.id === e.unitId);
+              const killer = e.killerId != null ? world.units.find((u) => u.id === e.killerId) : undefined;
+              useGame.getState().pushKill(
+                `${killer?.def.name ?? "The meadow"} dropped ${victim?.def.name ?? "someone"}`,
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[sim]", err);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [world, setSnapshot]);
+
+  return null;
+}
+
+function Lights() {
+  useFrame(({ gl, camera }) => {
+    const w = window as unknown as {
+      __draw?: number;
+      __cam?: number[];
+      __ndc?: number[];
+    };
+    w.__draw = gl.info.render.calls;
+    w.__cam = [camera.position.x, camera.position.y, camera.position.z];
+    const ww = (window as unknown as { __ww?: { first?: { torso?: { x: number; y: number; z: number } } } }).__ww;
+    if (ww?.first?.torso) {
+      const v = new THREE.Vector3(ww.first.torso.x, ww.first.torso.y, ww.first.torso.z);
+      v.project(camera);
+      w.__ndc = [v.x, v.y, v.z];
+    }
+  });
+  return (
+    <>
+      <color attach="background" args={["#8ec6e8"]} />
+      <fog attach="fog" args={["#9fd0ee", 48, 95]} />
+      <hemisphereLight args={["#cfe8ff", "#4a6a32", 0.7]} />
+      <directionalLight
+        castShadow
+        position={[18, 28, 10]}
+        intensity={1.35}
+        color="#ffe6b8"
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-camera-left={-32}
+        shadow-camera-right={32}
+        shadow-camera-top={24}
+        shadow-camera-bottom={-24}
+      />
+    </>
+  );
+}
+
+export function BattleApp() {
+  const [world, setWorld] = useState<World | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const setSnapshot = useGame((s) => s.setSnapshot);
+
+  useEffect(() => {
+    let alive = true;
+    let booted = false;
+    const timeout = window.setTimeout(() => {
+      if (!alive || booted) return;
+      setErr((prev) => prev ?? "Physics is taking too long to wake up.");
+    }, 15000);
+    getWorld()
+      .then((w) => {
+        if (!alive) return;
+        booted = true;
+        setWorld(w);
+        setSnapshot(w.snapshot());
+      })
+      .catch((e: unknown) => {
+        if (!alive) return;
+        setErr(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      alive = false;
+      window.clearTimeout(timeout);
+    };
+  }, [setSnapshot]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        const s = useGame.getState();
+        s.setPaused(!s.paused);
+      }
+      if (e.code === "Digit1") useGame.getState().setSpeed(0.25);
+      if (e.code === "Digit2") useGame.getState().setSpeed(0.5);
+      if (e.code === "Digit3") useGame.getState().setSpeed(1);
+      if (e.code === "Digit4") useGame.getState().setSpeed(2);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  if (err) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 bg-meadow-deep p-8 text-cream">
+        <p className="font-display text-2xl">Physics failed to boot</p>
+        <p className="max-w-md text-center text-cream/80">{err}</p>
+        <button
+          type="button"
+          className="toy-shadow rounded-btn border-[3px] border-ink bg-ochre-hot px-5 py-2 font-display text-xl text-ink"
+          onClick={() => {
+            resetWorld();
+            window.location.reload();
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!world) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 bg-meadow-deep text-cream">
+        <p className="font-display text-4xl">Wobble Wars</p>
+        <p className="text-lg">Warming up the ragdolls…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full min-h-0 w-full">
+      <Canvas
+        shadows
+        dpr={[1, 1.5]}
+        camera={{ position: [0, 36, 24], fov: 42, near: 0.3, far: 400 }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        onCreated={({ gl }) => {
+          gl.toneMappingExposure = 1.1;
+        }}
+      >
+        <Suspense fallback={null}>
+          <Lights />
+          <Terrain />
+          <MeadowProps />
+          <SnapshotBridge />
+          <CameraRig />
+          <SetupInput world={world} />
+          <SimLoop world={world} />
+        </Suspense>
+      </Canvas>
+      <Hud world={world} />
+    </div>
+  );
+}
+
+function SnapshotBridge() {
+  const snap = useGame((s) => s.snapshot);
+  return <ArmyView snapshot={snap} />;
+}
+
+function DeploymentZones({
+  onPlace,
+  onBrush,
+  dragging,
+}: {
+  onPlace: (x: number, z: number) => void;
+  onBrush: (x: number, z: number) => void;
+  dragging: { current: boolean };
+}) {
+  const phase = useGame((s) => s.snapshot?.phase ?? "setup");
+  const seat = useGame((s) => s.seat);
+  const side = useGame((s) => s.placingSide);
+  const place = useRef(onPlace);
+  const brush = useRef(onBrush);
+  place.current = onPlace;
+  brush.current = onBrush;
+  if (phase !== "setup" || (seat !== "setupP1" && seat !== "setupP2")) return null;
+
+  const handlers = {
+    onPointerDown: (e: { button: number; stopPropagation: () => void; point: { x: number; z: number } }) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      dragging.current = true;
+      place.current(e.point.x, e.point.z);
+    },
+    onPointerMove: (e: { buttons: number; point: { x: number; z: number } }) => {
+      if (!dragging.current || e.buttons !== 1) return;
+      brush.current(e.point.x, e.point.z);
+    },
+    onPointerUp: () => {
+      dragging.current = false;
+    },
+  };
+
+  return (
+    <group>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 2.4, 0]}
+        onPointerDown={handlers.onPointerDown}
+        onPointerMove={handlers.onPointerMove}
+        onPointerUp={handlers.onPointerUp}
+      >
+        <planeGeometry args={[62, 42]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+      <DeployPads active={side} />
+    </group>
+  );
+}

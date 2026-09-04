@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Lilita One", "Impact", system-ui, sans-serif;
+  --font-sans: "Nunito", "Segoe UI", system-ui, sans-serif;
+
+  --color-ink: #1c1710;
+  --color-cream: #f4e8c8;
+  --color-parchment: #efe0b4;
+  --color-meadow: #4f8a4a;
+  --color-meadow-deep: #2e5a2c;
+  --color-ochre: #c48a3a;
+  --color-ochre-hot: #e09a2c;
+  --color-steel: #3a5f8a;
+  --color-crimson: #b33a2b;
+  --color-sky: #8ec6e8;
+  --color-border: #1c1710;
+  --color-muted: #6b5d45;
+
+  --radius-card: 16px;
+  --radius-btn: 12px;
+
+  --shadow-toy: 4px 4px 0 #1c1710;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-meadow-deep);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+}
+
+@utility toy-shadow {
+  box-shadow: 4px 4px 0 #1c1710;
+}
+
+@utility toy-press {
+  transition: transform 120ms ease;
+}
+@utility toy-press-active {
+  transform: scale(0.96);
+}
