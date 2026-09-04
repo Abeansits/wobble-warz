@@ -27,6 +27,7 @@ function stub(partial: Partial<UnitInternal> & { defId: string; id: number; side
     swingT: 0,
     launchT: 0,
     stunT: 0,
+    stunImmuneT: 0,
     hurtT: 0,
     slowT: 0,
     frozenT: 0,
@@ -38,6 +39,7 @@ function stub(partial: Partial<UnitInternal> & { defId: string; id: number; side
     swingHits: new Set(),
     chargeHits: new Set(),
     charging: false,
+    steered: false,
     deadT: 0,
     summoned: false,
     gone: false,
@@ -118,7 +120,7 @@ describe("hitscan tracers", () => {
     expect(shot?.type).toBe("shot");
     if (shot?.type !== "shot") return;
     expect(shot.flavor).toBe("hitscan");
-    expect(shot.tx).toBeCloseTo(8);
+    expect(shot.tx).toBeCloseTo(16);
     expect(Math.hypot(shot.tx - shot.ox, shot.tz - shot.oz)).toBeGreaterThan(4);
   });
 

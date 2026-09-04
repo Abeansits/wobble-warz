@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { FactionId, Placement, UnitDef } from "@/game/data/types";
 import type { ArenaId } from "@/game/data/arenas";
-import { M1_ROSTER } from "@/game/data/units";
+import { M1_ROSTER, rosterFor } from "@/game/data/units";
 import { clampBudget } from "@/game/setup";
 import type { WorldSnapshot } from "@/game/sim/World";
 
@@ -90,7 +90,8 @@ export const useGame = create<GameStore>((set, get) => ({
   camBump: null,
   setSelected: (selected) => set({ selected, faction: selected.faction }),
   setFaction: (faction) => {
-    const first = M1_ROSTER.find((u) => u.faction === faction) ?? get().selected;
+    const first = rosterFor(faction)[0];
+    if (!first) return;
     set({ faction, selected: first });
   },
   setSeat: (seat) => set({ seat }),

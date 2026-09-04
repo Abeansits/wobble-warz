@@ -386,7 +386,7 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
         const kind = kindFor(part.color);
         const color =
           u.flash > 0
-            ? "#e8c090"
+            ? "#ffffff"
             : tokenColor(part.color, u.defId, u.side, u.side === 0 ? pal0 : pal1);
         const key = `${part.shape}:${part.size.join("x")}:${kind}`;
         let b = bag.get(key);

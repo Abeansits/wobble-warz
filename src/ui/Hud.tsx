@@ -116,7 +116,10 @@ export function Hud({ world }: { world: World }) {
           /* cap */
         }
       }
-      useGame.getState().addSpend(1, lvl.army.reduce((n, a) => n + 0, 0));
+      useGame.getState().addSpend(
+        1,
+        lvl.army.reduce((n, a) => n + a.count * getUnit(a.defId).cost, 0),
+      );
       world.startCountdown(useGame.getState().powerups);
       const api = useProfiles.getState();
       api.usePowerups(api.p1, useGame.getState().powerups[0]);
@@ -372,12 +375,6 @@ export function Hud({ world }: { world: World }) {
             p1Name={p1?.name ?? "P1"}
             p2Name={p2?.name ?? "P2"}
           />
-          {phase !== "setup" && snapshot && (
-            <div className="mt-1 flex h-2 overflow-hidden rounded-btn border-[2px] border-ink">
-              <span className="bg-steel" style={{ width: `${Math.max(4, (snapshot.counts[0] / Math.max(1, snapshot.counts[0] + snapshot.counts[1])) * 100)}%` }} />
-              <span className="bg-crimson" style={{ flex: 1 }} />
-            </div>
-          )}
         </div>
       </header>
 
@@ -486,7 +483,7 @@ export function Hud({ world }: { world: World }) {
         </div>
       )}
 
-      {phase !== "setup" && killFeed.length > 0 && (
+      {phase !== "setup" && phase !== "over" && killFeed.length > 0 && (
         <ul className="pointer-events-none absolute left-4 top-28 space-y-1 text-sm text-cream drop-shadow-[2px_2px_0_#1c1710]">
           {killFeed.map((line, i) => (
             <li key={`${line}-${i}`}>{line}</li>
@@ -679,14 +676,18 @@ export function Hud({ world }: { world: World }) {
             </>
           )}
           {phase === "countdown" && (
-            <div className="font-display text-5xl text-cream drop-shadow-[4px_4px_0_#1c1710]">
-              {Math.max(1, Math.ceil(snapshot?.countdown ?? world.countdown))}
+            <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center">
+              <p className="font-display text-[9rem] leading-none text-cream drop-shadow-[8px_8px_0_#1c1710]">
+                {Math.max(1, Math.ceil(snapshot?.countdown ?? world.countdown))}
+              </p>
             </div>
           )}
           {phase === "battle" && (
             <div className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-3 py-2 font-display">
               {snapshot ? Math.floor(snapshot.time) : 0}s / 120
-              <span className="ml-2 text-sm text-muted">phys {snapshot?.physicsMs.toFixed(1)}ms</span>
+              {typeof window !== "undefined" && window.location.search.includes("debug") && (
+                <span className="ml-2 text-sm text-muted">phys {snapshot?.physicsMs.toFixed(1)}ms</span>
+              )}
               {snapshot?.degraded && (
                 <span className="ml-2 text-ochre-hot" title="Physics is heavy — LOD and corpses are thinning">
                   ⚡
@@ -701,7 +702,7 @@ export function Hud({ world }: { world: World }) {
                     className="ml-2 text-sm underline decoration-2 underline-offset-2"
                     onClick={() => useGame.getState().setFollowId(null)}
                   >
-                    following {fu.defId.split(".")[1]} · click to back off
+                    following {getUnit(fu.defId).name} · click to back off
                   </button>
                 );
               })()}

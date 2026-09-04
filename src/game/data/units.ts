@@ -159,7 +159,7 @@ const RAW: Record<string, unknown> = {
     name: "Squire",
     blurb: "Reliable steel. Does the job.",
     cost: 80,
-    body: { kind: "humanoid", scale: 1, massMult: 1.05, hp: 120, speed: 3.2, springStiffness: 22, launchThreshold: 48 },
+    body: { kind: "humanoid", scale: 1, massMult: 1.05, hp: 120, speed: 3.2, springStiffness: 22, launchThreshold: 72 },
     weapon: { kind: "melee", damage: 20, knockback: 10, range: 1.65, cooldown: 0.95, swingSeconds: 0.32 },
     ai: { targeting: "nearest" },
     recipe: recipe(
@@ -466,7 +466,7 @@ Object.assign(RAW, {
     name: "Gunslinger",
     blurb: "Glass cannon. Click-click-boom.",
     cost: 260,
-    body: { kind: "humanoid", scale: 1, massMult: 0.85, hp: 90, speed: 3.5, springStiffness: 14, launchThreshold: 30 },
+    body: { kind: "humanoid", scale: 1, massMult: 0.85, hp: 90, speed: 2.8, springStiffness: 14, launchThreshold: 30 },
     weapon: { kind: "hitscan", damage: 30, knockback: 8, range: 16, cooldown: 0.6 },
     ai: { targeting: "prefer:weakest", keepAway: 8 },
     recipe: recipe(
@@ -731,7 +731,7 @@ Object.assign(RAW, {
     blurb: "Lays angry hens.",
     cost: 400,
     body: { kind: "humanoid", scale: 0.7, massMult: 0.4, hp: 70, speed: 3.8, springStiffness: 10, launchThreshold: 18 },
-    weapon: { kind: "summon", damage: 8, knockback: 6, range: 4, cooldown: 3.2 },
+    weapon: { kind: "summon", damage: 8, knockback: 6, range: 4, cooldown: 8 },
     ai: { targeting: "nearest", keepAway: 3 },
     recipe: recipe([
       { slot: "hat", shape: "sphere", size: [0.1, 0.1, 0.1], offset: [0, 0.2, 0.08], color: "accent", parent: "head" },

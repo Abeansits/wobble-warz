@@ -244,6 +244,7 @@ export class World implements SimCtx {
       swingT: 0,
       launchT: 0,
       stunT: 0,
+      stunImmuneT: 0,
       hurtT: 0,
       slowT: 0,
       frozenT: 0,
@@ -255,6 +256,8 @@ export class World implements SimCtx {
       swingHits: new Set(),
       chargeHits: new Set(),
       charging: false,
+      steered: false,
+      bardT: 0,
       deadT: 0,
       summoned: opts.summoned ?? false,
       gone: false,
@@ -649,14 +652,25 @@ export class World implements SimCtx {
       u.cooldown = Math.max(0, u.cooldown - FIXED_DT);
       u.slowT = Math.max(0, u.slowT - FIXED_DT);
       u.frozenT = Math.max(0, u.frozenT - FIXED_DT);
+      u.stunImmuneT = Math.max(0, u.stunImmuneT - FIXED_DT);
       if (u.def.id === "anomaly.bard") {
+        u.bardT = (u.bardT ?? 0) + FIXED_DT;
+        if (u.bardT >= 10) u.bardT = 0;
+        const pulling = u.bardT < 2;
+        const release = u.bardT >= 2 && u.bardT < 2 + FIXED_DT;
         for (const o of this.units) {
           if (o.side === u.side || o.state === "dead" || o.gone) continue;
           const d = Math.hypot(o.x - u.x, o.z - u.z);
           if (d > 8 || d < 0.4) continue;
-          o.x += ((u.x - o.x) / d) * 1.6 * FIXED_DT;
-          o.z += ((u.z - o.z) / d) * 1.6 * FIXED_DT;
-          this.physics.setPosition(o.ragdoll.rootBody, o.x, o.y, o.z);
+          const nx = (u.x - o.x) / d;
+          const nz = (u.z - o.z) / d;
+          if (pulling) {
+            o.x += nx * 3.2 * FIXED_DT;
+            o.z += nz * 3.2 * FIXED_DT;
+            this.physics.setPosition(o.ragdoll.rootBody, o.x, o.y, o.z);
+          } else if (release) {
+            this.physics.applyImpulse(o.ragdoll.bodyIds.torso, -nx * 28, 10, -nz * 28);
+          }
         }
       }
       u.flash = Math.max(0, u.flash - FIXED_DT);

@@ -87,10 +87,18 @@ export function tryAttack(sim: SimCtx, u: UnitInternal) {
         emitShot(sim, u, "hitscan", plank);
         return;
       }
-      const victim = hit ? unitForBody(sim, hit.handle) : target;
-      const who = victim && victim.side !== u.side ? victim : target;
-      applyDamage(sim, who, w.damage, shatterKb(who, w.knockback), u);
-      emitShot(sim, u, "hitscan", who);
+      const victim = hit ? unitForBody(sim, hit.handle) : null;
+      if (!victim) {
+        const miss = hit ? hit.fraction : 1;
+        emitShot(sim, u, "hitscan", {
+          x: u.x + (dx / len) * range * miss,
+          y: u.y,
+          z: u.z + (dz / len) * range * miss,
+        });
+        return;
+      }
+      applyDamage(sim, victim, w.damage, shatterKb(victim, w.knockback), u);
+      emitShot(sim, u, "hitscan", victim);
     }
     return;
   }
@@ -176,6 +184,10 @@ export function resolveMelee(sim: SimCtx, u: UnitInternal) {
   const ax = sim.scratch.x;
   const ay = sim.scratch.y;
   const az = sim.scratch.z;
+  const instakill = w.kind !== "aura" && (w.instakill || u.def.id === "haunted.reaper");
+  let nearest: UnitInternal | null = null;
+  let nearestD = Infinity;
+  const marked: UnitInternal[] = [];
   for (const o of sim.units) {
     if (o.side === u.side || o.state === "dead" || o.gone) continue;
     if (u.swingHits.has(o.id)) continue;
@@ -186,9 +198,16 @@ export function resolveMelee(sim: SimCtx, u: UnitInternal) {
     if (dArm > reach && dRoot > w.range) continue;
     if (Math.abs(o.y - ay) > 2.4 && Math.abs(o.y - u.y) > 2.4) continue;
     u.swingHits.add(o.id);
+    marked.push(o);
+    if (dRoot < nearestD) {
+      nearestD = dRoot;
+      nearest = o;
+    }
+  }
+  for (const o of marked) {
     let dmg = w.damage;
     if (w.kind === "melee-reach" && w.vsChargeMult && o.charging) dmg *= w.vsChargeMult;
-    if (w.kind !== "aura" && (w.instakill || u.def.id === "haunted.reaper")) dmg = Math.max(dmg, o.hp);
+    if (instakill && o === nearest) dmg = Math.max(dmg, o.hp);
     applyDamage(sim, o, dmg, shatterKb(o, w.knockback), u);
   }
 }
@@ -227,7 +246,7 @@ export function tickAura(sim: SimCtx, u: UnitInternal) {
         if (o.side !== u.side || o.state === "dead" || o.gone) continue;
         if (Math.hypot(o.x - u.x, o.z - u.z) > a.radius) continue;
         const before = o.hp;
-        o.hp = Math.min(o.maxHp, o.hp + a.amount * 0.5);
+        o.hp = Math.min(o.maxHp, o.hp + a.amount * 6 * FIXED_DT);
         if (o.hp > before && sparkles < 6) {
           sparkles++;
           sim.events.push({ type: "splat", kind: "heal", x: o.x, y: o.y + 0.7, z: o.z });

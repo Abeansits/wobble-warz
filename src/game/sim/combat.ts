@@ -37,7 +37,7 @@ export function applyDamage(
       attacker.hp = Math.min(attacker.maxHp, attacker.hp + steal);
     }
   }
-  victim.flash = 0.08;
+  victim.flash = 0.16;
   victim.hurtT = 0.25;
   victim.face = "hurt";
   victim.lastHitBy = attacker ? attacker.id : null;
@@ -68,9 +68,14 @@ export function applyDamage(
     sim.kill(victim, attacker?.id ?? null);
     return;
   }
-  if (knockback > victim.def.body.launchThreshold * 0.35) {
+  if (
+    knockback > victim.def.body.launchThreshold * 0.7 &&
+    (victim.stunImmuneT ?? 0) <= 0 &&
+    victim.state !== "launched"
+  ) {
     victim.state = "stunned";
     victim.stunT = 0.35;
+    victim.stunImmuneT = 1;
   }
   if (knockback >= victim.def.body.launchThreshold) {
     victim.state = "launched";

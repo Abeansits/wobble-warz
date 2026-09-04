@@ -82,6 +82,7 @@ export function steer(sim: SimCtx, u: UnitInternal, rush: boolean) {
   const range = u.def.weapon.range;
   const staticUnit = u.def.body.speed <= 0.05;
   u.charging = false;
+  u.steered = false;
   if (!staticUnit) {
     let speed = u.def.body.speed * (rush ? 1.5 : 1);
     if (u.slowT > 0) speed *= 0.6;
@@ -107,10 +108,12 @@ export function steer(sim: SimCtx, u: UnitInternal, rush: boolean) {
       const heading = avoidObstacles(sim, u, -dx, -dz);
       u.x += (heading.dx * 0.7 + sepX * 0.2) * speed * FIXED_DT;
       u.z += (heading.dz * 0.7 + sepZ * 0.2) * speed * FIXED_DT;
+      u.steered = true;
     } else if (wantClose) {
       const heading = avoidObstacles(sim, u, dx, dz);
       u.x += (heading.dx * 0.85 + sepX * 0.25) * speed * FIXED_DT;
       u.z += (heading.dz * 0.85 + sepZ * 0.25) * speed * FIXED_DT;
+      u.steered = true;
     }
   }
   u.yaw = lookYaw(dx, dz);

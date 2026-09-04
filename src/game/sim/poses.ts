@@ -28,13 +28,15 @@ export type PoseUnit = {
   state: string;
   frozenT: number;
   charging: boolean;
+  steered?: boolean;
   def: { body: { speed: number } };
 };
 
 /** Seeded-free gait from unit FSM. Static units never run. */
 export function poseGait(u: PoseUnit): PoseGait {
   if (u.frozenT > 0 || u.state === "stunned") return "stun";
-  if ((u.state === "seek" || u.charging) && u.def.body.speed > 0.05) return "run";
+  if (u.charging && u.def.body.speed > 0.05) return "run";
+  if (u.state === "seek" && u.steered && u.def.body.speed > 0.05) return "run";
   return "idle";
 }
 

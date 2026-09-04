@@ -30,6 +30,10 @@ export type UnitInternal = {
   /** >0 while airborne; at 0 World resnaps root to pelvis xz and restores the spring. */
   launchT: number;
   stunT: number;
+  /** No re-stun until this hits 0. */
+  stunImmuneT: number;
+  /** Bard pulse clock 0–10. */
+  bardT?: number;
   hurtT: number;
   slowT: number;
   frozenT: number;
@@ -41,6 +45,8 @@ export type UnitInternal = {
   swingHits: Set<number>;
   chargeHits: Set<number>;
   charging: boolean;
+  /** True if steer moved this step — ranged units holding range stay idle. */
+  steered: boolean;
   deadT: number;
   summoned: boolean;
   gone: boolean;
