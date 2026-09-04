@@ -23,6 +23,7 @@ function snap(partial: Partial<WorldSnapshot> & Pick<WorldSnapshot, "units">): W
     counts: [1, 0],
     hpPct: [1, 1],
     physicsMs: 0,
+    wasmBytes: 0,
     degraded: false,
     ...partial,
   };

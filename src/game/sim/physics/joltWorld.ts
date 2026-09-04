@@ -37,7 +37,6 @@ export type RagdollPartName = string;
 
 export type BuiltRagdoll = {
   ragdoll: InstanceType<JoltModule["Ragdoll"]>;
-  settings: InstanceType<JoltModule["RagdollSettings"]>;
   pose: InstanceType<JoltModule["SkeletonPose"]>;
   bodyIds: Record<string, BodyHandle>;
   orderedIds: BodyHandle[];
@@ -64,6 +63,11 @@ const LAUNCH_MOTOR_TORQUE = 0.35;
 /**
  * Thin Jolt adapter. Temporary `new Jolt.*` objects are destroyed after use;
  * ragdolls / shapes / the interface are released in dispose().
+ *
+ * Shapes are RefTarget: CreateBody AddRefs, DestroyBody Releases. Never
+ * `Jolt.destroy` a shape a body still (or already) owns — that wasm-aborts.
+ * CreateRagdoll AddRefs RagdollSettings (`Ragdoll::mRagdollSettings`);
+ * destroying the ragdoll Releases it. Jolt.destroy(settings) double-frees.
  */
 export class JoltWorld {
   Jolt!: JoltModule;
@@ -71,7 +75,8 @@ export class JoltWorld {
   system!: InstanceType<JoltModule["PhysicsSystem"]>;
   bodyInterface!: InstanceType<JoltModule["BodyInterface"]>;
   private temps: object[] = [];
-  private ownedShapes: object[] = [];
+  /** Body-owned shapes. DestroyBody Releases the C++; we only drop the JS handle. */
+  private bodyShapes = new Map<BodyHandle, object>();
   private ownedRagdolls: BuiltRagdoll[] = [];
   private arenaHandles: BodyHandle[] = [];
   private capturingArena = false;
@@ -156,6 +161,21 @@ export class JoltWorld {
     return new this.Jolt.BodyID(handle);
   }
 
+  /** Non-refcounted `new Jolt.*` temps (Vec3, RVec3, Quat, BodyCreationSettings). */
+  private drop(obj: object | null | undefined) {
+    if (!obj || !this.Jolt) return;
+    try {
+      this.Jolt.destroy(obj);
+    } catch {
+      /* already gone */
+    }
+  }
+
+  private trackBody(handle: BodyHandle, shape: object) {
+    this.bodyShapes.set(handle, shape);
+    this.remember(handle);
+  }
+
   createStaticBox(cx: number, cy: number, cz: number, hx: number, hy: number, hz: number, yaw = 0, friction = 0.8, rotZ = 0) {
     const Jolt = this.Jolt;
     const half = new Jolt.Vec3(hx, hy, hz);
@@ -172,9 +192,8 @@ export class JoltWorld {
     const body = this.bodyInterface.CreateBody(settings);
     Jolt.destroy(settings);
     this.bodyInterface.AddBody(body.GetID(), Jolt.EActivation_DontActivate);
-    this.ownedShapes.push(shape);
     const handle = body.GetID().GetIndexAndSequenceNumber();
-    this.remember(handle);
+    this.trackBody(handle, shape);
     return handle;
   }
 
@@ -197,9 +216,8 @@ export class JoltWorld {
     const body = this.bodyInterface.CreateBody(settings);
     Jolt.destroy(settings);
     this.bodyInterface.AddBody(body.GetID(), Jolt.EActivation_Activate);
-    this.ownedShapes.push(shape);
     const handle = body.GetID().GetIndexAndSequenceNumber();
-    this.remember(handle);
+    this.trackBody(handle, shape);
     return handle;
   }
 
@@ -218,9 +236,8 @@ export class JoltWorld {
     const body = this.bodyInterface.CreateBody(settings);
     Jolt.destroy(settings);
     this.bodyInterface.AddBody(body.GetID(), Jolt.EActivation_DontActivate);
-    this.ownedShapes.push(shape);
     const handle = body.GetID().GetIndexAndSequenceNumber();
-    this.remember(handle);
+    this.trackBody(handle, shape);
     return handle;
   }
 
@@ -238,8 +255,9 @@ export class JoltWorld {
     const body = this.bodyInterface.CreateBody(settings);
     Jolt.destroy(settings);
     this.bodyInterface.AddBody(body.GetID(), Jolt.EActivation_Activate);
-    this.ownedShapes.push(shape);
-    return body.GetID().GetIndexAndSequenceNumber();
+    const handle = body.GetID().GetIndexAndSequenceNumber();
+    this.trackBody(handle, shape);
+    return handle;
   }
 
   createDynamicSphere(
@@ -266,9 +284,8 @@ export class JoltWorld {
     const body = this.bodyInterface.CreateBody(settings);
     Jolt.destroy(settings);
     this.bodyInterface.AddBody(body.GetID(), Jolt.EActivation_Activate);
-    this.ownedShapes.push(shape);
     const handle = body.GetID().GetIndexAndSequenceNumber();
-    this.remember(handle);
+    this.trackBody(handle, shape);
     return handle;
   }
 
@@ -336,10 +353,13 @@ export class JoltWorld {
       }
       return new Jolt.RVec3(x + lx, y + ly, z + lz);
     });
+    const ownedQuats: object[] = [];
     const rotations = parts.map((part) => {
       if (layout.orient && part.orient) {
         const half = yaw * 0.5;
-        return new Jolt.Quat(0, Math.sin(half), 0, Math.cos(half));
+        const q = new Jolt.Quat(0, Math.sin(half), 0, Math.cos(half));
+        ownedQuats.push(q);
+        return q;
       }
       return ident;
     });
@@ -450,9 +470,16 @@ export class JoltWorld {
     Jolt.destroy(rootId);
     Jolt.destroy(pelvisId);
 
+    // Value types were copied into settings. Ragdoll holds a Ref to settings,
+    // so we must not Jolt.destroy(settings) — ~Ragdoll Releases it.
+    for (const p of positions) this.drop(p);
+    for (const p of constraintPos) this.drop(p);
+    for (const q of ownedQuats) this.drop(q);
+    this.drop(minusX);
+    this.drop(minusY);
+
     const built: BuiltRagdoll = {
       ragdoll,
-      settings,
       pose,
       bodyIds,
       orderedIds,
@@ -584,6 +611,9 @@ export class JoltWorld {
       /* already gone */
     }
     this.Jolt.destroy(id);
+    // DestroyBody Releases the shape. Jolt.destroy(shape) here double-frees.
+    this.bodyShapes.delete(handle);
+    this.arenaHandles = this.arenaHandles.filter((h) => h !== handle);
   }
 
   private remember(handle: BodyHandle) {
@@ -869,48 +899,45 @@ export class JoltWorld {
   }
 
   sampleHeap(): number {
-    return this.Jolt.HEAP8.buffer.byteLength;
+    try {
+      const n = this.jolt.sGetTotalMemory();
+      if (n > 0) return n;
+    } catch {
+      /* */
+    }
+    const heap = (this.Jolt as { HEAP8?: { buffer: ArrayBuffer } }).HEAP8;
+    return heap?.buffer.byteLength ?? 0;
+  }
+
+  sampleFree(): number {
+    try {
+      return this.jolt.sGetFreeMemory();
+    } catch {
+      return 0;
+    }
   }
 
   dispose() {
-    const Jolt = this.Jolt;
-    for (const r of this.ownedRagdolls) {
-      r.alive = false;
+    const leftover = [...this.ownedRagdolls];
+    for (const r of leftover) {
       try {
-        this.system.RemoveConstraint(r.pelvisSpring);
-      } catch {
-        /* RemoveConstraint Releases — do not destroy */
-      }
-      try {
-        Jolt.destroy(r.pose);
-      } catch {
-        /* */
-      }
-      try {
-        r.ragdoll.RemoveFromPhysicsSystem();
-      } catch {
-        /* */
-      }
-      try {
-        Jolt.destroy(r.ragdoll);
-      } catch {
-        /* */
-      }
-      try {
-        if (this.isAdded(r.rootBody)) this.removeBody(r.rootBody);
+        this.destroyRagdoll(r);
       } catch {
         /* */
       }
     }
     this.ownedRagdolls = [];
-    for (const t of this.temps) {
+    this.clearArena();
+    for (const h of [...this.bodyShapes.keys()]) {
       try {
-        Jolt.destroy(t);
+        this.removeBody(h);
       } catch {
         /* */
       }
     }
+    this.bodyShapes.clear();
+    for (const t of this.temps) this.drop(t);
     this.temps = [];
-    if (this.jolt) Jolt.destroy(this.jolt);
+    if (this.jolt) this.drop(this.jolt);
   }
 }

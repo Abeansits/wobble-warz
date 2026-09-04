@@ -91,6 +91,7 @@ export type WorldSnapshot = {
   counts: [number, number];
   hpPct: [number, number];
   physicsMs: number;
+  wasmBytes: number;
   degraded: boolean;
 };
 
@@ -864,6 +865,7 @@ export class World implements SimCtx {
       counts,
       hpPct,
       physicsMs: this.lastPhysicsMs,
+      wasmBytes: Math.max(0, this.physics.sampleHeap() - this.physics.sampleFree()),
       degraded: this.degraded,
     };
   }

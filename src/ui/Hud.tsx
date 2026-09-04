@@ -686,7 +686,12 @@ export function Hud({ world }: { world: World }) {
             <div className="toy-shadow rounded-btn border-[3px] border-ink bg-cream px-3 py-2 font-display">
               {snapshot ? Math.floor(snapshot.time) : 0}s / 120
               {typeof window !== "undefined" && window.location.search.includes("debug") && (
-                <span className="ml-2 text-sm text-muted">phys {snapshot?.physicsMs.toFixed(1)}ms</span>
+                <span className="ml-2 text-sm text-muted">
+                  phys {snapshot?.physicsMs.toFixed(1)}ms
+                  {snapshot && snapshot.wasmBytes > 0
+                    ? ` · wasm ${(snapshot.wasmBytes / 1_048_576).toFixed(1)}MB`
+                    : ""}
+                </span>
               )}
               {snapshot?.degraded && (
                 <span className="ml-2 text-ochre-hot" title="Physics is heavy — LOD and corpses are thinning">
