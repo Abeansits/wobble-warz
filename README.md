@@ -9,12 +9,17 @@ npm install
 npm run dev
 ```
 
-Then open the app and go **Play → pick profiles → plant on the glowing pads → Ready / GO**.
+Title → **Play** (two local profiles) or **Ladder** (vs a preset army).
+
+- Click a unit card, click the glowing pad. Drag for a line. Wheel to face. Right-click to yank. Undo / Flip / Save / Load on the bar.
+- **Ready** then pass the keyboard. **GO**.
+- Orbit: left-drag. Pan: WASD or shift-drag. **C** cycles views. Click a toy to follow, **F** toggles.
+- **Esc** pause. Win credits, then **Roll** (200¢) for powerups, hats, and Anomalies.
 
 ## Stack
 
-TanStack Start, React 19, Vite, Tailwind v4, three.js / R3F, Jolt physics.
+TanStack Start, React 19, Vite, Tailwind v4, three.js / R3F, Jolt physics, Zustand.
 
-## Milestone
+## What’s in
 
-Hot-seat loop with Stone Age + Medieval rosters (12 units), local profiles and credits, Highland Meadow arena.
+5 factions × 6 units, 8 Anomalies, 3 arenas, ladder 1–20, armory, roll + pity, local profiles (export/import).
