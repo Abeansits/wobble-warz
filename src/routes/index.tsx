@@ -18,7 +18,7 @@ function Home() {
       <div className="relative mx-auto flex min-h-dvh max-w-5xl flex-col justify-between px-6 py-10">
         <header className="flex items-start justify-between gap-4">
           <p className="rounded-btn border-[3px] border-ink bg-cream px-3 py-1 font-display text-ink toy-shadow">
-            Milestone 2
+            Playable
           </p>
           <p className="max-w-xs text-right text-sm text-cream/80 drop-shadow-[2px_2px_0_#1c1710]">
             Two sides of wobbly toy soldiers. Physics decides who wins.
@@ -26,7 +26,7 @@ function Home() {
         </header>
         <div>
           <img
-            src="/logo.jpg"
+            src="/assets/logo.png"
             alt="Wobble Wars"
             className="mb-4 max-h-28 w-auto rounded-card border-[3px] border-ink toy-shadow md:max-h-36"
           />

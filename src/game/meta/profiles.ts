@@ -23,6 +23,7 @@ export type Profile = {
   armies: SavedArmy[];
   hat: string | null;
   palette: string | null;
+  ladderProgress: number;
 };
 
 type ProfileStore = {
@@ -35,6 +36,7 @@ type ProfileStore = {
   setSeat: (seat: 0 | 1, id: string) => void;
   addCredits: (id: string, amount: number) => void;
   recordBattle: (id: string, won: boolean) => void;
+  recordLadder: (id: string, level: number) => boolean;
   grantPrize: (id: string, prize: { kind: string; id?: string; name?: string; amount?: number }) => void;
   spendCredits: (id: string, amount: number) => boolean;
   usePowerups: (id: string, ids: string[]) => void;
@@ -61,6 +63,7 @@ function fresh(name: string, color: string): Profile {
     armies: [],
     hat: null,
     palette: null,
+    ladderProgress: 0,
   };
 }
 
@@ -103,6 +106,16 @@ export const useProfiles = create<ProfileStore>()(
             p.id === id ? { ...p, battles: p.battles + 1, wins: p.wins + (won ? 1 : 0) } : p,
           ),
         })),
+      recordLadder: (id, level) => {
+        const p = get().profiles.find((x) => x.id === id);
+        if (!p) return false;
+        const prev = p.ladderProgress ?? 0;
+        if (level <= prev) return false;
+        set((s) => ({
+          profiles: s.profiles.map((x) => (x.id === id ? { ...x, ladderProgress: level } : x)),
+        }));
+        return true;
+      },
       spendCredits: (id, amount) => {
         const p = get().profiles.find((x) => x.id === id);
         if (!p || p.credits < amount) return false;
@@ -124,8 +137,14 @@ export const useProfiles = create<ProfileStore>()(
               powerups: { ...(p.powerups ?? {}) },
             };
             if (prize.kind === "credits") next.credits += prize.amount ?? 0;
-            if (prize.kind === "anomaly" && prize.id && !next.anomalies.includes(prize.id)) next.anomalies.push(prize.id);
-            if (prize.kind === "cosmetic" && prize.id && !next.cosmetics.includes(prize.id)) next.cosmetics.push(prize.id);
+            if (prize.kind === "anomaly" && prize.id) {
+              if (next.anomalies.includes(prize.id)) next.credits += 400;
+              else next.anomalies.push(prize.id);
+            }
+            if (prize.kind === "cosmetic" && prize.id) {
+              if (next.cosmetics.includes(prize.id)) next.credits += 60;
+              else next.cosmetics.push(prize.id);
+            }
             if (prize.kind === "powerup" && prize.id) next.powerups[prize.id] = (next.powerups[prize.id] ?? 0) + 1;
             return next;
           }),
@@ -174,6 +193,11 @@ export const useProfiles = create<ProfileStore>()(
     },
   ),
 );
+
+export function ladderPayout(level: number, first: boolean) {
+  const n = 60 + level * 12;
+  return first ? n : Math.round(n / 2);
+}
 
 export function creditPayout(winner: 0 | 1 | "draw", enemyCost: number, mvpSide: 0 | 1) {
   const win = 120 + Math.round(enemyCost * 0.05);

@@ -133,19 +133,25 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "quadruped", scale: 2.2, massMult: 4.2, hp: 1600, speed: 2.4, springStiffness: 28, launchThreshold: 140 },
     weapon: { kind: "charge", damage: 90, knockback: 55, range: 2.4, cooldown: 0.6 },
     ai: { targeting: "nearest" },
-    recipe: recipe(
-      [
-        { slot: "extra", shape: "capsule", size: [0.08, 0.55, 0.08], offset: [0.22, 0.05, 0.38], color: "skin", parent: "head" },
-        { slot: "shield", shape: "capsule", size: [0.08, 0.55, 0.08], offset: [-0.22, 0.05, 0.38], color: "skin", parent: "head" },
-        { slot: "hat", shape: "box", size: [0.2, 0.12, 0.28], offset: [0, 0.18, 0.28], color: "skin", parent: "head" },
+    recipe: {
+      parts: [
+        { slot: "pelvis", shape: "box", size: [0.58, 0.3, 0.8], offset: [0, 0, 0], color: "secondary" },
+        { slot: "torso", shape: "box", size: [0.78, 0.58, 1.15], offset: [0, 0.22, 0.06], color: "primary" },
+        { slot: "head", shape: "sphere", size: [0.3, 0.3, 0.3], offset: [0, 0.16, 0.68], color: "skin" },
+        { slot: "armL", shape: "box", size: [0.06, 0.06, 0.06], offset: [-0.12, 0.08, 0.2], color: "primary" },
+        { slot: "armR", shape: "box", size: [0.06, 0.06, 0.06], offset: [0.12, 0.08, 0.2], color: "primary" },
+        { slot: "legs", shape: "box", size: [0.18, 0.4, 0.18], offset: [0.22, -0.38, 0.28], color: "secondary" },
+        { slot: "extra", shape: "box", size: [0.18, 0.4, 0.18], offset: [-0.22, -0.38, 0.28], color: "secondary", parent: "pelvis" },
+        { slot: "extra", shape: "box", size: [0.18, 0.4, 0.18], offset: [0.22, -0.38, -0.28], color: "secondary", parent: "pelvis" },
+        { slot: "extra", shape: "box", size: [0.18, 0.4, 0.18], offset: [-0.22, -0.38, -0.28], color: "secondary", parent: "pelvis" },
+        { slot: "weapon", shape: "capsule", size: [0.09, 0.55, 0.09], offset: [0, -0.18, 0.26], color: "skin", parent: "head" },
+        { slot: "shield", shape: "capsule", size: [0.05, 0.34, 0.05], offset: [-0.16, -0.1, 0.22], color: "accent", parent: "head" },
+        { slot: "extra", shape: "capsule", size: [0.05, 0.34, 0.05], offset: [0.16, -0.1, 0.22], color: "accent", parent: "head" },
+        { slot: "hat", shape: "box", size: [0.24, 0.2, 0.05], offset: [-0.3, 0.1, 0], color: "skin", parent: "head" },
+        { slot: "scarf", shape: "box", size: [0.24, 0.2, 0.05], offset: [0.3, 0.1, 0], color: "skin", parent: "head" },
+        { slot: "belt", shape: "box", size: [0.82, 0.1, 0.22], offset: [0, 0.02, 0.48], color: "team", parent: "torso" },
       ],
-      {
-        pelvis: { slot: "pelvis", shape: "box", size: [0.55, 0.28, 0.7], offset: [0, 0, 0], color: "secondary" },
-        torso: { slot: "torso", shape: "box", size: [0.7, 0.5, 0.9], offset: [0, 0.2, 0], color: "primary" },
-        head: { slot: "head", shape: "sphere", size: [0.32, 0.32, 0.32], offset: [0, 0.42, 0.35], color: "skin" },
-        weapon: { slot: "weapon", shape: "box", size: [0.08, 0.5, 0.08], offset: [0.18, 0.05, 0.2], color: "skin" },
-      },
-    ),
+    },
     palette: { ...stone, primary: "#8a6a48", secondary: "#5a3e28" },
   },
   "medieval.squire": {
@@ -240,17 +246,21 @@ export const UNITS: Record<string, UnitDef> = {
     body: { kind: "static", scale: 1.6, massMult: 3, hp: 350, speed: 0, springStiffness: 40, launchThreshold: 90 },
     weapon: { kind: "explosive", damage: 80, knockback: 28, range: 22, cooldown: 4, speed: 13, arc: 6, radius: 3, minRange: 8 },
     ai: { targeting: "prefer:large" },
-    recipe: recipe(
-      [
-        { slot: "extra", shape: "box", size: [0.16, 0.1, 0.5], offset: [0, 0.18, 0.28], color: "wood", parent: "torso" },
-        { slot: "hat", shape: "box", size: [0.18, 0.18, 0.18], offset: [0, 0.22, -0.2], color: "wood", parent: "torso" },
+    recipe: {
+      parts: [
+        { slot: "pelvis", shape: "box", size: [0.85, 0.18, 0.7], offset: [0, 0, 0], color: "wood" },
+        { slot: "torso", shape: "box", size: [0.22, 0.55, 0.22], offset: [-0.28, 0.28, -0.12], color: "wood" },
+        { slot: "head", shape: "box", size: [0.22, 0.55, 0.22], offset: [0.28, 0.28, -0.12], color: "wood" },
+        { slot: "armL", shape: "box", size: [0.08, 0.08, 0.08], offset: [-0.2, 0.1, 0], color: "wood" },
+        { slot: "armR", shape: "box", size: [0.08, 0.08, 0.08], offset: [0.2, 0.1, 0], color: "wood" },
+        { slot: "legs", shape: "box", size: [0.12, 0.2, 0.12], offset: [0.3, -0.12, 0.22], color: "wood" },
+        { slot: "weapon", shape: "box", size: [0.14, 0.12, 0.7], offset: [0, 0.42, 0.18], color: "wood", parent: "pelvis" },
+        { slot: "extra", shape: "sphere", size: [0.2, 0.2, 0.2], offset: [0, 0.5, 0.42], color: "secondary", parent: "pelvis" },
+        { slot: "extra", shape: "box", size: [0.12, 0.2, 0.12], offset: [-0.3, -0.12, 0.22], color: "wood", parent: "pelvis" },
+        { slot: "extra", shape: "box", size: [0.12, 0.2, 0.12], offset: [0.3, -0.12, -0.22], color: "wood", parent: "pelvis" },
+        { slot: "belt", shape: "box", size: [0.9, 0.08, 0.18], offset: [0, 0.08, -0.28], color: "team", parent: "pelvis" },
       ],
-      {
-        pelvis: { slot: "pelvis", shape: "box", size: [0.7, 0.22, 0.55], offset: [0, 0, 0], color: "wood" },
-        torso: { slot: "torso", shape: "box", size: [0.4, 0.28, 0.4], offset: [0, 0.22, -0.1], color: "wood" },
-        weapon: { slot: "weapon", shape: "sphere", size: [0.22, 0.22, 0.22], offset: [0, 0.2, 0.22], color: "secondary" },
-      },
-    ),
+    },
     palette: { ...medieval, primary: "#6b4a28" },
   },
   "medieval.king": {
@@ -370,16 +380,18 @@ Object.assign(UNITS, {
     body: { kind: "static", scale: 1.3, massMult: 3, hp: 300, speed: 0, springStiffness: 30, launchThreshold: 90 },
     weapon: { kind: "explosive", damage: 120, knockback: 28, range: 22, cooldown: 5, speed: 16, arc: 0.6, radius: 3, minRange: 6 },
     ai: { targeting: "prefer:large", keepAway: 0 },
-    recipe: recipe(
-      [
-        { slot: "extra", shape: "sphere", size: [0.14, 0.14, 0.14], offset: [0, 0.22, 0.42], color: "metal", parent: "torso" },
-        { slot: "hat", shape: "box", size: [0.18, 0.18, 0.18], offset: [0, 0.28, -0.18], color: "wood", parent: "torso" },
+    recipe: {
+      parts: [
+        { slot: "pelvis", shape: "box", size: [0.55, 0.16, 0.4], offset: [0, 0, 0], color: "wood" },
+        { slot: "torso", shape: "capsule", size: [0.18, 0.7, 0.18], offset: [0, 0.22, 0.22], color: "metal" },
+        { slot: "head", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0, 0.22, 0.62], color: "metal" },
+        { slot: "armL", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [-0.28, -0.08, 0.12], color: "wood" },
+        { slot: "armR", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0.28, -0.08, 0.12], color: "wood" },
+        { slot: "legs", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0, -0.08, -0.16], color: "wood" },
+        { slot: "extra", shape: "box", size: [0.12, 0.18, 0.12], offset: [0, 0.12, -0.18], color: "wood", parent: "pelvis" },
+        { slot: "belt", shape: "box", size: [0.22, 0.08, 0.22], offset: [0, 0.08, 0.5], color: "team", parent: "torso" },
       ],
-      {
-        torso: { slot: "torso", shape: "box", size: [0.5, 0.36, 0.7], offset: [0, 0.1, 0], color: "secondary" },
-        weapon: { slot: "weapon", shape: "capsule", size: [0.16, 0.7, 0.16], offset: [0, 0.12, 0.36], color: "metal" },
-      },
-    ),
+    },
     palette: pirate,
   },
   "pirate.captain": {
@@ -488,17 +500,20 @@ Object.assign(UNITS, {
     body: { kind: "vehicle", scale: 1.8, massMult: 3.4, hp: 900, speed: 3.1, springStiffness: 26, launchThreshold: 110 },
     weapon: { kind: "charge", damage: 60, knockback: 40, range: 2.2, cooldown: 0.7 },
     ai: { targeting: "nearest" },
-    recipe: recipe(
-      [
-        { slot: "extra", shape: "sphere", size: [0.18, 0.18, 0.18], offset: [0.32, -0.22, -0.32], color: "secondary", parent: "torso" },
-        { slot: "shield", shape: "sphere", size: [0.18, 0.18, 0.18], offset: [-0.32, -0.22, 0.32], color: "secondary", parent: "torso" },
-        { slot: "hat", shape: "box", size: [0.5, 0.16, 0.36], offset: [0, 0.28, 0], color: "wood", parent: "torso" },
+    recipe: {
+      parts: [
+        { slot: "pelvis", shape: "box", size: [0.7, 0.16, 1.15], offset: [0, 0, 0], color: "wood" },
+        { slot: "torso", shape: "box", size: [0.72, 0.48, 0.9], offset: [0, 0.28, 0], color: "primary" },
+        { slot: "head", shape: "box", size: [0.5, 0.22, 0.22], offset: [0, 0.22, 0.52], color: "secondary" },
+        { slot: "armL", shape: "sphere", size: [0.18, 0.18, 0.18], offset: [-0.32, -0.16, 0.38], color: "secondary" },
+        { slot: "armR", shape: "sphere", size: [0.18, 0.18, 0.18], offset: [0.32, -0.16, 0.38], color: "secondary" },
+        { slot: "legs", shape: "sphere", size: [0.18, 0.18, 0.18], offset: [0.32, -0.16, -0.38], color: "secondary" },
+        { slot: "extra", shape: "sphere", size: [0.18, 0.18, 0.18], offset: [-0.32, -0.16, -0.38], color: "secondary", parent: "pelvis" },
+        { slot: "hat", shape: "box", size: [0.74, 0.08, 0.92], offset: [0, 0.3, 0], color: "wood", parent: "torso" },
+        { slot: "belt", shape: "box", size: [0.76, 0.1, 0.12], offset: [0, 0.08, 0.46], color: "team", parent: "torso" },
+        { slot: "scarf", shape: "box", size: [0.08, 0.22, 0.08], offset: [0.28, 0.18, 0.2], color: "accent", parent: "torso" },
       ],
-      {
-        torso: { slot: "torso", shape: "box", size: [0.7, 0.4, 1.0], offset: [0, 0.16, 0], color: "primary" },
-        legs: { slot: "legs", shape: "sphere", size: [0.2, 0.2, 0.2], offset: [0.28, -0.22, 0.28], color: "secondary" },
-      },
-    ),
+    },
     palette: frontier,
   },
   "haunted.skeleton": {
@@ -599,6 +614,30 @@ Object.assign(UNITS, {
     ),
     palette: haunted,
   },
+  "summon.chicken": {
+    id: "summon.chicken",
+    faction: "anomaly",
+    name: "Hen",
+    blurb: "Tiny, fast, furious.",
+    cost: 0,
+    body: { kind: "humanoid", scale: 0.42, massMult: 0.25, hp: 10, speed: 5.2, springStiffness: 8, launchThreshold: 12 },
+    weapon: { kind: "melee", damage: 5, knockback: 4, range: 0.9, cooldown: 0.55, swingSeconds: 0.22 },
+    ai: { targeting: "nearest" },
+    recipe: {
+      parts: [
+        { slot: "pelvis", shape: "sphere", size: [0.14, 0.14, 0.14], offset: [0, 0, 0], color: "accent" },
+        { slot: "torso", shape: "sphere", size: [0.26, 0.26, 0.26], offset: [0, 0.14, 0], color: "primary" },
+        { slot: "head", shape: "sphere", size: [0.13, 0.13, 0.13], offset: [0, 0.32, 0.12], color: "skin" },
+        { slot: "armL", shape: "box", size: [0.05, 0.08, 0.05], offset: [-0.14, 0.1, 0], color: "accent" },
+        { slot: "armR", shape: "box", size: [0.05, 0.08, 0.05], offset: [0.14, 0.1, 0], color: "accent" },
+        { slot: "legs", shape: "box", size: [0.05, 0.12, 0.05], offset: [0.06, -0.12, 0.04], color: "accent" },
+        { slot: "extra", shape: "box", size: [0.05, 0.12, 0.05], offset: [-0.06, -0.12, 0.04], color: "accent", parent: "pelvis" },
+        { slot: "weapon", shape: "box", size: [0.05, 0.04, 0.1], offset: [0, -0.02, 0.14], color: "accent", parent: "head" },
+        { slot: "hat", shape: "box", size: [0.06, 0.1, 0.04], offset: [0, 0.12, 0], color: "accent", parent: "head" },
+      ],
+    },
+    palette: { primary: "#f0d090", secondary: "#b33a2b", accent: "#e8a020", skin: "#fff4e0" },
+  },
   "anomaly.jelly": {
     id: "anomaly.jelly",
     faction: "anomaly",
@@ -608,10 +647,17 @@ Object.assign(UNITS, {
     body: { kind: "humanoid", scale: 2.1, massMult: 3.2, hp: 2000, speed: 1.8, springStiffness: 12, launchThreshold: 90 },
     weapon: { kind: "melee", damage: 10, knockback: 48, range: 2.4, cooldown: 1.2, swingSeconds: 0.5 },
     ai: { targeting: "nearest" },
-    recipe: recipe([], {
-      torso: { slot: "torso", shape: "sphere", size: [0.5, 0.5, 0.5], offset: [0, 0.28, 0], color: "accent" },
-      head: { slot: "head", shape: "sphere", size: [0.28, 0.28, 0.28], offset: [0, 0.7, 0], color: "skin" },
-    }),
+    recipe: {
+      parts: [
+        { slot: "pelvis", shape: "sphere", size: [0.42, 0.42, 0.42], offset: [0, 0, 0], color: "accent" },
+        { slot: "torso", shape: "sphere", size: [0.62, 0.62, 0.62], offset: [0, 0.28, 0], color: "accent" },
+        { slot: "head", shape: "sphere", size: [0.28, 0.28, 0.28], offset: [0, 0.72, 0], color: "skin" },
+        { slot: "armL", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [-0.42, 0.2, 0], color: "accent" },
+        { slot: "armR", shape: "sphere", size: [0.16, 0.16, 0.16], offset: [0.42, 0.2, 0], color: "accent" },
+        { slot: "legs", shape: "sphere", size: [0.2, 0.2, 0.2], offset: [0, -0.28, 0], color: "accent" },
+        { slot: "belt", shape: "box", size: [0.3, 0.1, 0.08], offset: [0, 0.1, -0.5], color: "team", parent: "torso" },
+      ],
+    },
     palette: { primary: "#7ec8c0", secondary: "#3a6f6a", accent: "#d4f0ea", skin: "#e8fff4" },
   },
   "anomaly.boulder": {
@@ -623,10 +669,17 @@ Object.assign(UNITS, {
     body: { kind: "quadruped", scale: 1.8, massMult: 4, hp: 800, speed: 2.6, springStiffness: 30, launchThreshold: 160 },
     weapon: { kind: "charge", damage: 70, knockback: 40, range: 2.2, cooldown: 0.5 },
     ai: { targeting: "nearest" },
-    recipe: recipe([], {
-      torso: { slot: "torso", shape: "sphere", size: [0.7, 0.7, 0.7], offset: [0, 0.1, 0], color: "secondary" },
-      head: { slot: "head", shape: "sphere", size: [0.2, 0.2, 0.2], offset: [0, 0.45, 0.2], color: "skin" },
-    }),
+    recipe: {
+      parts: [
+        { slot: "pelvis", shape: "sphere", size: [0.55, 0.55, 0.55], offset: [0, 0, 0], color: "secondary" },
+        { slot: "torso", shape: "sphere", size: [0.78, 0.78, 0.78], offset: [0, 0.08, 0], color: "secondary" },
+        { slot: "head", shape: "sphere", size: [0.12, 0.12, 0.12], offset: [0, 0.18, 0.42], color: "secondary" },
+        { slot: "armL", shape: "sphere", size: [0.1, 0.1, 0.1], offset: [-0.4, 0, 0], color: "secondary" },
+        { slot: "armR", shape: "sphere", size: [0.1, 0.1, 0.1], offset: [0.4, 0, 0], color: "secondary" },
+        { slot: "legs", shape: "sphere", size: [0.12, 0.12, 0.12], offset: [0, -0.4, 0], color: "secondary" },
+        { slot: "belt", shape: "box", size: [0.22, 0.08, 0.08], offset: [0, 0.35, 0], color: "team", parent: "torso" },
+      ],
+    },
     palette: { primary: "#6b4a28", secondary: "#8a6a3a", accent: "#c48a3a", skin: "#c9cdd3" },
   },
   "anomaly.cheer": {
@@ -725,12 +778,12 @@ export const M2_FACTIONS = ["stoneage", "medieval", "pirate", "frontier", "haunt
 
 export const M1_FACTIONS = M2_FACTIONS;
 
-export const M1_ROSTER: UnitDef[] = Object.values(UNITS).filter((u) =>
-  (M2_FACTIONS as readonly string[]).includes(u.faction),
+export const M1_ROSTER: UnitDef[] = Object.values(UNITS).filter(
+  (u) => (M2_FACTIONS as readonly string[]).includes(u.faction) && !u.id.startsWith("summon."),
 );
 
 export function rosterFor(faction: UnitDef["faction"]): UnitDef[] {
-  return Object.values(UNITS).filter((u) => u.faction === faction);
+  return Object.values(UNITS).filter((u) => u.faction === faction && !u.id.startsWith("summon."));
 }
 
 export function getUnit(id: string): UnitDef {

@@ -1,0 +1,106 @@
+import type { ArenaId } from "@/game/data/arenas";
+import type { Placement, Side, UnitDef } from "@/game/data/types";
+import type { EventRing } from "./events";
+import type { Rng } from "./rng";
+import type {
+  BodyHandle,
+  BuiltRagdoll,
+  JoltWorld,
+  TransformSnap,
+} from "./physics/joltWorld";
+
+export type UnitState = "idle" | "seek" | "attack" | "stunned" | "launched" | "dead";
+export type FaceState = "idle" | "angry" | "hurt" | "dead";
+
+export type UnitInternal = {
+  id: number;
+  def: UnitDef;
+  side: Side;
+  hp: number;
+  maxHp: number;
+  state: UnitState;
+  face: FaceState;
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  ragdoll: BuiltRagdoll;
+  cooldown: number;
+  swingT: number;
+  launchT: number;
+  stunT: number;
+  hurtT: number;
+  slowT: number;
+  frozenT: number;
+  targetId: number | null;
+  flash: number;
+  lastHitBy: number | null;
+  aiTickOffset: number;
+  damageDealt: number;
+  swingHits: Set<number>;
+  chargeHits: Set<number>;
+  charging: boolean;
+  deadT: number;
+  summoned: boolean;
+  gone: boolean;
+  frozenCorpse: boolean;
+};
+
+export type Flying = {
+  id: number;
+  body: BodyHandle;
+  ownerId: number;
+  side: Side;
+  damage: number;
+  knockback: number;
+  radius: number;
+  life: number;
+  linger: number;
+  explosive: boolean;
+  kind: "rock" | "spear" | "arrow" | "boom";
+  hit: Set<number>;
+  slow?: number;
+  slowT?: number;
+  freeze?: number;
+};
+
+export type TetherLink = {
+  constraint: ReturnType<JoltWorld["createDistanceSpring"]>;
+  attackerId: number;
+  victimId: number;
+  until: number;
+};
+
+export type Tombstone = {
+  handle: BodyHandle;
+  x: number;
+  y: number;
+  z: number;
+  hp: number;
+};
+
+export type PlaceOpts = {
+  free?: boolean;
+  summoned?: boolean;
+  def?: UnitDef;
+};
+
+export type SimCtx = {
+  units: UnitInternal[];
+  physics: JoltWorld;
+  rng: Rng;
+  events: EventRing;
+  time: number;
+  arena: ArenaId;
+  hitStop: number;
+  noDamageT: number;
+  tethers: TetherLink[];
+  flying: Flying[];
+  nextShot: number;
+  scratch: TransformSnap;
+  bananaSide: 0 | 1 | null;
+  stones: Tombstone[];
+  kill: (u: UnitInternal, killerId: number | null) => void;
+  place: (p: Placement, opts?: PlaceOpts) => number;
+  groundY: (x?: number, z?: number) => number;
+};

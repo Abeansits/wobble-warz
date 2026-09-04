@@ -47,6 +47,7 @@ type GameStore = {
   resetSpend: () => void;
   pushPlace: (p: Placement) => void;
   popPlace: () => Placement | null;
+  redoPlace: () => Placement | null;
   setYawOffset: (n: number) => void;
   pushKill: (line: string) => void;
   clearFeed: () => void;
@@ -113,6 +114,13 @@ export const useGame = create<GameStore>((set, get) => ({
     const last = list[list.length - 1];
     set({ placements: list.slice(0, -1), undo: [...get().undo, last] });
     return last;
+  },
+  redoPlace: () => {
+    const stack = get().undo;
+    if (!stack.length) return null;
+    const next = stack[stack.length - 1];
+    set({ undo: stack.slice(0, -1), placements: [...get().placements, next] });
+    return next;
   },
   setYawOffset: (yawOffset) => set({ yawOffset }),
   pushKill: (line) =>

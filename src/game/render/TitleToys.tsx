@@ -1,73 +1,95 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { startMeadow, stopMeadow } from "@/game/audio";
+import { World, type WorldSnapshot } from "@/game/sim/World";
+import { ArmyView } from "./ArmyView";
+import { Clouds, SkyDome } from "./SkyBits";
+import { MeadowProps, Terrain } from "./Terrain";
 
-function Doll({
-  x,
-  z,
-  color,
-  delay,
-}: {
-  x: number;
-  z: number;
-  color: string;
-  delay: number;
-}) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime + delay;
-    if (!ref.current) return;
-    ref.current.position.y = 0.35 + Math.abs(Math.sin(t * 3.2)) * 0.12;
-    ref.current.rotation.z = Math.sin(t * 2.4) * 0.18;
-    ref.current.rotation.y = Math.sin(t * 0.7) * 0.4;
+function plant(world: World) {
+  world.clearUnits();
+  for (let i = 0; i < 4; i++) {
+    world.place({
+      defId: "stoneage.clubber",
+      x: -11,
+      z: -4.5 + i * 2.8,
+      yaw: -Math.PI / 2,
+      side: 0,
+    });
+    world.place({
+      defId: "medieval.squire",
+      x: 11,
+      z: -4.5 + i * 2.8,
+      yaw: Math.PI / 2,
+      side: 1,
+    });
+  }
+  world.startCountdown();
+}
+
+function DemoLoop({ world, onSnap }: { world: World; onSnap: (s: WorldSnapshot) => void }) {
+  const last = useRef(performance.now());
+  useFrame(() => {
+    const now = performance.now();
+    const dt = Math.min(0.05, (now - last.current) / 1000);
+    last.current = now;
+    if (world.phase !== "over") world.step(dt, 1, false);
+    else plant(world);
+    onSnap(world.snapshot());
   });
-  return (
-    <group ref={ref} position={[x, 0.4, z]}>
-      <mesh position={[0, 0.35, 0]} castShadow>
-        <boxGeometry args={[0.38, 0.4, 0.26]} />
-        <meshToonMaterial color={color} />
-      </mesh>
-      <mesh position={[0, 0.68, 0]} castShadow>
-        <sphereGeometry args={[0.2, 10, 8]} />
-        <meshToonMaterial color="#e6c2a0" />
-      </mesh>
-      <mesh position={[0, 0.08, 0]}>
-        <boxGeometry args={[0.28, 0.28, 0.2]} />
-        <meshToonMaterial color="#6b4a28" />
-      </mesh>
-    </group>
-  );
+  return null;
 }
 
 function Rig() {
   useFrame(({ camera, clock }) => {
-    const t = clock.elapsedTime * 0.18;
-    camera.position.set(Math.sin(t) * 8, 5.2, Math.cos(t) * 8);
-    camera.lookAt(0, 0.6, 0);
+    const t = clock.elapsedTime * 0.12;
+    camera.position.set(Math.sin(t) * 28, 16, Math.cos(t) * 28);
+    camera.lookAt(0, 1.2, 0);
   });
   return null;
 }
 
 export function TitleToys() {
+  const [world, setWorld] = useState<World | null>(null);
+  const [snap, setSnap] = useState<WorldSnapshot | null>(null);
+
   useEffect(() => {
     startMeadow(0.25);
-    return () => stopMeadow();
+    let alive = true;
+    const w = new World(44);
+    void w.init().then(() => {
+      if (!alive) {
+        w.dispose();
+        return;
+      }
+      plant(w);
+      setWorld(w);
+      setSnap(w.snapshot());
+    });
+    return () => {
+      alive = false;
+      stopMeadow();
+      try {
+        w.dispose();
+      } catch {
+        /* */
+      }
+    };
   }, []);
+
   return (
     <div className="pointer-events-none absolute inset-0">
-      <Canvas camera={{ position: [6, 5, 8], fov: 42 }} dpr={[1, 1.25]} gl={{ antialias: true, alpha: true }}>
-        <color attach="background" args={["#2E5A2C"]} />
+      <Canvas camera={{ position: [22, 16, 22], fov: 42 }} dpr={[1, 1.25]} gl={{ antialias: true, alpha: true }}>
+        <SkyDome sky="#8ec6e8" />
+        <Clouds />
+        <fog attach="fog" args={["#9fd0ee", 40, 110]} />
         <hemisphereLight args={["#cfe8ff", "#4a6a32", 0.8]} />
-        <directionalLight position={[6, 10, 4]} intensity={1.1} color="#ffe6b8" />
-        <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <planeGeometry args={[40, 28]} />
-          <meshToonMaterial color="#4f8a4a" />
-        </mesh>
-        <Doll x={-1.4} z={0.4} color="#3a5f8a" delay={0} />
-        <Doll x={1.3} z={-0.2} color="#b33a2b" delay={0.7} />
-        <Doll x={-0.2} z={1.4} color="#c48a3a" delay={1.3} />
-        <Doll x={0.6} z={-1.3} color="#5a3a6a" delay={1.9} />
+        <directionalLight position={[18, 28, 10]} intensity={1.2} color="#ffe6b8" />
+        <Terrain />
+        <MeadowProps />
+        <ArmyView snapshot={snap} />
+        {world ? <DemoLoop world={world} onSnap={setSnap} /> : null}
         <Rig />
       </Canvas>
     </div>

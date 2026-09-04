@@ -1,9 +1,11 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { COSMETICS } from "@/game/data/rolls";
 import { FACTION_META } from "@/game/data/types";
 import { M2_FACTIONS, rosterFor } from "@/game/data/units";
 import { useProfiles } from "@/game/meta/profiles";
+import { UnitPreview } from "@/game/render/UnitPreview";
+import type { UnitDef } from "@/game/data/types";
 
 export const Route = createFileRoute("/armory")({
   ssr: false,
@@ -16,12 +18,22 @@ function ArmoryPage() {
     profiles.ensureDefaults();
   }, [profiles]);
   const me = profiles.profiles.find((p) => p.id === profiles.p1);
+  const [picked, setPicked] = useState<UnitDef | null>(null);
+  const shown = picked ?? rosterFor("stoneage")[0];
 
   return (
     <main className="min-h-dvh bg-meadow-deep px-6 py-10 text-cream">
       <div className="mx-auto max-w-5xl">
         <h1 className="font-display text-5xl">Armory</h1>
         <p className="mt-2 text-cream/80">Every toy in the box. Equip a hat or palette you rolled.</p>
+
+        {shown && (
+          <section className="toy-shadow mt-6 rounded-card border-[3px] border-ink bg-cream p-4 text-ink">
+            <h2 className="font-display text-2xl">{shown.name}</h2>
+            <p className="mb-3 text-sm text-muted">{shown.blurb}</p>
+            <UnitPreview def={shown} cosmetic={me?.palette ?? null} />
+          </section>
+        )}
 
         {me && (
           <section className="toy-shadow mt-6 rounded-card border-[3px] border-ink bg-cream p-4 text-ink">
@@ -57,7 +69,11 @@ function ArmoryPage() {
             <p className="text-sm text-cream/70">{FACTION_META[f].tag}</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {rosterFor(f).map((u) => (
-                <article key={u.id} className="toy-shadow rounded-card border-[3px] border-ink bg-cream p-3 text-ink">
+                <article
+                  key={u.id}
+                  className="toy-shadow cursor-pointer rounded-card border-[3px] border-ink bg-cream p-3 text-ink"
+                  onClick={() => setPicked(u)}
+                >
                   <div className="mb-1 flex h-8 overflow-hidden rounded-btn border-[2px] border-ink">
                     <span className="w-1/2" style={{ background: u.palette.primary }} />
                     <span className="w-1/4" style={{ background: u.palette.skin }} />

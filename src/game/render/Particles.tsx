@@ -75,10 +75,18 @@ export function Particles() {
     if (mesh.current.instanceColor) mesh.current.instanceColor.needsUpdate = true;
   });
 
+  const map = useMemo(() => {
+    const t = new THREE.TextureLoader().load("/assets/particles.png");
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.repeat.set(0.25, 0.5);
+    t.offset.set(0, 0.5);
+    return t;
+  }, []);
+
   return (
     <instancedMesh ref={mesh} args={[undefined, undefined, MAX]} frustumCulled={false}>
-      <sphereGeometry args={[1, 6, 5]} />
-      <meshBasicMaterial toneMapped={false} />
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial map={map} transparent toneMapped={false} depthWrite={false} />
     </instancedMesh>
   );
 }

@@ -1,0 +1,17 @@
+{
+  "faces": "/assets/faces.png",
+  "particles": "/assets/particles.png",
+  "clouds": ["/assets/cloud-1.png", "/assets/cloud-2.png", "/assets/cloud-3.png", "/assets/cloud-4.png"],
+  "emblems": "/assets/emblems.png",
+  "logo": "/assets/logo.png",
+  "icons": "/assets/icons.png",
+  "textures": {
+    "wood": "/assets/tex-wood.png",
+    "stone": "/assets/tex-stone.png",
+    "metal": "/assets/tex-metal.png"
+  },
+  "roll": {
+    "bursts": "/assets/roll-bursts.png",
+    "badge": "/assets/badge-new.png"
+  }
+}

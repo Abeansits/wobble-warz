@@ -8,6 +8,7 @@ export const POWERUPS = [
   { id: "wind", name: "Second Wind", blurb: "Heal 30% at 0:30.", rarity: "rare" },
   { id: "giant", name: "Giant", blurb: "One random toy is huge.", rarity: "rare" },
   { id: "potato", name: "Hot Potato", blurb: "Their priciest toy is ticking.", rarity: "rare" },
+  { id: "banana", name: "Banana Peel", blurb: "Their side turns into a slip-n-slide.", rarity: "rare" },
 ] as const;
 
 export const ANOMALIES = [

@@ -142,11 +142,30 @@ export function getMetalTex() {
 export function getRamp() {
   return (ramp ??= toonRamp());
 }
+function loadFaceSheet(mood: FaceMood) {
+  const row = { idle: 0, angry: 1, hurt: 2, dead: 3 }[mood];
+  const t = new THREE.TextureLoader().load("/assets/faces.png");
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = t.minFilter = THREE.NearestFilter;
+  t.repeat.set(0.25, 0.25);
+  t.offset.set(0, 0.75 - row * 0.25);
+  t.needsUpdate = true;
+  return t;
+}
+
 export function getFace(mood: FaceMood) {
   let t = faces.get(mood);
   if (!t) {
-    t = faceTexture(mood);
+    t = typeof window !== "undefined" ? loadFaceSheet(mood) : faceTexture(mood);
     faces.set(mood, t);
   }
+  return t;
+}
+
+export function getPropTex(kind: "wood" | "stone" | "metal") {
+  const t = new THREE.TextureLoader().load(`/assets/tex-${kind}.png`);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(2, 2);
   return t;
 }

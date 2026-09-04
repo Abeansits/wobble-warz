@@ -10,7 +10,7 @@ export const Route = createFileRoute("/ladder")({
 
 function LadderPage() {
   const nav = useNavigate();
-  const progress = useProfiles((s) => s.profiles.find((p) => p.id === s.p1)?.wins ?? 0);
+  const progress = useProfiles((s) => s.profiles.find((p) => p.id === s.p1)?.ladderProgress ?? 0);
 
   return (
     <main className="min-h-dvh bg-meadow-deep px-6 py-10 text-cream">

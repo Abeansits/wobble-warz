@@ -1,8 +1,16 @@
 import { useMemo } from "react";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import { getArena, terrainHeight, type ArenaId } from "@/game/data/arenas";
+import {
+  BRIDGE_Z,
+  GRAVEYARD_STONES,
+  MEADOW_BOULDERS,
+  getArena,
+  terrainHeight,
+  type ArenaId,
+} from "@/game/data/arenas";
 import { useGame } from "@/store/gameStore";
+import { getPropTex } from "./textures";
 
 function height(x: number, z: number, arena: ArenaId = "meadow") {
   return terrainHeight(x, z, arena);
@@ -46,57 +54,61 @@ export function Terrain() {
 
 export function MeadowProps() {
   const arenaId = useGame((s) => s.arena);
-  const rocks = useMemo(
+  const stone = useMemo(() => getPropTex("stone"), []);
+  const wood = useMemo(() => getPropTex("wood"), []);
+  const rocks = MEADOW_BOULDERS;
+  const flowers = useMemo(
     () =>
-      [
-        [-8, 0.55, 6, 0.7],
-        [6, 0.9, -7, 1.1],
-        [14, 0.45, 8, 0.55],
-        [-16, 0.65, -5, 0.8],
-        [2, 0.35, 12, 0.4],
-        [-12, 0.4, 11, 0.45],
-      ] as [number, number, number, number][],
+      Array.from({ length: 36 }, (_, i) => {
+        const x = ((i * 17) % 50) - 25;
+        const z = ((i * 13) % 34) - 17;
+        return [x, z, 0.12 + (i % 5) * 0.04, i % 3] as [number, number, number, number];
+      }),
     [],
   );
-  const stones = useMemo(
-    () =>
-      [
-        [-4, 0.7, 4],
-        [5, 0.7, -3],
-        [-10, 0.7, -8],
-        [11, 0.7, 6],
-        [0, 0.7, 9],
-      ] as [number, number, number][],
-    [],
-  );
+  const bloom = ["#e8c84a", "#d45a6a", "#f0e6c8"] as const;
   return (
     <group>
-      {rocks.map(([x, y, z, r], i) => (
-        <mesh key={`r${i}`} position={[x, y, z]} castShadow receiveShadow raycast={() => {}}>
-          <sphereGeometry args={[r, 6, 5]} />
-          <meshToonMaterial color={arenaId === "canyon" ? "#a05030" : "#7a6a52"} />
-        </mesh>
-      ))}
-      {arenaId === "graveyard" &&
-        stones.map(([x, y, z], i) => (
-          <mesh key={`t${i}`} position={[x, y, z]} castShadow raycast={() => {}}>
-            <boxGeometry args={[0.45, 1.1, 0.18]} />
-            <meshToonMaterial color="#6a6a68" />
+      {arenaId === "meadow" &&
+        rocks.map(([x, y, z, r], i) => (
+          <mesh key={`r${i}`} position={[x, y, z]} castShadow receiveShadow raycast={() => {}}>
+            <sphereGeometry args={[r, 6, 5]} />
+            <meshToonMaterial color={i % 2 ? "#7a6a52" : "#8d7a5c"} map={stone} />
+          </mesh>
+        ))}
+      {arenaId === "meadow" &&
+        flowers.map(([x, z, h, c], i) => (
+          <mesh key={`f${i}`} position={[x, height(x, z, "meadow") + h, z]} raycast={() => {}}>
+            <coneGeometry args={[0.08, h * 2, 5]} />
+            <meshToonMaterial color={bloom[c]} />
           </mesh>
         ))}
       {arenaId === "canyon" && (
         <>
-          <mesh position={[0, 0.2, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => {}}>
-            <planeGeometry args={[5.2, 40]} />
+          <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => {}}>
+            <planeGeometry args={[6.4, 40]} />
             <meshToonMaterial color="#7a3a22" />
           </mesh>
+          {BRIDGE_Z.map((z) => (
+            <mesh key={`b${z}`} position={[0, 0.28, z]} castShadow receiveShadow raycast={() => {}}>
+              <boxGeometry args={[6.8, 0.12, 1.1]} />
+              <meshToonMaterial color="#6a3a22" map={wood} />
+            </mesh>
+          ))}
         </>
       )}
+      {arenaId === "graveyard" &&
+        GRAVEYARD_STONES.map(([x, z], i) => (
+          <mesh key={`t${i}`} position={[x, height(x, z, "graveyard") + 0.55, z]} castShadow raycast={() => {}}>
+            <boxGeometry args={[0.45, 1.1, 0.18]} />
+            <meshToonMaterial color="#6a6a68" map={stone} />
+          </mesh>
+        ))}
     </group>
   );
 }
 
-function zoneGeometry(x0: number, x1: number, z0: number, z1: number) {
+function zoneGeometry(x0: number, x1: number, z0: number, z1: number, arena: ArenaId) {
   const segX = 18;
   const segZ = 16;
   const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0, segX, segZ);
@@ -107,15 +119,16 @@ function zoneGeometry(x0: number, x1: number, z0: number, z1: number) {
     const z = pos.getZ(i) + (z0 + z1) / 2;
     pos.setX(i, x);
     pos.setZ(i, z);
-    pos.setY(i, height(x, z) + 0.14);
+    pos.setY(i, height(x, z, arena) + 0.14);
   }
   g.computeVertexNormals();
   return g;
 }
 
 export function DeployPads({ active }: { active: 0 | 1 }) {
-  const blue = useMemo(() => zoneGeometry(-28, -8, -18, 18), []);
-  const red = useMemo(() => zoneGeometry(8, 28, -18, 18), []);
+  const arenaId = useGame((s) => s.arena);
+  const blue = useMemo(() => zoneGeometry(-28, -8, -18, 18, arenaId), [arenaId]);
+  const red = useMemo(() => zoneGeometry(8, 28, -18, 18, arenaId), [arenaId]);
   return (
     <group>
       <mesh geometry={blue} raycast={() => {}}>
@@ -134,13 +147,13 @@ export function DeployPads({ active }: { active: 0 | 1 }) {
           depthWrite={false}
         />
       </mesh>
-      <ZonePosts side={0} lit={active === 0} />
-      <ZonePosts side={1} lit={active === 1} />
+      <ZonePosts side={0} lit={active === 0} arena={arenaId} />
+      <ZonePosts side={1} lit={active === 1} arena={arenaId} />
     </group>
   );
 }
 
-function ZonePosts({ side, lit }: { side: 0 | 1; lit: boolean }) {
+function ZonePosts({ side, lit, arena }: { side: 0 | 1; lit: boolean; arena: ArenaId }) {
   const x = side === 0 ? -18 : 18;
   const label = side === 0 ? "P1 PLANTS HERE" : "P2 PLANTS HERE";
   const color = side === 0 ? "#cfe8ff" : "#ffd0c8";
@@ -161,13 +174,13 @@ function ZonePosts({ side, lit }: { side: 0 | 1; lit: boolean }) {
   return (
     <group>
       {corners.map(([cx, cz], i) => (
-        <mesh key={i} position={[cx, height(cx, cz) + 0.55, cz]} raycast={() => {}}>
+        <mesh key={i} position={[cx, height(cx, cz, arena) + 0.55, cz]} raycast={() => {}}>
           <boxGeometry args={[0.22, 1.15, 0.22]} />
           <meshBasicMaterial color={lit ? color : "#2a241c"} />
         </mesh>
       ))}
       <Text
-        position={[x, height(x, 0) + 2.2, 0]}
+        position={[x, height(x, 0, arena) + 2.2, 0]}
         fontSize={1.15}
         color={lit ? color : "#8a7a62"}
         anchorX="center"
@@ -181,4 +194,3 @@ function ZonePosts({ side, lit }: { side: 0 | 1; lit: boolean }) {
     </group>
   );
 }
-

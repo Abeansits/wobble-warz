@@ -5,7 +5,8 @@ import { getUnit } from "@/game/data/units";
 import type { WorldSnapshot } from "@/game/sim/World";
 import { useProfiles } from "@/game/meta/profiles";
 import { useGame } from "@/store/gameStore";
-import { METAL, TEAM, WOOD } from "./palette";
+import { COSMETIC_PALETTES, METAL, TEAM, WOOD } from "./palette";
+import { useSettings } from "@/routes/settings";
 import { getCloth, getFace, getMetalTex, getRamp, getWood, type FaceMood } from "./textures";
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
@@ -36,11 +37,11 @@ function geom(shape: string, size: [number, number, number]) {
   return g;
 }
 
-function tokenColor(token: string, defId: string, side: 0 | 1): string {
+function tokenColor(token: string, defId: string, side: 0 | 1, cosmetic?: string | null): string {
   if (token === "team") return TEAM[side];
   if (token === "wood") return WOOD;
   if (token === "metal") return METAL;
-  const pal = getUnit(defId).palette;
+  const pal = (cosmetic && COSMETIC_PALETTES[cosmetic]) || getUnit(defId).palette;
   if (token === "primary") return pal.primary;
   if (token === "secondary") return pal.secondary;
   if (token === "accent") return pal.accent;
@@ -122,8 +123,11 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
   const placingSide = useGame((s) => s.placingSide);
   const hat0 = useProfiles((s) => s.profiles.find((p) => p.id === s.p1)?.hat);
   const hat1 = useProfiles((s) => s.profiles.find((p) => p.id === s.p2)?.hat);
+  const pal0 = useProfiles((s) => s.profiles.find((p) => p.id === s.p1)?.palette);
+  const pal1 = useProfiles((s) => s.profiles.find((p) => p.id === s.p2)?.palette);
   const phase = snapshot?.phase ?? "setup";
-  const blind = phase === "setup" && seat === "setupP2";
+  const hideEnemy = useSettings((s) => s.blind);
+  const blind = phase === "setup" && seat === "setupP2" && hideEnemy;
 
   const { batches, picks, faces } = useMemo(() => {
     const bag = new Map<string, Batch>();
@@ -152,7 +156,7 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
       const def = getUnit(u.defId);
       const fade = u.fade ?? 0;
       const sink = fade * 0.55;
-      const shrink = def.body.scale * (1 - fade * 0.85);
+      const shrink = (u.scale ?? def.body.scale) * (1 - fade * 0.85);
       for (const part of def.recipe.parts) {
         const boneName = part.parent ?? PARENT[part.slot] ?? part.slot;
         const src = u.parts[boneName];
@@ -162,7 +166,7 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
         if (PARENT[part.slot] || part.parent) _off.applyQuaternion(_q);
         else _off.set(0, 0, 0);
         const kind = u.flash > 0 ? "plain" : kindFor(part.color);
-        const color = u.flash > 0 ? "#ffffff" : tokenColor(part.color, u.defId, u.side);
+        const color = u.flash > 0 ? "#ffffff" : tokenColor(part.color, u.defId, u.side, u.side === 0 ? pal0 : pal1);
         const key = `${part.shape}:${part.size.join("x")}:${kind}`;
         let b = bag.get(key);
         if (!b) {
@@ -198,7 +202,7 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
         b.color.push(worn === "hat.crown" ? "#d4a017" : "#c45a32");
       }
       const head = u.parts.head;
-      if (head && Number.isFinite(head.x)) {
+      if (head && Number.isFinite(head.x) && def.body.kind === "humanoid") {
         _q.set(head.qx, head.qy, head.qz, head.qw);
         _off.set(0, 0.02, 0.23 * def.body.scale).applyQuaternion(_q);
         const mood: FaceMood = u.face === "angry" || u.face === "hurt" || u.face === "dead" ? u.face : "idle";
@@ -216,7 +220,7 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
       }
     }
     return { batches: [...bag.values()], picks, faces };
-  }, [units, blind, placingSide, hat0, hat1]);
+  }, [units, blind, placingSide, hat0, hat1, pal0, pal1]);
 
   return (
     <group>
@@ -237,7 +241,8 @@ export function ArmyView({ snapshot }: { snapshot: WorldSnapshot | null }) {
           onPointerOut={() => useGame.getState().setHoverId(null)}
           onClick={(e) => {
             e.stopPropagation();
-            useGame.getState().setFollowId(p.id);
+            const cur = useGame.getState().followId;
+            useGame.getState().setFollowId(cur === p.id ? null : p.id);
           }}
           onContextMenu={(e) => {
             e.stopPropagation();

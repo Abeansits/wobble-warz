@@ -2,8 +2,9 @@ import type { UnitDef } from "@/game/data/types";
 
 export type JoltModule = Awaited<ReturnType<(typeof import("jolt-physics"))["default"]>>;
 
-const LAYER_STATIC = 0;
-const LAYER_MOVING = 1;
+export const LAYER_STATIC = 0;
+export const LAYER_MOVING = 1;
+export const LAYER_PHASE = 2;
 
 export type BodyHandle = number;
 
@@ -42,6 +43,8 @@ export class JoltWorld {
   private temps: object[] = [];
   private ownedShapes: object[] = [];
   private ownedRagdolls: BuiltRagdoll[] = [];
+  private arenaHandles: BodyHandle[] = [];
+  private capturingArena = false;
   private vec3!: InstanceType<JoltModule["Vec3"]>;
   private rvec3!: InstanceType<JoltModule["RVec3"]>;
   private quat!: InstanceType<JoltModule["Quat"]>;
@@ -54,15 +57,17 @@ export class JoltWorld {
     const settings = new Jolt.JoltSettings();
     settings.mMaxWorkerThreads = 0;
 
-    const objectFilter = new Jolt.ObjectLayerPairFilterTable(2);
+    const objectFilter = new Jolt.ObjectLayerPairFilterTable(3);
     objectFilter.EnableCollision(LAYER_STATIC, LAYER_MOVING);
     objectFilter.EnableCollision(LAYER_MOVING, LAYER_MOVING);
+    objectFilter.EnableCollision(LAYER_STATIC, LAYER_PHASE);
 
     const bpStatic = new Jolt.BroadPhaseLayer(0);
     const bpMoving = new Jolt.BroadPhaseLayer(1);
-    const bpInterface = new Jolt.BroadPhaseLayerInterfaceTable(2, 2);
+    const bpInterface = new Jolt.BroadPhaseLayerInterfaceTable(3, 2);
     bpInterface.MapObjectToBroadPhaseLayer(LAYER_STATIC, bpStatic);
     bpInterface.MapObjectToBroadPhaseLayer(LAYER_MOVING, bpMoving);
+    bpInterface.MapObjectToBroadPhaseLayer(LAYER_PHASE, bpMoving);
 
     settings.mObjectLayerPairFilter = objectFilter;
     settings.mBroadPhaseLayerInterface = bpInterface;
@@ -70,7 +75,7 @@ export class JoltWorld {
       bpInterface,
       2,
       objectFilter,
-      2,
+      3,
     );
 
     this.jolt = new Jolt.JoltInterface(settings);
@@ -110,11 +115,17 @@ export class JoltWorld {
     return this.quat;
   }
 
+  qRollZ(roll: number) {
+    const half = roll * 0.5;
+    this.quat.Set(0, 0, Math.sin(half), Math.cos(half));
+    return this.quat;
+  }
+
   private wrapId(handle: BodyHandle) {
     return new this.Jolt.BodyID(handle);
   }
 
-  createStaticBox(cx: number, cy: number, cz: number, hx: number, hy: number, hz: number, yaw = 0) {
+  createStaticBox(cx: number, cy: number, cz: number, hx: number, hy: number, hz: number, yaw = 0, friction = 0.8, rotZ = 0) {
     const Jolt = this.Jolt;
     const half = new Jolt.Vec3(hx, hy, hz);
     const shape = new Jolt.BoxShape(half, 0.04);
@@ -122,15 +133,18 @@ export class JoltWorld {
     const settings = new Jolt.BodyCreationSettings(
       shape,
       this.rv(cx, cy, cz),
-      this.qYaw(yaw),
+      rotZ ? this.qRollZ(rotZ) : this.qYaw(yaw),
       Jolt.EMotionType_Static,
       LAYER_STATIC,
     );
+    settings.mFriction = friction;
     const body = this.bodyInterface.CreateBody(settings);
     Jolt.destroy(settings);
     this.bodyInterface.AddBody(body.GetID(), Jolt.EActivation_DontActivate);
     this.ownedShapes.push(shape);
-    return body.GetID().GetIndexAndSequenceNumber();
+    const handle = body.GetID().GetIndexAndSequenceNumber();
+    this.remember(handle);
+    return handle;
   }
 
   createStaticSphere(x: number, y: number, z: number, r: number) {
@@ -147,10 +161,12 @@ export class JoltWorld {
     Jolt.destroy(settings);
     this.bodyInterface.AddBody(body.GetID(), Jolt.EActivation_DontActivate);
     this.ownedShapes.push(shape);
-    return body.GetID().GetIndexAndSequenceNumber();
+    const handle = body.GetID().GetIndexAndSequenceNumber();
+    this.remember(handle);
+    return handle;
   }
 
-  createKinematicCapsule(x: number, y: number, z: number, halfHeight: number, radius: number) {
+  createKinematicCapsule(x: number, y: number, z: number, halfHeight: number, radius: number, layer = LAYER_MOVING) {
     const Jolt = this.Jolt;
     const shape = new Jolt.CapsuleShape(halfHeight, radius);
     const settings = new Jolt.BodyCreationSettings(
@@ -158,7 +174,7 @@ export class JoltWorld {
       this.rv(x, y, z),
       this.qid(),
       Jolt.EMotionType_Kinematic,
-      LAYER_MOVING,
+      layer,
     );
     settings.mFriction = 0.8;
     const body = this.bodyInterface.CreateBody(settings);
@@ -186,7 +202,9 @@ export class JoltWorld {
     Jolt.destroy(settings);
     this.bodyInterface.AddBody(body.GetID(), Jolt.EActivation_Activate);
     this.ownedShapes.push(shape);
-    return body.GetID().GetIndexAndSequenceNumber();
+    const handle = body.GetID().GetIndexAndSequenceNumber();
+    this.remember(handle);
+    return handle;
   }
 
   setLinearVelocity(handle: BodyHandle, vx: number, vy: number, vz: number) {
@@ -195,7 +213,7 @@ export class JoltWorld {
     this.Jolt.destroy(id);
   }
 
-  createHumanoid(def: UnitDef, x: number, y: number, z: number, yaw: number, groupId: number): BuiltRagdoll {
+  createHumanoid(def: UnitDef, x: number, y: number, z: number, yaw: number, groupId: number, layer = LAYER_MOVING): BuiltRagdoll {
     const Jolt = this.Jolt;
     const s = def.body.scale;
     const mass = 12 * def.body.massMult * s * s * s;
@@ -264,7 +282,7 @@ export class JoltWorld {
       part.mPosition = positions[p];
       part.mRotation = rotations[p];
       part.mMotionType = Jolt.EMotionType_Dynamic;
-      part.mObjectLayer = LAYER_MOVING;
+      part.mObjectLayer = layer;
       part.mFriction = 0.7;
       part.mRestitution = 0.02;
       part.mLinearDamping = 0.35;
@@ -319,7 +337,7 @@ export class JoltWorld {
       bodyIds[PART_NAMES[i]] = id;
     }
 
-    const rootBody = this.createKinematicCapsule(x, y + 0.95 * s, z, 0.42 * s, 0.16 * s);
+    const rootBody = this.createKinematicCapsule(x, y + 0.95 * s, z, 0.42 * s, 0.16 * s, layer);
     this.setRotation(rootBody, yaw);
 
     const springSettings = new Jolt.DistanceConstraintSettings();
@@ -412,7 +430,7 @@ export class JoltWorld {
     } catch {
       /* */
     }
-    this.removeBody(built.rootBody);
+    if (this.isAdded(built.rootBody)) this.removeBody(built.rootBody);
     this.ownedRagdolls = this.ownedRagdolls.filter((r) => r !== built);
   }
 
@@ -463,6 +481,151 @@ export class JoltWorld {
       /* already gone */
     }
     this.Jolt.destroy(id);
+  }
+
+  private remember(handle: BodyHandle) {
+    if (this.capturingArena) this.arenaHandles.push(handle);
+  }
+
+  beginArena() {
+    this.clearArena();
+    this.capturingArena = true;
+  }
+
+  endArena() {
+    this.capturingArena = false;
+  }
+
+  clearArena() {
+    for (const h of this.arenaHandles) {
+      try {
+        this.removeBody(h);
+      } catch {
+        /* */
+      }
+    }
+    this.arenaHandles = [];
+  }
+
+  isAdded(handle: BodyHandle) {
+    try {
+      const id = this.wrapId(handle);
+      const ok = this.bodyInterface.IsAdded(id);
+      this.Jolt.destroy(id);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  setActive(handle: BodyHandle, on: boolean) {
+    if (!this.isAdded(handle)) return;
+    const id = this.wrapId(handle);
+    try {
+      if (on) this.bodyInterface.ActivateBody(id);
+      else this.bodyInterface.DeactivateBody(id);
+    } catch {
+      /* */
+    }
+    this.Jolt.destroy(id);
+  }
+
+  freezeBody(handle: BodyHandle) {
+    if (!this.isAdded(handle)) return;
+    const id = this.wrapId(handle);
+    try {
+      this.bodyInterface.SetMotionType(id, this.Jolt.EMotionType_Static, this.Jolt.EActivation_DontActivate);
+    } catch {
+      /* */
+    }
+    this.Jolt.destroy(id);
+  }
+
+  speedOf(handle: BodyHandle) {
+    if (!this.isAdded(handle)) return 0;
+    try {
+      const id = this.wrapId(handle);
+      const vel = this.bodyInterface.GetLinearVelocity(id);
+      const s = Math.hypot(vel.GetX(), vel.GetY(), vel.GetZ());
+      this.Jolt.destroy(id);
+      return s;
+    } catch {
+      return 0;
+    }
+  }
+
+  createDistanceSpring(a: BodyHandle, b: BodyHandle, min: number, max: number, freq: number) {
+    const Jolt = this.Jolt;
+    const ta: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
+    const tb: TransformSnap = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
+    this.getTransform(a, ta);
+    this.getTransform(b, tb);
+    const settings = new Jolt.DistanceConstraintSettings();
+    settings.mSpace = Jolt.EConstraintSpace_WorldSpace;
+    const p1 = new Jolt.RVec3(ta.x, ta.y, ta.z);
+    const p2 = new Jolt.RVec3(tb.x, tb.y, tb.z);
+    settings.mPoint1 = p1;
+    settings.mPoint2 = p2;
+    settings.mMinDistance = min;
+    settings.mMaxDistance = max;
+    settings.mLimitsSpringSettings.mFrequency = freq;
+    settings.mLimitsSpringSettings.mDamping = 0.4;
+    const idA = this.wrapId(a);
+    const idB = this.wrapId(b);
+    const constraint = this.bodyInterface.CreateConstraint(settings, idA, idB);
+    this.system.AddConstraint(constraint);
+    Jolt.destroy(settings);
+    Jolt.destroy(idA);
+    Jolt.destroy(idB);
+    Jolt.destroy(p1);
+    Jolt.destroy(p2);
+    return constraint;
+  }
+
+  dropConstraint(constraint: InstanceType<JoltModule["Constraint"]>) {
+    try {
+      this.system.RemoveConstraint(constraint);
+    } catch {
+      /* */
+    }
+    try {
+      this.Jolt.destroy(constraint);
+    } catch {
+      /* */
+    }
+  }
+
+  raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number): { handle: BodyHandle; fraction: number } | null {
+    const Jolt = this.Jolt;
+    try {
+      const ray = new Jolt.RRayCast();
+      ray.mOrigin.Set(ox, oy, oz);
+      ray.mDirection.Set(dx, dy, dz);
+      const settings = new Jolt.RayCastSettings();
+      const collector = new Jolt.CastRayClosestHitCollisionCollector();
+      const bp = new Jolt.BroadPhaseLayerFilter();
+      const obj = new Jolt.ObjectLayerFilter();
+      const body = new Jolt.BodyFilter();
+      const shape = new Jolt.ShapeFilter();
+      this.system.GetNarrowPhaseQuery().CastRay(ray, settings, collector, bp, obj, body, shape);
+      let result: { handle: BodyHandle; fraction: number } | null = null;
+      if (collector.HadHit() && collector.mHit.mFraction < 0.999) {
+        result = {
+          handle: collector.mHit.mBodyID.GetIndexAndSequenceNumber(),
+          fraction: collector.mHit.mFraction,
+        };
+      }
+      Jolt.destroy(ray);
+      Jolt.destroy(settings);
+      Jolt.destroy(collector);
+      Jolt.destroy(bp);
+      Jolt.destroy(obj);
+      Jolt.destroy(body);
+      Jolt.destroy(shape);
+      return result;
+    } catch {
+      return null;
+    }
   }
 
   drivePose(built: BuiltRagdoll) {

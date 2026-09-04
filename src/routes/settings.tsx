@@ -12,10 +12,12 @@ type Settings = {
   sfx: number;
   shake: boolean;
   blind: boolean;
+  shadows: "high" | "low";
   setMusic: (n: number) => void;
   setSfx: (n: number) => void;
   setShake: (v: boolean) => void;
   setBlind: (v: boolean) => void;
+  setShadows: (v: "high" | "low") => void;
 };
 
 export const useSettings = create<Settings>()(
@@ -25,10 +27,12 @@ export const useSettings = create<Settings>()(
       sfx: 0.8,
       shake: true,
       blind: true,
+      shadows: "high",
       setMusic: (music) => set({ music }),
       setSfx: (sfx) => set({ sfx }),
       setShake: (shake) => set({ shake }),
       setBlind: (blind) => set({ blind }),
+      setShadows: (shadows) => set({ shadows }),
     }),
     { name: "wobble-wars-settings" },
   ),
@@ -55,6 +59,17 @@ function SettingsPage() {
         <label className="mt-2 flex items-center gap-2 font-display">
           <input type="checkbox" checked={s.blind} onChange={(e) => s.setBlind(e.target.checked)} />
           Blind placement on pass
+        </label>
+        <label className="mt-4 block font-display">
+          Shadows
+          <select
+            className="ml-2 rounded-btn border-[3px] border-ink bg-cream px-2 py-1 text-ink"
+            value={s.shadows}
+            onChange={(e) => s.setShadows(e.target.value === "low" ? "low" : "high")}
+          >
+            <option value="high">High (2048)</option>
+            <option value="low">Low (1024)</option>
+          </select>
         </label>
         <p className="mt-4 text-sm text-cream/70">
           Music plays on the title and during fights. Shadows stay on; turn shake off if the camera wobbles too much.

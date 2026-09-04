@@ -6,6 +6,7 @@ import type { World } from "@/game/sim/World";
 import { useGame } from "@/store/gameStore";
 import { ArmyView } from "./ArmyView";
 import { CameraRig } from "./CameraRig";
+import { Clouds, SkyDome } from "./SkyBits";
 import { DeployPads, MeadowProps, Terrain } from "./Terrain";
 import { Particles, burst } from "./Particles";
 import { BattleFx } from "./Fx";
@@ -102,36 +103,39 @@ function SimLoop({ world }: { world: World }) {
       const dt = Math.min(0.05, (now - last.current) / 1000);
       last.current = now;
       try {
-        if (world.phase !== "setup" && world.phase !== "over") {
+        const before = world.phase;
+        if (before !== "setup" && before !== "over") {
           world.step(dt, speedRef.current, pausedRef.current || speedRef.current === 0);
           frame.current++;
-          if (frame.current % 2 === 0) {
-            setSnapshot(world.snapshot());
-            const ev = world.drainEvents();
-            for (const e of ev) {
-              if (e.type === "death") {
-                const victim = world.units.find((u) => u.id === e.unitId);
-                const killer = e.killerId != null ? world.units.find((u) => u.id === e.killerId) : undefined;
-                useGame.getState().pushKill(
-                  `${killer?.def.name ?? "The meadow"} dropped ${victim?.def.name ?? "someone"}`,
-                );
-                sfx("yelp", useSettings.getState().sfx);
-                if (victim) burst(victim.x, victim.y + 0.6, victim.z, 18, victim.side === 0 ? "#3a5f8a" : "#b33a2b", 6);
-              }
-              if (e.type === "hit" && e.impulse > 18) {
-                sfx("hit", useSettings.getState().sfx);
-                if (useSettings.getState().shake) useGame.getState().bumpCam("pitch", 0.02);
-                const v = world.units.find((u) => u.id === e.victimId);
-                if (v) burst(v.x, v.y + 0.5, v.z, 8, "#ffe6b8", 5);
-              }
-              if (e.type === "shot") {
-                const u = world.units.find((n) => n.id === e.unitId);
-                if (u) burst(u.x, u.y + 0.7, u.z, 4, "#f0d090", 3);
-              }
-              if (e.type === "victory") {
-                sfx("win", useSettings.getState().sfx);
-                duckMeadow(true);
-              }
+        }
+        const ended = before !== "over" && world.phase === "over";
+        const ticking = world.phase !== "setup" && world.phase !== "over";
+        if (ended || (ticking && frame.current % 2 === 0)) {
+          setSnapshot(world.snapshot());
+          const ev = world.drainEvents();
+          for (const e of ev) {
+            if (e.type === "death") {
+              const victim = world.units.find((u) => u.id === e.unitId);
+              const killer = e.killerId != null ? world.units.find((u) => u.id === e.killerId) : undefined;
+              useGame.getState().pushKill(
+                `${killer?.def.name ?? "The meadow"} dropped ${victim?.def.name ?? "someone"}`,
+              );
+              sfx("yelp", useSettings.getState().sfx);
+              if (victim) burst(victim.x, victim.y + 0.6, victim.z, 18, victim.side === 0 ? "#3a5f8a" : "#b33a2b", 6);
+            }
+            if (e.type === "hit" && e.impulse > 18) {
+              sfx("hit", useSettings.getState().sfx);
+              if (useSettings.getState().shake) useGame.getState().bumpCam("pitch", 0.02);
+              const v = world.units.find((u) => u.id === e.victimId);
+              if (v) burst(v.x, v.y + 0.5, v.z, 8, "#ffe6b8", 5);
+            }
+            if (e.type === "shot") {
+              const u = world.units.find((n) => n.id === e.unitId);
+              if (u) burst(u.x, u.y + 0.7, u.z, 4, "#f0d090", 3);
+            }
+            if (e.type === "victory") {
+              sfx("win", useSettings.getState().sfx);
+              duckMeadow(true);
             }
           }
         }
@@ -161,6 +165,8 @@ function SkyMood() {
 }
 
 function Lights() {
+  const shadows = useSettings((s) => s.shadows) ?? "high";
+  const map = shadows === "low" ? 1024 : 2048;
   useFrame(({ gl, camera }) => {
     const w = window as unknown as {
       __draw?: number;
@@ -179,14 +185,19 @@ function Lights() {
   return (
     <>
       <SkyMood />
-      <hemisphereLight args={["#cfe8ff", "#4a6a32", 0.7]} />
+      <SkyDome />
+      <Clouds />
+      <hemisphereLight args={["#9ec4e8", "#3a5a32", 0.75]} />
       <directionalLight
+        key={map}
         castShadow
         position={[18, 28, 10]}
         intensity={1.35}
         color="#ffe6b8"
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={map}
+        shadow-mapSize-height={map}
+        shadow-bias={-0.00035}
+        shadow-radius={2}
         shadow-camera-left={-32}
         shadow-camera-right={32}
         shadow-camera-top={24}
@@ -200,6 +211,41 @@ export function BattleApp() {
   const [world, setWorld] = useState<World | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const setSnapshot = useGame((s) => s.setSnapshot);
+
+  useEffect(() => {
+    if (!world) return;
+    const bag = window as unknown as {
+      __wobble?: { world: World; startDemo: () => void };
+    };
+    bag.__wobble = {
+      world,
+      startDemo: () => {
+        world.clearUnits();
+        for (let i = 0; i < 6; i++) {
+          world.place({
+            defId: "stoneage.clubber",
+            x: -16,
+            z: -6 + i * 2.2,
+            yaw: -Math.PI / 2,
+            side: 0,
+          });
+          world.place({
+            defId: "medieval.squire",
+            x: 16,
+            z: -6 + i * 2.2,
+            yaw: Math.PI / 2,
+            side: 1,
+          });
+        }
+        world.startCountdown();
+        useGame.getState().setSeat("fight");
+        useGame.getState().setSnapshot(world.snapshot());
+      },
+    };
+    return () => {
+      delete bag.__wobble;
+    };
+  }, [world]);
 
   useEffect(() => {
     let alive = true;
@@ -288,6 +334,8 @@ export function BattleApp() {
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
         onCreated={({ gl }) => {
           gl.toneMappingExposure = 1.1;
+          gl.shadowMap.enabled = true;
+          gl.shadowMap.type = THREE.PCFSoftShadowMap;
         }}
       >
         <Suspense fallback={null}>

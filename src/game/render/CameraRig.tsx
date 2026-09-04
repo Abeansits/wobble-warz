@@ -37,6 +37,7 @@ export function CameraRig() {
       pitch.current = 0.72;
       dist.current = 32;
       target.current.set(0, 1.2, 0);
+      useGame.getState().setFollowId(null);
     }
   }, [camBump]);
 
@@ -48,7 +49,13 @@ export function CameraRig() {
       if (e.target !== el && !el.contains(e.target as Node)) return;
       const setup = useGame.getState().snapshot?.phase === "setup";
       if (e.button === 0 && setup && !e.altKey && !e.shiftKey) return;
-      if (e.button === 2 || e.altKey || e.button === 1 || (!setup && e.button === 0 && !e.shiftKey)) {
+      if (e.button === 1) {
+        e.preventDefault();
+        const s = useGame.getState();
+        s.setFollowId(s.followId == null ? s.hoverId : null);
+        return;
+      }
+      if (e.button === 2 || e.altKey || (!setup && e.button === 0 && !e.shiftKey)) {
         dragging.current = e.shiftKey ? "pan" : "orbit";
       } else if (e.shiftKey) {
         dragging.current = "pan";
@@ -67,6 +74,7 @@ export function CameraRig() {
       const dx = e.clientX - last.current.x;
       const dy = e.clientY - last.current.y;
       last.current = { x: e.clientX, y: e.clientY };
+      if (Math.hypot(dx, dy) > 2) useGame.getState().setFollowId(null);
       if (dragging.current === "orbit") {
         yaw.current -= dx * 0.007;
         pitch.current = THREE.MathUtils.clamp(pitch.current + dy * 0.005, MIN_PITCH, MAX_PITCH);
@@ -84,6 +92,7 @@ export function CameraRig() {
     };
     const onWheel = (e: WheelEvent) => {
       dist.current = THREE.MathUtils.clamp(dist.current + e.deltaY * 0.025, MIN_DIST, MAX_DIST);
+      useGame.getState().setFollowId(null);
     };
     const onCtx = (e: Event) => e.preventDefault();
     el.addEventListener("pointerdown", onDown);
@@ -102,6 +111,13 @@ export function CameraRig() {
           const u = s.snapshot?.units.find((n) => n.state !== "dead");
           if (u) s.setFollowId(u.id);
         }
+      }
+      if (e.code === "KeyR") {
+        yaw.current = 0.2;
+        pitch.current = 0.72;
+        dist.current = 32;
+        target.current.set(0, 1.2, 0);
+        useGame.getState().setFollowId(null);
       }
       if (e.code === "KeyC") {
         const presets = [
@@ -165,19 +181,13 @@ export function CameraRig() {
     if (k.has("KeyE")) yaw.current += 1.4 * dt;
     if (k.has("KeyZ")) pitch.current = THREE.MathUtils.clamp(pitch.current + 1.1 * dt, MIN_PITCH, MAX_PITCH);
     if (k.has("KeyX")) pitch.current = THREE.MathUtils.clamp(pitch.current - 1.1 * dt, MIN_PITCH, MAX_PITCH);
-    if (k.has("KeyR")) {
-      yaw.current = 0.2;
-      pitch.current = 0.72;
-      dist.current = 32;
-      target.current.set(0, 1.2, 0);
-    }
-
     if (followId != null && snapshot) {
       const u = snapshot.units.find((n) => n.id === followId);
       const p = u?.parts.torso ?? u?.root;
       if (p && Number.isFinite(p.x)) {
         target.current.lerp(new THREE.Vector3(p.x, p.y + 0.4, p.z), 1 - Math.pow(0.002, dt));
-        dist.current = THREE.MathUtils.lerp(dist.current, 16, 0.04);
+      } else {
+        useGame.getState().setFollowId(null);
       }
     }
 

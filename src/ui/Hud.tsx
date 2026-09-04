@@ -4,9 +4,9 @@ import { FACTION_META, type FactionId } from "@/game/data/types";
 import { ARENAS } from "@/game/data/arenas";
 import { POWERUPS } from "@/game/data/rolls";
 import { LADDER, ladderArmy } from "@/game/data/ladder";
-import { M1_FACTIONS, rosterFor } from "@/game/data/units";
+import { M1_FACTIONS, getUnit, rosterFor } from "@/game/data/units";
 import type { World } from "@/game/sim/World";
-import { creditPayout, useProfiles } from "@/game/meta/profiles";
+import { creditPayout, ladderPayout, useProfiles } from "@/game/meta/profiles";
 import { useGame, type Speed } from "@/store/gameStore";
 
 const SPEEDS: Speed[] = [0.25, 0.5, 1, 2];
@@ -60,6 +60,32 @@ export function Hud({ world }: { world: World }) {
   const phase = snapshot?.phase ?? "setup";
   const cards = rosterFor(faction);
 
+  useEffect(() => {
+    if (phase === "countdown") setMessage("Don't blink.");
+    if (phase === "battle") setMessage("");
+    if (phase === "over") setMessage("That's the whistle.");
+  }, [phase, setMessage]);
+
+  const undoSide = () => {
+    const last = world.removeLast(placingSide);
+    if (!last) return;
+    useGame.getState().popPlace();
+    useGame.getState().addSpend(placingSide, -last.def.cost);
+    useGame.getState().setSnapshot(world.snapshot());
+  };
+
+  const redoSide = () => {
+    const p = useGame.getState().redoPlace();
+    if (!p || p.side !== placingSide) return;
+    try {
+      world.place(p);
+      useGame.getState().addSpend(placingSide, getUnit(p.defId).cost);
+      useGame.getState().setSnapshot(world.snapshot());
+    } catch {
+      /* */
+    }
+  };
+
   const readyP1 = () => {
     if (world.units.filter((u) => u.side === 0).length < 1) {
       setMessage("P1 needs at least one unit.");
@@ -102,13 +128,48 @@ export function Hud({ world }: { world: World }) {
       setMessage("Both sides need a unit.");
       return;
     }
-    world.startCountdown();
+    world.startCountdown(useGame.getState().powerups);
+    const api = useProfiles.getState();
+    api.usePowerups(api.p1, useGame.getState().powerups[0]);
+    api.usePowerups(api.p2, useGame.getState().powerups[1]);
     useGame.getState().setSnapshot(world.snapshot());
     useGame.getState().setPaused(false);
     useGame.getState().setSpeed(1);
     setSeat("fight");
     setMessage("Here they come.");
   };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const st = useGame.getState();
+      const ph = st.snapshot?.phase ?? "setup";
+      if (e.code === "Enter" && ph === "setup") {
+        e.preventDefault();
+        if (st.seat === "setupP1") readyP1();
+        if (st.seat === "setupP2") go();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
+        e.preventDefault();
+        if (ph === "setup") undoSide();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyY") {
+        e.preventDefault();
+        if (ph === "setup") redoSide();
+      }
+      if ((e.code === "Delete" || e.code === "Backspace") && ph === "setup") {
+        const t = e.target as HTMLElement | null;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+        e.preventDefault();
+        undoSide();
+      }
+      if (e.code === "KeyM" && ph === "setup") {
+        world.mirrorSide(st.placingSide);
+        st.setSnapshot(world.snapshot());
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   const rematch = () => {
     const stored = useGame.getState().placements;
@@ -170,7 +231,8 @@ export function Hud({ world }: { world: World }) {
                 type="button"
                 onClick={() => {
                   setArena(a.id);
-                  world.arena = a.id;
+                  world.setArena(a.id);
+                  useGame.getState().setSnapshot(world.snapshot());
                 }}
                 className={`rounded-btn px-2 py-1 text-sm font-display ${arena === a.id ? "bg-ochre" : ""}`}
               >
@@ -191,7 +253,7 @@ export function Hud({ world }: { world: World }) {
           </div>
           {phase === "setup" && (
             <div className="flex gap-1 text-xs">
-              {[3000, 4500, 6000].map((n) => (
+              {[1500, 3000, 6000].map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -242,10 +304,25 @@ export function Hud({ world }: { world: World }) {
                   key={id}
                   type="button"
                   onClick={() => setFaction(id as FactionId)}
-                  className={`toy-shadow rounded-btn border-[3px] border-ink px-2 py-1 text-sm font-display ${
+                  className={`toy-shadow flex items-center gap-1 rounded-btn border-[3px] border-ink px-2 py-1 text-sm font-display ${
                     faction === id ? "bg-ochre-hot" : "bg-parchment"
                   }`}
                 >
+                  <span
+                    className="inline-block h-5 w-5 rounded-sm border-[2px] border-ink bg-cover"
+                    style={{
+                      backgroundImage: "url(/assets/emblems.png)",
+                      backgroundSize: "300% 200%",
+                      backgroundPosition: {
+                        stoneage: "0% 0%",
+                        medieval: "50% 0%",
+                        pirate: "100% 0%",
+                        frontier: "0% 100%",
+                        haunted: "50% 100%",
+                        anomaly: "100% 100%",
+                      }[id],
+                    }}
+                  />
                   {FACTION_META[id].name}
                 </button>
               );
@@ -366,13 +443,7 @@ export function Hud({ world }: { world: World }) {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  const last = world.removeLast(0);
-                  if (!last) return;
-                  useGame.getState().popPlace();
-                  useGame.getState().addSpend(0, -last.def.cost);
-                  useGame.getState().setSnapshot(world.snapshot());
-                }}
+                onClick={undoSide}
                 className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
               >
                 Undo
@@ -438,10 +509,58 @@ export function Hud({ world }: { world: World }) {
             <>
               <button
                 type="button"
-                onClick={wipe}
+                onClick={undoSide}
                 className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
               >
-                Clear
+                Undo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  world.mirrorSide(1);
+                  useGame.getState().setSnapshot(world.snapshot());
+                }}
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
+              >
+                Flip
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const units = world.units
+                    .filter((u) => u.side === 1)
+                    .map((u) => ({ defId: u.def.id, x: u.x, z: u.z, yaw: u.yaw, side: 1 as const }));
+                  const who = useProfiles.getState().p2;
+                  useProfiles.getState().saveArmy(who, "Hot-seat", units);
+                  setMessage("Army saved.");
+                }}
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const who = p2;
+                  const army = who?.armies?.[0];
+                  if (!army) {
+                    setMessage("No saved army yet.");
+                    return;
+                  }
+                  world.clearSide(1);
+                  for (const raw of army.units) {
+                    try {
+                      world.place({ ...raw, side: 1 });
+                    } catch {
+                      /* cap */
+                    }
+                  }
+                  useGame.getState().setSnapshot(world.snapshot());
+                  setMessage(`Loaded ${army.name}.`);
+                }}
+                className="toy-shadow rounded-btn border-[3px] border-ink bg-parchment px-3 py-2 font-display"
+              >
+                Load
               </button>
               <button
                 type="button"
@@ -465,9 +584,13 @@ export function Hud({ world }: { world: World }) {
                 const fu = snapshot?.units.find((u) => u.id === followId);
                 if (!fu) return <span className="ml-2 text-sm text-muted">click a toy · F</span>;
                 return (
-                  <span className="ml-2 text-sm">
-                    {fu.defId.split(".")[1]} {Math.ceil(fu.hp)}/{fu.maxHp}
-                  </span>
+                  <button
+                    type="button"
+                    className="ml-2 text-sm underline decoration-2 underline-offset-2"
+                    onClick={() => useGame.getState().setFollowId(null)}
+                  >
+                    following {fu.defId.split(".")[1]} · click to back off
+                  </button>
                 );
               })()}
             </div>
@@ -554,21 +677,32 @@ function ResultsCard({
 }) {
   const snapshot = useGame((s) => s.snapshot);
   const awarded = useGame((s) => s.awarded);
+  const vsAI = useGame((s) => s.vsAI);
+  const ladderLevel = useGame((s) => s.ladderLevel);
   const stats = world.stats();
   const p1id = useProfiles((s) => s.p1);
   const p2id = useProfiles((s) => s.p2);
   const plist = useProfiles((s) => s.profiles);
-  const pay = creditPayout(snapshot?.winner ?? "draw", stats.spent[snapshot?.winner === 0 ? 1 : 0] ?? 0, stats.mvpSide);
+  const hotseat = creditPayout(snapshot?.winner ?? "draw", stats.spent[snapshot?.winner === 0 ? 1 : 0] ?? 0, stats.mvpSide);
+  const firstLadder = vsAI && ladderLevel != null && (plist.find((p) => p.id === p1id)?.ladderProgress ?? 0) < ladderLevel;
+  const pay = vsAI && ladderLevel != null
+    ? { p1: ladderPayout(ladderLevel, firstLadder) + (stats.mvpSide === 0 ? 20 : 0), p2: 0 }
+    : hotseat;
 
   useEffect(() => {
     if (awarded || !snapshot || snapshot.phase !== "over") return;
     const api = useProfiles.getState();
     api.addCredits(api.p1, pay.p1);
-    api.addCredits(api.p2, pay.p2);
-    api.recordBattle(api.p1, snapshot.winner === 0);
-    api.recordBattle(api.p2, snapshot.winner === 1);
+    if (!vsAI) {
+      api.addCredits(api.p2, pay.p2);
+      api.recordBattle(api.p1, snapshot.winner === 0);
+      api.recordBattle(api.p2, snapshot.winner === 1);
+    } else {
+      api.recordBattle(api.p1, snapshot.winner === 0);
+      if (snapshot.winner === 0 && ladderLevel != null) api.recordLadder(api.p1, ladderLevel);
+    }
     useGame.getState().setAwarded(true);
-  }, [awarded, snapshot, pay.p1, pay.p2]);
+  }, [awarded, snapshot, pay.p1, pay.p2, vsAI, ladderLevel]);
 
   const p1 = plist.find((p) => p.id === p1id);
   const p2 = plist.find((p) => p.id === p2id);
